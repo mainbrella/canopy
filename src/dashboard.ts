@@ -1,6 +1,7 @@
-import { dashboardView, containerLifecycle, productionCost } from './dashboard-view.ts';
+import { dashboardView } from './dashboard-view.ts';
 import type { ContainerData } from './types.ts';
-import { formatBalance, readPrepaidBalance } from './prepaid-billing.ts';
+import { readPrepaidBalance } from './prepaid-billing.ts';
+import { createOverviewFeed } from './overview-feed.ts';
 import { createImagesDashboard } from './images-dashboard.ts';
 import { createContainersDashboard } from './containers-dashboard.ts';
 import { initializeAccountPage } from './account-page.ts';
@@ -22,23 +23,13 @@ function initializeDashboard() {
     if (dashboardView(new URL(link.href).search) === view) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
-  const containers = createContainersDashboard({ onUnauthenticated: goToLogin,
-    lifecycle: view === 'production' ? 'production' : 'ad_hoc', overview: view === 'overview',
-    onLoadError() {
-      document.querySelector<HTMLElement>('#overview-error')!.textContent = 'Could not load usage and workloads. Try again.';
-      document.querySelector<HTMLElement>('#overview-error')!.hidden = false;
-      document.querySelector<HTMLButtonElement>('#overview-retry')!.hidden = false;
-    },
+  document.querySelector<HTMLElement>('#dashboard-resources')!.hidden = view === 'overview';
+  const overview = view === 'overview' ? createOverviewFeed({ onUnauthenticated: goToLogin,
+    onBalance(balance) { account.updateBalance(balance); },
+  }) : null;
+  const containers = view !== 'overview' ? createContainersDashboard({ onUnauthenticated: goToLogin,
+    lifecycle: view === 'production' ? 'production' : 'ad_hoc',
     onData(data) {
-      document.querySelector<HTMLElement>('#overview-error')!.hidden = true;
-      document.querySelector<HTMLButtonElement>('#overview-retry')!.hidden = true;
-      const production = data.containers.filter(container => containerLifecycle(container) === 'production').length;
-      const adHoc = data.containers.length - production;
-      document.querySelector<HTMLElement>('#overview-ad-hoc')!.textContent = `${adHoc} ${adHoc === 1 ? 'container' : 'containers'}`;
-      document.querySelector<HTMLElement>('#overview-production')!.textContent = `${production} ${production === 1 ? 'container' : 'containers'} · $${productionCost(data).toFixed(2)}/hour`;
-      const cap = document.querySelector<HTMLElement>('#overview-production-cap')!;
-      cap.hidden = !production || !data.billing;
-      cap.textContent = `Production stops when its funded runtime or your ${formatBalance(data.billing?.spendLimitCents ?? 500)} monthly spending cap runs out.`;
       if (account.user && data.billing !== lastContainerBilling && typeof data.billing?.balanceCents === 'number') {
         try {
           const balance = readPrepaidBalance(data.billing);
@@ -47,17 +38,16 @@ function initializeDashboard() {
         } catch { /* Keep the last verified funding status if the container response is incomplete. */ }
       }
     },
-  });
-  document.querySelector<HTMLButtonElement>('#overview-retry')!.addEventListener('click', () => containers.load());
-  const images = createImagesDashboard({ onUnauthenticated: goToLogin,
-    onImagesChanged: containers.setImages, onSelectImage: containers.selectImage });
+  }) : null;
+  const images = containers ? createImagesDashboard({ onUnauthenticated: goToLogin,
+    onImagesChanged: containers.setImages, onSelectImage: containers.selectImage }) : null;
 
   function goToLogin() {
     window.location.replace(`/login/?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
   }
 
   const account = initializeAccountPage({
-    load() { containers.load(); images.load(); },
-    dispose() { containers.dispose(); images.dispose(); },
+    load() { overview?.load(); containers?.load(); images?.load(); },
+    dispose() { overview?.dispose(); containers?.dispose(); images?.dispose(); },
   });
 }

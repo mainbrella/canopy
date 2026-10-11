@@ -54,7 +54,7 @@
           <button id="github-more" class="dashboard-retry" type="button" hidden>Load more repositories</button>
           <label for="github-branch">Branch</label>
           <input id="github-branch" type="text" required value="main" autocomplete="off" autocapitalize="none" spellcheck="false" />
-          <p id="github-note" class="dashboard-status">Builder will commit to GitHub and turn off hosted Git. Use an empty branch when moving existing Git history.</p>
+          <p id="github-note" class="dashboard-status">Builder will commit to GitHub. Your Mainbrella working copy stays stored and billed until you choose to delete it. Use an empty branch when moving existing Git history.</p>
         </div>
         <p id="github-error" class="dashboard-error" role="alert" hidden></p>
         <p id="github-status" class="dashboard-status" role="status"></p>
@@ -64,6 +64,18 @@
           <button id="github-cancel" class="dashboard-retry" type="button">Cancel</button>
         </div>
       </form>
+    </dialog>
+    <dialog id="project-storage-dialog" class="private-services-dialog" aria-labelledby="project-storage-title" aria-describedby="project-storage-description">
+      <h2 id="project-storage-title">Delete Mainbrella copy?</h2>
+      <p id="project-storage-description" class="dashboard-status">Delete stored source, source revisions, images and diagnostic results for <strong id="project-storage-name"></strong>. Your project, conversation and Builder access stay available using GitHub.</p>
+      <p class="dashboard-status">We’ll verify that the current code and images are pushed before deleting. Your GitHub repository stays untouched: <a id="project-storage-github" target="_blank" rel="noopener"></a>.</p>
+      <p class="dashboard-status">Storage charges for removed files stop once cleanup finishes. Earlier usage remains billable. Future builds may store new files.</p>
+      <p id="project-storage-error" class="dashboard-error" role="alert" hidden></p>
+      <p id="project-storage-status" class="dashboard-status" role="status"></p>
+      <div class="container-actions">
+        <button id="project-storage-cancel" class="dashboard-retry" type="button">Keep copy</button>
+        <button id="project-storage-delete" class="dashboard-retry button-danger project-storage-delete" type="button">Delete Mainbrella copy</button>
+      </div>
     </dialog>
     <dialog id="endpoint-dialog" class="private-services-dialog endpoint-dialog" aria-labelledby="endpoint-title">
       <h2 id="endpoint-title">Endpoint</h2>

@@ -35,12 +35,42 @@
           <div><dt id="usage-compute-label">Compute-unit hours available</dt><dd id="usage-compute">—</dd><dd id="usage-compute-detail" class="usage-detail"></dd></div>
           <div><dt>Starts remaining this month</dt><dd id="usage-starts">—</dd><dd id="usage-starts-detail" class="usage-detail"></dd></div>
         </dl>
-        <section id="dashboard-overview" class="overview-workloads" aria-label="Workloads" hidden>
-          <a href="/dashboard/?view=ad-hoc"><strong>Ad Hoc</strong><span id="overview-ad-hoc">Loading…</span></a>
-          <a href="/dashboard/?view=production"><strong>Production</strong><span id="overview-production">Loading…</span></a>
+        <section id="dashboard-overview" class="overview-feed" aria-labelledby="overview-title" aria-busy="true" hidden>
+          <div class="overview-heading">
+            <h2 id="overview-title">Activity</h2>
+            <div class="overview-feed-actions">
+              <span id="overview-updated" class="overview-updated"></span>
+              <button id="overview-refresh" class="dashboard-retry" type="button" disabled>Refresh</button>
+            </div>
+          </div>
+          <p id="overview-status" class="dashboard-status" role="status">Loading your activity…</p>
           <p id="overview-error" class="dashboard-error" role="alert" hidden></p>
           <button id="overview-retry" class="dashboard-retry" type="button" hidden>Retry</button>
-          <p id="overview-production-cap" class="dashboard-status" hidden></p>
+          <div id="overview-feed" hidden>
+            <dl class="overview-cost-summary">
+              <div><dt>Current compute rate</dt><dd><span id="overview-hourly">—</span><span class="overview-rate-unit">/hour</span></dd></div>
+              <div><dt>Spent this month</dt><dd id="overview-monthly">—</dd><dd id="overview-cap" class="overview-summary-detail"></dd></div>
+            </dl>
+            <p id="overview-storage-warning" class="dashboard-error" role="status" hidden></p>
+            <section class="overview-feed-section" aria-labelledby="overview-running-title">
+              <h3 id="overview-running-title">Running now</h3>
+              <ul id="overview-running" class="overview-activity-list"></ul>
+              <p id="overview-running-empty" class="dashboard-status" hidden>No containers are currently consuming balance.</p>
+            </section>
+            <section id="overview-summaries-section" class="overview-feed-section" aria-labelledby="overview-summaries-title" hidden>
+              <h3 id="overview-summaries-title">Usage summaries</h3>
+              <ul id="overview-summaries" class="overview-activity-list"></ul>
+            </section>
+            <section class="overview-feed-section" aria-labelledby="overview-recent-title">
+              <h3 id="overview-recent-title">Recent activity</h3>
+              <ol id="overview-recent" class="overview-activity-list"></ol>
+              <p id="overview-recent-empty" class="dashboard-status" hidden>No recent activity yet.</p>
+            </section>
+            <div class="overview-history-link">
+              <p id="overview-history-note" class="dashboard-status" hidden>Showing the latest activity. Older workload details may be limited.</p>
+              <a class="text-link" href="/balance/">View full cost history <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
         </section>
         <section id="dashboard-resources" class="dashboard-containers" aria-label="Resources">
           <div class="dashboard-section-heading">

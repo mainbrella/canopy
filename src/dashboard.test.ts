@@ -10,12 +10,15 @@ const shared = globalThis as typeof globalThis & {
   dashboardDisposals: number;
   dashboardBuildLoads: string[];
   dashboardBuildDisposals: number;
+  dashboardOverviewLoads: number;
+  dashboardOverviewDisposals: number;
 };
 registerHooks({ resolve(specifier, context, next) {
   const mocks: Record<string, string> = {
     './auth.ts': "export const API_ORIGIN='https://api.test';export const createAuthClient=()=>({readSession:()=>globalThis.dashboardSession()});",
     './containers-dashboard.ts': 'export const createContainersDashboard=options=>{globalThis.dashboardContainerOptions=options;return{load(){globalThis.dashboardLoads++},dispose(){globalThis.dashboardDisposals++},setImages(){},selectImage(){}}}',
     './images-dashboard.ts': 'export const createImagesDashboard=()=>({load(){},dispose(){globalThis.dashboardDisposals++}});',
+    './overview-feed.ts': 'export const createOverviewFeed=()=>({load(){globalThis.dashboardOverviewLoads++},dispose(){globalThis.dashboardOverviewDisposals++}});',
     './build-dashboard.ts': 'export const createBuildDashboard=()=>({load(id){globalThis.dashboardBuildLoads.push(id)},dispose(){globalThis.dashboardBuildDisposals++}});',
     './acquisition-analytics.ts': 'export const trackFunnel=()=>{};',
   };
@@ -45,7 +48,7 @@ async function fixture(t: TestContext, extra: Record<string, any> = {}) {
     Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
     t.after(() => { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); });
   };
-  const location = { search: extra.search || '', pathname: extra.builder ? '/build/' : '/dashboard/', hash: extra.hash || '', replace: (path: string) => redirects.push(path), reload: () => { reloads++; } };
+  const location = { search: extra.search ?? (extra.builder ? '' : '?view=ad-hoc'), pathname: extra.builder ? '/build/' : '/dashboard/', hash: extra.hash || '', replace: (path: string) => redirects.push(path), reload: () => { reloads++; } };
   property('location', location);
   property('document', { querySelector: node, querySelectorAll: () => [] });
   property('window', { location, addEventListener: (type: string, handler: (event: any) => void) => events.set(type, handler),
@@ -53,6 +56,7 @@ async function fixture(t: TestContext, extra: Record<string, any> = {}) {
   shared.dashboardSession = async () => { sessionReads++; return extra.signedOut ? null : { user: { id: 'owner' } }; };
   shared.dashboardLoads = 0; shared.dashboardDisposals = 0;
   shared.dashboardBuildLoads = []; shared.dashboardBuildDisposals = 0;
+  shared.dashboardOverviewLoads = 0; shared.dashboardOverviewDisposals = 0;
   property('fetch', async (url: string, options: RequestInit) => {
     calls.push(new URL(url).pathname); assert.equal(options.credentials, 'include');
     if (extra.gate) await extra.gate;
@@ -70,6 +74,17 @@ test('dashboard reads prepaid balance and links billing while workloads load ind
   assert.equal(f.node('#subscription-note').hidden, true);
   assert.equal(shared.dashboardLoads, 1);
   assert.equal(f.published.find(event => event.type === 'billing-balance-change')?.detail.userId, 'owner');
+});
+
+test('Overview loads the cost feed without loading infrastructure controls and disposes on sign-out', async t => {
+  const f = await fixture(t, { search: '' });
+  assert.equal(shared.dashboardOverviewLoads, 1);
+  assert.equal(shared.dashboardLoads, 0);
+  assert.equal(f.node('#dashboard-resources').hidden, true);
+  assert.equal(f.node('#dashboard-overview').hidden, false);
+  f.events.get('auth-change')?.({ detail: { user: null } });
+  assert.equal(shared.dashboardOverviewDisposals, 1);
+  assert.equal(shared.dashboardDisposals, 0);
 });
 
 test('an empty wallet offers a one-time top-up with no subscription promise', async t => {

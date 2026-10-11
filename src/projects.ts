@@ -1,7 +1,7 @@
 import { API_ORIGIN, createAuthClient } from './auth.ts';
 import { createProjectHosting, createProjectHostingClient, safeEndpointUrl } from './project-hosting.ts';
 
-interface Project { id: string; name: string; domain?: string | null; created_at: string; build_app_id?: string | null; git_version_id?: string | null; github_repo?: string | null; github_branch?: string | null; github_commit_id?: string | null }
+interface Project { id: string; name: string; domain?: string | null; created_at: string; build_app_id?: string | null; git_version_id?: string | null; github_repo?: string | null; github_branch?: string | null; github_commit_id?: string | null; github_storage?: 'retained' | 'deleting' | 'github' | null }
 
 const auth = createAuthClient();
 const main = document.querySelector<HTMLElement>('#main')!;
@@ -36,6 +36,13 @@ const githubPicker = document.querySelector<HTMLElement>('#github-picker')!;
 const githubInstallNote = document.querySelector<HTMLElement>('#github-install-note')!;
 const githubManage = document.querySelector<HTMLButtonElement>('#github-manage')!;
 const githubMore = document.querySelector<HTMLButtonElement>('#github-more')!;
+const storageDialog = document.querySelector<HTMLDialogElement>('#project-storage-dialog')!;
+const storageName = document.querySelector<HTMLElement>('#project-storage-name')!;
+const storageGithub = document.querySelector<HTMLAnchorElement>('#project-storage-github')!;
+const storageDelete = document.querySelector<HTMLButtonElement>('#project-storage-delete')!;
+const storageCancel = document.querySelector<HTMLButtonElement>('#project-storage-cancel')!;
+const storageError = document.querySelector<HTMLElement>('#project-storage-error')!;
+const storageStatus = document.querySelector<HTMLElement>('#project-storage-status')!;
 const abort = new AbortController();
 const previewClient = createProjectHostingClient({ onUnauthenticated: () => goToLogin(), signal: abort.signal });
 const hosting = createProjectHosting({ onUnauthenticated: () => goToLogin(), onClose: refreshPreview });
@@ -61,6 +68,9 @@ let githubCursor: string | null = null;
 interface GithubRepository { id: number; fullName: string; defaultBranch: string; private: boolean }
 let githubRepositories: GithubRepository[] = [];
 let githubActions = new Map<string, HTMLButtonElement>();
+let storageActions = new Map<string, HTMLButtonElement>();
+let deletingStorageProject: Project | null = null;
+let storageRefresh: ReturnType<typeof setTimeout> | undefined;
 const builderURL = (id: string) => `/build/?${new URLSearchParams({ app: id })}`;
 
 function goToLogin() {
@@ -69,6 +79,8 @@ function goToLogin() {
   hosting.dispose();
   dialog.close();
   githubDialog.close();
+  storageDialog.close();
+  clearTimeout(storageRefresh);
   list.replaceChildren();
   controls();
   window.location.replace(`/login/?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
@@ -83,6 +95,12 @@ function controls() {
   for (const button of endpointButtons.values()) button.disabled = busy || disposed;
   for (const button of gitButtons.values()) button.disabled = busy || disposed;
   for (const button of githubActions.values()) button.disabled = busy || disposed;
+  for (const [id, button] of storageActions) {
+    const project = projects.find(project => project.id === id);
+    button.disabled = busy || disposed || !project?.github_commit_id || project.github_storage === 'deleting';
+  }
+  storageDelete.disabled = storageCancel.disabled = busy || disposed;
+  storageDialog.setAttribute('aria-busy', String(busy));
   githubRepo.disabled = githubBranch.disabled = busy || disposed || githubLoading || !githubAuthorized;
   githubSubmit.disabled = busy || disposed || githubLoading || githubAuthorized && !githubRepo.value;
   githubCancel.disabled = busy && !githubLoading || disposed;
@@ -170,6 +188,7 @@ function render() {
   endpointButtons = new Map();
   gitButtons = new Map();
   githubActions = new Map();
+  storageActions = new Map();
   previewCells = new Map();
   for (const project of projects) {
     const row = document.createElement('tr');
@@ -201,7 +220,17 @@ function render() {
       const state = document.createElement('span');
       state.className = 'project-github-state';
       const commit = project.github_commit_id ? ` · ${project.github_commit_id.slice(0, 7)}` : '';
-      state.textContent = `GitHub · ${project.github_branch || 'main'}${commit} · hosted Git off`;
+      state.textContent = `GitHub · connected · ${project.github_branch || 'main'}${commit}`;
+      const stored = document.createElement('span');
+      stored.className = 'project-storage-state';
+      stored.textContent = project.github_storage === 'github' ? 'Mainbrella copy · deleted'
+        : project.github_storage === 'deleting' ? 'Mainbrella copy · deleting…'
+        : 'Mainbrella copy · stored';
+      const storageNote = document.createElement('span');
+      storageNote.className = 'project-storage-note';
+      storageNote.textContent = project.github_storage === 'github' ? 'Builder reads from GitHub. Future builds may store new files.'
+        : project.github_storage === 'deleting' ? 'Storage charges stop once cleanup finishes.'
+        : 'Commits go to GitHub. Stored files still incur Mainbrella storage charges.';
       const code = document.createElement('a');
       code.className = 'dashboard-retry';
       code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
@@ -214,7 +243,18 @@ function render() {
       reconnect.setAttribute('aria-label', `Reconnect GitHub access for ${project.name}`);
       reconnect.addEventListener('click', () => openGitHubDialog(project, true));
       githubActions.set(project.id, reconnect);
-      gitCell.append(repo, code, state, reconnect);
+      gitCell.append(repo, code, state, reconnect, stored, storageNote);
+      if (project.github_storage !== 'github') {
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'dashboard-retry button-danger project-storage-delete';
+        remove.textContent = project.github_storage === 'deleting' ? 'Deleting copy…' : 'Delete Mainbrella copy';
+        remove.setAttribute('aria-label', `Delete the Mainbrella copy of ${project.name}`);
+        if (!project.github_commit_id) remove.title = 'Push code to GitHub before deleting the Mainbrella copy.';
+        remove.addEventListener('click', () => openStorageDialog(project));
+        storageActions.set(project.id, remove);
+        gitCell.append(remove);
+      }
     } else if (project.build_app_id || project.git_version_id) {
       const code = document.createElement('a');
       code.className = 'dashboard-retry';
@@ -266,7 +306,64 @@ function render() {
     else renderPreview(project.id);
   }
   status.textContent = projects.length ? '' : "You haven't created any projects.";
+  clearTimeout(storageRefresh);
+  if (projects.some(project => project.github_storage === 'deleting')) storageRefresh = setTimeout(() => void load(), 5000);
 }
+
+function openStorageDialog(project: Project) {
+  if (busy || disposed || !authenticated || !project.github_commit_id || project.github_storage === 'deleting') return;
+  deletingStorageProject = project;
+  storageName.textContent = project.name;
+  storageGithub.href = `https://github.com/${project.github_repo}/tree/${encodeURIComponent(project.github_branch ?? 'main')}`;
+  storageGithub.textContent = `${project.github_repo} · ${project.github_branch ?? 'main'}`;
+  storageError.textContent = storageStatus.textContent = '';
+  storageError.hidden = true;
+  storageDialog.showModal();
+  storageCancel.focus();
+}
+
+storageCancel.addEventListener('click', () => storageDialog.close());
+storageDialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+storageDialog.addEventListener('close', () => {
+  const id = deletingStorageProject?.id;
+  deletingStorageProject = null;
+  if (!disposed && id) (storageActions.get(id) ?? editButtons.get(id))?.focus();
+});
+storageDelete.addEventListener('click', async () => {
+  const project = deletingStorageProject;
+  if (busy || disposed || !project) return;
+  busy = true;
+  controls();
+  storageError.hidden = true;
+  storageStatus.textContent = 'Checking GitHub and deleting stored files…';
+  try {
+    const result = await githubRequest(`/projects/github/storage?id=${encodeURIComponent(project.id)}`, 'DELETE', undefined, 120_000);
+    if (disposed) return;
+    if (!['github', 'deleting'].includes(result.storage)) throw new Error('invalid_response');
+    const index = projects.findIndex(item => item.id === project.id);
+    if (index < 0) throw new Error('project_missing');
+    projects[index] = { ...projects[index], github_storage: result.storage, github_commit_id: result.github?.commitId ?? project.github_commit_id };
+    storageDialog.close();
+    render();
+    status.textContent = result.storage === 'deleting'
+      ? 'Storage cleanup is pending and will retry automatically. Your project and GitHub repository remain available.'
+      : 'Mainbrella copy deleted. Your project stays in Builder and reads its saved code from GitHub.';
+  } catch (cause) {
+    if (disposed) return;
+    const code = cause instanceof Error ? cause.message : '';
+    storageError.textContent = code === 'github_source_not_pushed'
+      ? 'Your current code or images are not fully pushed to GitHub. Save a version in Builder, then try again. Your Mainbrella copy was kept.'
+      : code === 'github_project_busy' ? 'Wait for the current build or project change to finish, then try again.'
+      : code.startsWith('github_') ? githubErrorMessage(code)
+      : 'Could not confirm storage deletion. Close this dialog and refresh Projects to check its status before retrying.';
+    storageError.hidden = false;
+  } finally {
+    busy = false;
+    storageStatus.textContent = '';
+    controls();
+    if (!disposed && !storageDialog.open) (storageActions.get(project.id) ?? editButtons.get(project.id))?.focus();
+  }
+});
 
 function githubButton(project: Project) {
   const button = document.createElement('button');
@@ -495,7 +592,10 @@ function openProjectDialog(project?: Project) {
   create.textContent = editingProject ? 'Save changes' : 'Create project';
   git.checked = false;
   gitOption.hidden = Boolean(editingProject?.build_app_id || editingProject?.git_version_id || editingProject?.github_repo);
-  gitNote.textContent = editingProject?.github_repo ? 'This project uses GitHub. Hosted Git is off; source versions follow the linked branch.'
+  gitNote.textContent = editingProject?.github_repo ? editingProject.github_storage === 'github'
+    ? 'This project reads saved code from GitHub. Its Mainbrella copy has been deleted.'
+    : editingProject.github_storage === 'deleting' ? 'This project uses GitHub. Mainbrella storage cleanup is pending.'
+    : 'Commits go to GitHub. A Mainbrella working copy is also stored and incurs storage charges until you delete it.'
     : (editingProject?.build_app_id || editingProject?.git_version_id) ? 'Git history is enabled. Your saved versions are preserved.'
     : 'Save versions as you build. Enabling Git does not start a build.';
   if (editingProject) {
@@ -622,13 +722,13 @@ githubForm.addEventListener('submit', async event => {
     if (disposed) return;
     const index = projects.findIndex(item => item.id === githubProject?.id);
     if (index < 0) throw new Error('project_missing');
-    projects[index] = { ...projects[index], git_version_id: null, github_repo: result.github?.repo ?? repo, github_branch: result.github?.branch ?? branch, github_commit_id: result.github?.commitId ?? null };
+    projects[index] = { ...projects[index], git_version_id: null, github_repo: result.github?.repo ?? repo, github_branch: result.github?.branch ?? branch, github_commit_id: result.github?.commitId ?? null, github_storage: projects[index].github_storage ?? 'retained' };
     githubDialog.close();
     render();
-    status.textContent = 'GitHub repository linked.';
+    status.textContent = 'GitHub connected. Your Mainbrella working copy is still stored and billed; you can delete it after pushing.';
     try {
       const refreshed = await request();
-      if (Array.isArray(refreshed.projects) && !disposed) { projects = refreshed.projects; render(); status.textContent = 'GitHub repository linked.'; }
+      if (Array.isArray(refreshed.projects) && !disposed) { projects = refreshed.projects; render(); status.textContent = 'GitHub connected. Your Mainbrella working copy is still stored and billed; you can delete it after pushing.'; }
     } catch { /* Keep the successful link shown while the project list refreshes later. */ }
   } catch (cause) {
     if (disposed) return;
@@ -646,4 +746,5 @@ githubForm.addEventListener('submit', async event => {
   }
 });
 window.addEventListener('auth-change', event => { if (event.detail?.user === null) goToLogin(); });
+window.addEventListener('pagehide', event => { if (!event.persisted) { disposed = true; abort.abort(); hosting.dispose(); clearTimeout(storageRefresh); } });
 load();

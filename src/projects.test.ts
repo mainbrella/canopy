@@ -43,12 +43,14 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   const created: Element[] = [];
   const redirects: string[] = [];
   const history: string[] = [];
+  const events = new Map<string, (event: any) => unknown>();
+  t.after(() => events.get('pagehide')?.({}));
   const window = {
     localStorage: { getItem: () => 'accepted', setItem() {} },
     sessionStorage: { getItem: () => 'accepted', setItem() {} },
     location: { hostname: 'localhost', pathname: '/projects/', search, hash: '', replace: (url: string) => redirects.push(url) },
     history: { replaceState: (_state: unknown, _title: string, url: string) => history.push(url) },
-    addEventListener() {}, dispatchEvent() {},
+    addEventListener(type: string, callback: (event: any) => unknown) { events.set(type, callback); }, dispatchEvent() {},
   };
   const property = (key: string, value: unknown) => {
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
@@ -370,7 +372,7 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(gitCell.children[0].textContent, 'owner/repo');
   assert.equal(gitCell.children[0].href, 'https://github.com/owner/repo');
   assert.equal(gitCell.children[1].textContent, 'Code');
-  assert.match(gitCell.children[2].textContent, /^GitHub · main/);
+  assert.match(gitCell.children[2].textContent, /^GitHub · connected · main/);
   assert.equal(gitCell.children[3].textContent, 'Reconnect access');
   assert.equal(linkedProject.git_version_id, null);
   assert.ok(f.calls.filter(call => new URL(call.url).pathname === '/projects' && call.options.method === 'GET').length >= 2);
@@ -379,15 +381,96 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(f.node('#github-submit').textContent, 'Install GitHub app');
 });
 
-test('editing a GitHub project keeps hosted Git off', async t => {
+test('editing a GitHub project makes retained Mainbrella storage charges clear', async t => {
   const f = await fixture(t, (url, options) => {
     if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [{ ...originalProject, github_repo: 'owner/repo', github_branch: 'release' }] });
     return defaultResponse(url, options);
   });
   await editButton(f, 0).fire('click');
   assert.equal(f.node('#project-git-option').hidden, true);
-  assert.match(f.node('#project-git-note').textContent, /GitHub.*Hosted Git is off/);
+  assert.match(f.node('#project-git-note').textContent, /GitHub.*Mainbrella.*storage charges/);
   await f.node('#project-cancel').fire('click');
+});
+
+const linkedProject = { ...originalProject, build_app_id: originalProject.id, github_repo: 'owner/repo', github_branch: 'main', github_commit_id: 'a'.repeat(40), github_storage: 'retained' };
+function storageButton(f: Awaited<ReturnType<typeof fixture>>) {
+  return f.node('#project-list').children[0].children[3].children.find(child => child.textContent === 'Delete Mainbrella copy')!;
+}
+
+test('linked projects show both copies and require explicit confirmation to delete Mainbrella storage', async t => {
+  const f = await fixture(t, (url, options) => new URL(url).pathname === '/projects' && options.method === 'GET'
+    ? Response.json({ projects: [linkedProject] }) : defaultResponse(url, options));
+  const cell = f.node('#project-list').children[0].children[3];
+  assert.equal(cell.children[2].textContent, 'GitHub · connected · main · aaaaaaa');
+  assert.equal(cell.children[4].textContent, 'Mainbrella copy · stored');
+  assert.match(cell.children[5].textContent, /storage charges/);
+  assert.match(storageButton(f).className, /button-danger/);
+  await storageButton(f).fire('click');
+  assert.equal(f.node('#project-storage-dialog').open, true);
+  assert.equal(f.node('#project-storage-name').textContent, linkedProject.name);
+  assert.equal(f.node('#project-storage-github').href, 'https://github.com/owner/repo/tree/main');
+  assert.equal(f.node('#project-storage-cancel').focused, true);
+  await f.node('#project-storage-cancel').fire('click');
+  assert.equal(f.calls.some(call => call.options.method === 'DELETE'), false);
+  assert.equal(storageButton(f).focused, true);
+});
+
+test('confirmed deletion locks controls and preserves the project’s Builder and GitHub links', async t => {
+  let finish!: (response: Response) => void;
+  const f = await fixture(t, (url, options) => {
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [linkedProject] });
+    if (new URL(url).pathname === '/projects/github/storage') return new Promise<Response>(resolve => { finish = resolve; });
+    return defaultResponse(url, options);
+  });
+  await storageButton(f).fire('click');
+  const deletion = f.node('#project-storage-delete').fire('click');
+  assert.equal(f.node('#project-storage-delete').disabled, true);
+  assert.equal(storageButton(f).disabled, true);
+  assert.equal(editButton(f, 0).disabled, true);
+  let prevented = false;
+  await f.node('#project-storage-dialog').fire('cancel', { preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  finish(Response.json({ storage: 'github', github: { commitId: linkedProject.github_commit_id } }));
+  await deletion;
+  const deletedCall = f.calls.find(call => call.options.method === 'DELETE')!;
+  assert.match(deletedCall.url, /\/projects\/github\/storage\?id=project-1$/);
+  assert.equal(deletedCall.options.credentials, 'include');
+  assert.equal(f.node('#project-storage-dialog').open, false);
+  const row = f.node('#project-list').children[0];
+  assert.equal(row.children[0].children[0].href, '/build/?app=project-1');
+  assert.equal(row.children[3].children[0].href, 'https://github.com/owner/repo');
+  assert.equal(row.children[3].children[4].textContent, 'Mainbrella copy · deleted');
+  assert.equal(storageButton(f), undefined);
+  assert.match(f.node('#projects-status').textContent, /stays in Builder/);
+});
+
+test('unpushed changes keep the copy and show a nearby retryable error', async t => {
+  const f = await fixture(t, (url, options) => {
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [linkedProject] });
+    if (new URL(url).pathname === '/projects/github/storage') return Response.json({ error: 'github_source_not_pushed' }, { status: 409 });
+    return defaultResponse(url, options);
+  });
+  await storageButton(f).fire('click');
+  await f.node('#project-storage-delete').fire('click');
+  assert.equal(f.node('#project-storage-dialog').open, true);
+  assert.equal(f.node('#project-storage-error').hidden, false);
+  assert.match(f.node('#project-storage-error').textContent, /not fully pushed.*copy was kept/);
+  assert.equal(storageButton(f).disabled, false);
+});
+
+test('queued cleanup stays visible without claiming storage billing has stopped', async t => {
+  const f = await fixture(t, (url, options) => {
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [linkedProject] });
+    if (new URL(url).pathname === '/projects/github/storage') return Response.json({ storage: 'deleting' }, { status: 202 });
+    return defaultResponse(url, options);
+  });
+  await storageButton(f).fire('click');
+  await f.node('#project-storage-delete').fire('click');
+  const cell = f.node('#project-list').children[0].children[3];
+  assert.equal(cell.children[4].textContent, 'Mainbrella copy · deleting…');
+  assert.equal(cell.children[5].textContent, 'Storage charges stop once cleanup finishes.');
+  assert.equal(cell.children.find(child => child.textContent === 'Deleting copy…')!.disabled, true);
+  assert.match(f.node('#projects-status').textContent, /retry automatically/);
 });
 
 test('expired GitHub access can be reauthorized without losing the repository draft', async t => {
