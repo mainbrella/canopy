@@ -7,6 +7,13 @@ The Plan column shows None, Builder, Pro, or Scale from the backend's last synce
 active subscription or an unexpired trial. It is an administrative snapshot;
 paid access is still verified separately with Stripe.
 
+Each user row opens `/users/detail?id=<user-id>`. The detail page shows the
+user's profile, total/available/reserved wallet balance, and funding history,
+newest first with 50 entries per page. Credit and revoked amounts reflect the
+wallet's current refund/dispute state; dates are purchase times in UTC. This
+uses the admin-only `GET /admin/users/{userId}` endpoint and does not contact
+Stripe. Legacy subscription invoices are not included in prepaid funding history.
+
 The Google and email/password authentication client is copied from `../web`.
 Sign-in uses the backend's HttpOnly session cookie; this admin app does not load
 the public site's advertising scripts or cookie consent UI.

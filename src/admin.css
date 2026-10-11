@@ -74,6 +74,29 @@ th { color: var(--muted); font-weight: 500; white-space: nowrap; }
 .users-table-wrap td:nth-child(4) { min-width: 180px; }
 .users-table-wrap td:last-child { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; min-width: 200px; }
 .users-table-wrap th:last-child, .users-table-wrap td:last-child { padding-right: 0; }
+.user-row { position: relative; }
+.user-row:hover, .user-row:focus-within { background: var(--surface); }
+.user-link { text-decoration-color: var(--muted); text-underline-offset: 3px; }
+.user-link::after { content: ""; position: absolute; inset: 0; }
+.user-link:focus-visible { outline: none; }
+.user-link:focus-visible::after { outline: 2px solid #a8c7fa; outline-offset: -2px; }
+.user-detail-content { margin-top: 16px; }
+.user-detail-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; color: var(--muted); text-underline-offset: 3px; }
+.user-detail-summary { max-width: 720px; margin: 16px 0 0; }
+.user-detail-summary > div { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 16px; padding-block: 4px; }
+.user-detail-summary dt { color: var(--muted); }
+.user-detail-summary dd { margin: 0; overflow-wrap: anywhere; }
+.user-detail-id, .funding-reference { font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.user-detail-summary .user-detail-balance-row { margin-top: 16px; }
+.user-detail-balance { font-weight: 600; }
+.user-detail-balance, .user-detail-available, .user-detail-reserved { font-variant-numeric: tabular-nums; }
+.funding-title { margin: 24px 0 0; font-size: 18px; line-height: 1.5; }
+.funding-table-wrap { margin-top: 16px; max-width: 100%; overflow-x: auto; }
+.funding-table { min-width: 720px; }
+.funding-table td:first-child { white-space: nowrap; }
+.funding-amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.funding-reference { max-width: 320px; overflow-wrap: anywhere; }
+.funding-table th:last-child, .funding-table td:last-child { padding-right: 0; }
 .ledger-content { margin-top: 24px; }
 .ledger-table { min-width: 1040px; }
 .ledger-table td { max-width: 420px; }
@@ -142,6 +165,8 @@ th { color: var(--muted); font-weight: 500; white-space: nowrap; }
   .login-content { margin-top: 24px; }
   .email-login-form input { font-size: 16px; }
   .users-content { margin-top: 16px; }
+  .user-detail-content { margin-top: 0; }
+  .user-detail-summary > div { grid-template-columns: 104px minmax(0, 1fr); gap: 8px; }
   .ledger-content { margin-top: 16px; }
   .acquisition-content { margin-top: 16px; }
   .email-content { margin-top: 16px; }

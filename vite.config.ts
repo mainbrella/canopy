@@ -12,7 +12,7 @@ export default defineConfig({
       name: "admin-route-pages",
       async writeBundle(options) {
         if (!options.dir) return;
-        for (const route of ["users", "ledger", "acquisition", "email", "email-all"]) {
+        for (const route of ["users", "users/detail", "ledger", "acquisition", "email", "email-all"]) {
           const directory = join(options.dir, route);
           await mkdir(directory, { recursive: true });
           await copyFile(join(options.dir, "index.html"), join(directory, "index.html"));

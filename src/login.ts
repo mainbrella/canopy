@@ -3,7 +3,8 @@ import { createLedgerView } from './ledger.ts';
 import { createAcquisitionView } from './acquisition.ts';
 import { createEmailView } from './email.ts';
 import { createEmailAllView } from './email-all.ts';
-import type { AdminUser, User } from './types.ts';
+import { createUserDetailView } from './user-detail.ts';
+import { isAdminUser, type AdminUser, type User } from './types.ts';
 
 const auth = createAuthClient();
 function requiredElement<T extends Element>(selector: string): T {
@@ -34,6 +35,10 @@ const usersError = requiredElement<HTMLElement>('.users-error');
 const usersTable = requiredElement<HTMLElement>('.users-table-wrap');
 const usersRows = requiredElement<HTMLTableSectionElement>('.users-rows');
 const usersRefresh = requiredElement<HTMLButtonElement>('.users-refresh');
+const userDetailPage = requiredElement<HTMLElement>('.user-detail-content');
+const userDetailTitle = requiredElement<HTMLHeadingElement>('#user-detail-title');
+const userDetailStatus = requiredElement<HTMLElement>('.user-detail-status');
+const userDetailError = requiredElement<HTMLElement>('.user-detail-error');
 const adminNav = requiredElement<HTMLElement>('.admin-nav');
 const appShell = requiredElement<HTMLElement>('.app-shell');
 const ledgerPage = requiredElement<HTMLElement>('.ledger-content');
@@ -65,6 +70,25 @@ let user: User | null = null;
 let signingIn = false;
 let signingOut = false;
 let usersRequest = 0;
+const userDetail = createUserDetailView({
+  page: userDetailPage, status: userDetailStatus, error: userDetailError,
+  content: requiredElement<HTMLElement>('.user-detail-data'),
+  name: requiredElement<HTMLElement>('.user-detail-name'),
+  email: requiredElement<HTMLElement>('.user-detail-email'),
+  plan: requiredElement<HTMLElement>('.user-detail-plan'),
+  created: requiredElement<HTMLElement>('.user-detail-created'),
+  id: requiredElement<HTMLElement>('.user-detail-id'),
+  balance: requiredElement<HTMLElement>('.user-detail-balance'),
+  available: requiredElement<HTMLElement>('.user-detail-available'),
+  reserved: requiredElement<HTMLElement>('.user-detail-reserved'),
+  fundingStatus: requiredElement<HTMLElement>('.funding-status'),
+  table: requiredElement<HTMLElement>('.funding-table-wrap'),
+  rows: requiredElement<HTMLTableSectionElement>('.funding-rows'),
+  refresh: requiredElement<HTMLButtonElement>('.user-detail-refresh'),
+  previous: requiredElement<HTMLButtonElement>('.funding-previous'),
+  next: requiredElement<HTMLButtonElement>('.funding-next'),
+  pagination: requiredElement<HTMLElement>('.funding-pagination'),
+}, () => isAdmin() && !signingOut, handleAdminAuthFailure);
 const ledger = createLedgerView({
   page: ledgerPage, status: ledgerStatus, error: ledgerError, table: ledgerTable, rows: ledgerRows,
   refresh: ledgerRefresh, previous: ledgerPrevious, next: ledgerNext, pagination: ledgerPagination,
@@ -110,20 +134,11 @@ const emailAll = createEmailAllView({
 
 function currentAdminRoute() {
   const path = location.pathname.replace(/\/$/, '');
-  return path === '/email-all' ? 'email-all' : path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
+  return path === '/users/detail' ? 'user-detail' : path === '/email-all' ? 'email-all' : path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
 }
 
 function isAdmin() {
   return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
-}
-
-function isAdminUser(value: unknown): value is AdminUser {
-  return typeof value === 'object' && value !== null
-    && 'id' in value && typeof value.id === 'string'
-    && 'created_at' in value && typeof value.created_at === 'string'
-    && 'plan' in value && (value.plan === 'none' || value.plan === 'builder' || value.plan === 'pro' || value.plan === 'scale')
-    && (!('name' in value) || value.name === null || typeof value.name === 'string')
-    && (!('email' in value) || value.email === null || typeof value.email === 'string');
 }
 
 function isAdminUsersResponse(value: unknown): value is { users: AdminUser[] } {
@@ -152,6 +167,7 @@ async function start() {
 
 async function showCurrentState() {
   usersRequest++;
+  userDetail.setUser(null);
   ledger.setActive(false);
   acquisition.setActive(false);
   email.setActive(false);
@@ -164,6 +180,7 @@ async function showCurrentState() {
   usersTable.hidden = true;
   usersError.hidden = true;
   usersPage.hidden = true;
+  userDetailPage.hidden = true;
   ledgerPage.hidden = true;
   acquisitionPage.hidden = true;
   emailPage.hidden = true;
@@ -188,6 +205,7 @@ async function showCurrentState() {
 }
 
 function showAccessDenied() {
+  userDetail.setUser(null);
   ledger.setActive(false);
   acquisition.setActive(false);
   email.setActive(false);
@@ -197,6 +215,7 @@ function showAccessDenied() {
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
   usersPage.hidden = true;
+  userDetailPage.hidden = true;
   ledgerPage.hidden = true;
   acquisitionPage.hidden = true;
   emailPage.hidden = true;
@@ -213,16 +232,17 @@ function showAccessDenied() {
 function showAdminRoute() {
   if (!isAdmin() || signingOut) return;
   const route = currentAdminRoute();
-  const canonicalPath = `/${route}`;
+  const canonicalPath = route === 'user-detail' ? '/users/detail' : `/${route}`;
   const hash = location.hash === '#main' ? location.hash : '';
   if (location.pathname !== canonicalPath || location.hash !== hash) {
     history.replaceState(null, '', `${canonicalPath}${location.search}${hash}`);
   }
   for (const link of adminNav.querySelectorAll<HTMLAnchorElement>('a[data-admin-route]')) {
-    if (link.dataset.adminRoute === route) link.setAttribute('aria-current', 'page');
+    if (link.dataset.adminRoute === (route === 'user-detail' ? 'users' : route)) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
   usersPage.hidden = route !== 'users';
+  userDetailPage.hidden = route !== 'user-detail';
   ledgerPage.hidden = route !== 'ledger';
   acquisitionPage.hidden = route !== 'acquisition';
   emailPage.hidden = route !== 'email';
@@ -231,12 +251,13 @@ function showAdminRoute() {
   acquisition.setActive(route === 'acquisition');
   email.setActive(route === 'email');
   emailAll.setActive(route === 'email-all');
+  userDetail.setUser(route === 'user-detail' ? new URLSearchParams(location.search).get('id') ?? '' : null);
   if (route === 'users') {
     usersTitle.focus({ preventScroll: true });
     void loadUsers();
   } else {
     usersRequest++;
-    (route === 'email-all' ? emailAllTitle : route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
+    (route === 'user-detail' ? userDetailTitle : route === 'email-all' ? emailAllTitle : route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
   }
 }
 
@@ -249,17 +270,18 @@ function handleAdminAuthFailure(responseStatus: 401 | 403) {
   }
 }
 
-adminNav.addEventListener('click', (event) => {
+document.addEventListener('click', (event) => {
   if (!(event instanceof MouseEvent) || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-admin-route]') : null;
   if (!target || target.origin !== location.origin || target.target || target.hasAttribute('download')) return;
   const route = target.dataset.adminRoute;
-  if (route !== 'users' && route !== 'ledger' && route !== 'acquisition' && route !== 'email' && route !== 'email-all') return;
+  if (route !== 'users' && route !== 'user-detail' && route !== 'ledger' && route !== 'acquisition' && route !== 'email' && route !== 'email-all') return;
   event.preventDefault();
-  const nextPath = `/${route}`;
+  const nextPath = route === 'user-detail' ? '/users/detail' : `/${route}`;
   const currentRoute = currentAdminRoute();
-  if (route === currentRoute && location.pathname === nextPath) return;
-  history.pushState(null, '', `${nextPath}${location.search}`);
+  const nextSearch = route === 'user-detail' ? target.search : currentRoute === 'user-detail' ? '' : location.search;
+  if (route === currentRoute && location.pathname === nextPath && location.search === nextSearch) return;
+  history.pushState(null, '', `${nextPath}${nextSearch}`);
   if (isAdmin()) showAdminRoute();
 });
 
@@ -297,6 +319,7 @@ async function loadUsers() {
     const rows = document.createDocumentFragment();
     for (const item of result.users) {
       const row = document.createElement('tr');
+      row.className = 'user-row';
       const created = new Date(item.created_at);
       const values = [item.name || '—', item.email || '—', item.plan[0].toUpperCase() + item.plan.slice(1),
         Number.isFinite(created.getTime()) ? created.toLocaleString(undefined, {
@@ -304,7 +327,15 @@ async function loadUsers() {
         }) : item.created_at || '—', item.id];
       for (const [index, value] of values.entries()) {
         const cell = document.createElement('td');
-        if (index === 3 && Number.isFinite(created.getTime())) {
+        if (index === 0) {
+          const link = document.createElement('a');
+          link.className = 'user-link';
+          link.href = `/users/detail?${new URLSearchParams({ id: item.id })}`;
+          link.dataset.adminRoute = 'user-detail';
+          link.textContent = item.name || item.email || item.id;
+          link.setAttribute('aria-label', `View user ${item.name || item.email || item.id}`);
+          cell.append(link);
+        } else if (index === 3 && Number.isFinite(created.getTime())) {
           const time = document.createElement('time');
           time.dateTime = item.created_at;
           time.title = item.created_at;
@@ -418,6 +449,7 @@ signOutButton.addEventListener('click', async () => {
   if (signingOut || signingIn || !user) return;
   signingOut = true;
   usersRequest++;
+  userDetail.setUser(null);
   ledger.setActive(false);
   acquisition.setActive(false);
   email.setActive(false);
@@ -425,7 +457,7 @@ signOutButton.addEventListener('click', async () => {
   signOutButton.disabled = true;
   page.setAttribute('aria-busy', 'true');
   const currentStatus = page.hidden ? usersStatus : status;
-  const currentPageStatus = !emailAllPage.hidden ? emailAllStatus : !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
+  const currentPageStatus = !userDetailPage.hidden ? userDetailStatus : !emailAllPage.hidden ? emailAllStatus : !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
   currentPageStatus.textContent = 'Signing out…';
   clearError();
   let restoreAdminRoute = false;
@@ -467,7 +499,7 @@ window.addEventListener('auth-change', (event) => {
 });
 
 function showError(cause: unknown) {
-  const target = page.hidden ? (!emailAllPage.hidden ? emailAllError : !emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
+  const target = page.hidden ? (!userDetailPage.hidden ? userDetailError : !emailAllPage.hidden ? emailAllError : !emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
   target.textContent = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
   target.hidden = false;
 }
@@ -477,6 +509,8 @@ function clearError() {
   error.hidden = true;
   usersError.textContent = '';
   usersError.hidden = true;
+  userDetailError.textContent = '';
+  userDetailError.hidden = true;
   ledgerError.textContent = '';
   ledgerError.hidden = true;
   acquisitionError.textContent = '';

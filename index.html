@@ -68,6 +68,47 @@
             </table>
           </div>
         </section>
+        <section class="user-detail-content" aria-labelledby="user-detail-title" hidden>
+          <a class="user-detail-back" href="/users" data-admin-route="users">← Users</a>
+          <div class="users-heading">
+            <h1 id="user-detail-title" tabindex="-1">User details</h1>
+            <button class="user-detail-refresh" type="button">Refresh</button>
+          </div>
+          <p class="user-detail-status users-status" role="status"></p>
+          <div class="user-detail-error users-error" role="alert" hidden></div>
+          <div class="user-detail-data" hidden>
+            <dl class="user-detail-summary">
+              <div><dt>Name</dt><dd class="user-detail-name"></dd></div>
+              <div><dt>Email</dt><dd class="user-detail-email"></dd></div>
+              <div><dt>Plan</dt><dd class="user-detail-plan"></dd></div>
+              <div><dt>Created (UTC)</dt><dd class="user-detail-created"></dd></div>
+              <div><dt>User ID</dt><dd class="user-detail-id"></dd></div>
+              <div class="user-detail-balance-row"><dt>Balance</dt><dd class="user-detail-balance"></dd></div>
+              <div><dt>Available</dt><dd class="user-detail-available"></dd></div>
+              <div><dt>Reserved</dt><dd class="user-detail-reserved"></dd></div>
+            </dl>
+            <h2 class="funding-title">Funding history</h2>
+            <p class="funding-status users-status" role="status"></p>
+            <nav class="funding-pagination ledger-pagination" aria-label="Funding history pagination" hidden>
+              <button class="funding-previous" type="button" aria-label="Previous funding page" disabled>Previous</button>
+              <button class="funding-next" type="button" aria-label="Next funding page" disabled>Next</button>
+            </nav>
+            <div class="funding-table-wrap" role="region" aria-label="Funding history, newest first" tabindex="0" hidden>
+              <table class="funding-table">
+                <thead>
+                  <tr>
+                    <th scope="col" aria-sort="descending">Date (UTC)</th>
+                    <th class="funding-amount" scope="col">Credit</th>
+                    <th class="funding-amount" scope="col">Revoked</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Reference</th>
+                  </tr>
+                </thead>
+                <tbody class="funding-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
         <section class="ledger-content" aria-labelledby="ledger-title" hidden>
           <div class="users-heading">
             <h1 id="ledger-title" tabindex="-1">Ledger</h1>

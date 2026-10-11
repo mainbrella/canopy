@@ -9,6 +9,15 @@ export interface AdminUser extends User {
   plan: 'none' | 'builder' | 'pro' | 'scale';
 }
 
+export function isAdminUser(value: unknown): value is AdminUser {
+  return typeof value === 'object' && value !== null
+    && 'id' in value && typeof value.id === 'string'
+    && 'created_at' in value && typeof value.created_at === 'string'
+    && 'plan' in value && (value.plan === 'none' || value.plan === 'builder' || value.plan === 'pro' || value.plan === 'scale')
+    && (!('name' in value) || value.name === null || typeof value.name === 'string')
+    && (!('email' in value) || value.email === null || typeof value.email === 'string');
+}
+
 export interface AuthSession {
   user: User;
 }
