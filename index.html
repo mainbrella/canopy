@@ -22,62 +22,67 @@
         break;
       }
     </script>
-    <meta name="description" content="A Linux computer for your AI agent. Start it by API, run commands, upload files, SSH in, and open web previews. Add prepaid balance from $5." />
+    <meta name="description" content="Describe your app and Mainbrella gives you a Linux computer with your code running in minutes. New customers get $5 compute credit with no credit card required." />
     <meta name="theme-color" content="#0d1014" />
     <link rel="canonical" href="https://mainbrella.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Mainbrella" />
     <meta property="og:locale" content="en_US" />
     <meta property="og:url" content="https://mainbrella.com/" />
-    <meta property="og:title" content="Mainbrella — A Linux computer for your AI agent." />
-    <meta property="og:description" content="Start a Linux computer for your AI agent by API. Commands, files, SSH, browser terminals, and web previews. Add prepaid balance from $5." />
+    <meta property="og:title" content="Mainbrella — Build. Run. Ship." />
+    <meta property="og:description" content="Describe what you want to build. Mainbrella gives you a Linux computer with your code running in minutes." />
     <meta property="og:image" content="https://mainbrella.com/images/logo.png" />
     <meta property="og:image:alt" content="Mainbrella umbrella logo" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Mainbrella — A Linux computer for your AI agent." />
-    <meta name="twitter:description" content="Start a Linux computer for your AI agent by API. Commands, files, SSH, browser terminals, and web previews. Add prepaid balance from $5." />
+    <meta name="twitter:title" content="Mainbrella — Build. Run. Ship." />
+    <meta name="twitter:description" content="Describe what you want to build. Mainbrella gives you a Linux computer with your code running in minutes." />
     <meta name="twitter:image" content="https://mainbrella.com/images/logo.png" />
     <meta name="twitter:image:alt" content="Mainbrella umbrella logo" />
     <link rel="icon" href="/images/favicon.png" type="image/png" />
     <link rel="stylesheet" href="/mainbrella.css" />
     <link rel="stylesheet" href="/acquisition.css" />
-    <title>Mainbrella — A Linux computer for your AI agent</title>
+    <link rel="stylesheet" href="/homepage.css" />
+    <title>Mainbrella — Build. Run. Ship.</title>
   </head>
-  <body class="sandbox-home acquisition-page">
+  <body class="sandbox-home acquisition-page home-build-page">
     <a class="skip-link" href="#main">Skip to content</a>
     <!-- site-header -->
 
     <main id="main">
-      <section class="sandbox-hero" aria-labelledby="site-title">
-        <div class="wrap hero">
-          <div class="hero-copy">
-            <h1 id="site-title">A Linux computer<br />for your AI agent.</h1>
-            <p class="hero-description">Start it by API. Run commands, upload files, SSH in, and open web previews. Add prepaid balance from $5.</p>
-            <div class="hero-actions">
-              <a class="button" href="/pricing/usage/">Start with a $5 minimum</a>
-              <a class="text-link" href="/docs/">Quickstart <span aria-hidden="true">→</span></a>
-              <!-- agent-copy-cta -->
+      <section class="build-hero" aria-labelledby="site-title">
+        <div class="wrap build-hero-inner">
+          <h1 id="site-title">Build. Run. <span>Ship.</span></h1>
+          <p class="build-hero-description">Describe what you want to build and Mainbrella gives you a Linux computer<br class="build-hero-break" /> with your code running in minutes.</p>
+          <form id="home-build-form" class="home-build-form" action="/login/" method="get">
+            <label class="home-visually-hidden" for="home-build-prompt">Describe the app you want to build</label>
+            <div class="home-build-field">
+              <input id="home-build-prompt" type="text" maxlength="6000" autocomplete="off" required placeholder="Build a simple todo app with a database…" aria-describedby="home-build-offer home-build-error" />
+              <button type="submit" aria-label="Start building your app"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" /></svg></button>
             </div>
-            <p class="agent-copy-status" id="hero-agent-copy-status" role="status" aria-live="polite"></p>
-            <p class="hero-plan-note">Prepaid compute, with no monthly subscription. Built on <a href="/cloudflare-sandbox/">Cloudflare</a>. <a href="/pricing/">See limits</a>.</p>
-          </div>
-          <figure class="sandbox-terminal acquisition-example">
-            <figcaption><span>Agent workspace</span><span>JavaScript SDK</span></figcaption>
-            <pre><code><span class="terminal-muted">import { Mainbrella } from '@mainbrella/sdk';</span>
-const client = new Mainbrella({
-  apiKey: process.env.MAINBRELLA_API_KEY
-});
-const machine = await client.create({
-  catalogId: 'node', size: 'small'
-});
-try {
-  const result = await machine.commands.run(
-    'node --version'
-  );
-  console.log(result.stdout);
-} finally { await machine.kill(); }</code></pre>
-          </figure>
+            <p id="home-build-error" class="home-build-error" role="alert" hidden></p>
+          </form>
+          <p class="home-build-no-card">No credit card required for new customers</p>
+          <p id="home-build-offer" class="home-build-offer">Get $5 off compute credit with <strong>BRELLA-GIT-TRY5</strong>, automatically applied at checkout.<br class="build-offer-break" /> Confirm your credit, then start building. No monthly subscription. <a href="/pricing/">See pricing</a></p>
+          <noscript><p class="home-build-offer">Enable JavaScript to carry your app idea through sign-in and into Builder.</p></noscript>
         </div>
+        <section class="home-foundation wrap" aria-labelledby="home-foundation-title">
+          <div class="home-foundation-heading">
+            <h2 id="home-foundation-title">Simple to start. Serious underneath.</h2>
+            <p>AI-powered development, with real infrastructure you can trust.</p>
+          </div>
+          <ul class="home-features">
+            <li><span class="home-feature-icon home-icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 5v9l9 5 9-5V8M12 13v9" /></svg></span><div><h3>Ad hoc or Production</h3><p>Use temporary sandboxes<br />or always-on containers.</p></div></li>
+            <li><span class="home-feature-icon home-icon-pink"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="4" r="2" /><circle cx="6" cy="20" r="2" /><circle cx="18" cy="4" r="2" /><path d="M6 6v12m12-12v2a6 6 0 0 1-6 6H6" /></svg></span><div><h3>Paste any Git URL</h3><p>Launch public repos<br />in minutes.</p></div></li>
+            <li><span class="home-feature-icon home-icon-green"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0" /></svg></span><div><h3>Built-in Git + R2</h3><p>No GitHub account required<br />for your generated projects.</p></div></li>
+            <li><span class="home-feature-icon home-icon-purple"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><ellipse cx="12" cy="12" rx="4" ry="9" /><path d="M3 12h18" /></svg></span><div><h3>Custom domains</h3><p>Connect your app<br />to a real domain.</p></div></li>
+          </ul>
+          <ol class="home-build-steps" aria-label="From idea to a live app">
+            <li><span class="home-step-icon home-icon-purple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H5v20h14V7l-5-5Zm0 0v5h5M8 12h8m-8 4h8" /></svg></span><div><h3>Prompt or Git URL</h3><p>Describe or link your project</p></div></li>
+            <li><span class="home-step-icon home-icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 2-.7 3-2 .9-2.7-.9-2 3.5 2 2.1v2.8l-2 2.1 2 3.5 2.7-.9 2 .9.7 3h4l.7-3 2-.9 2.7.9 2-3.5-2-2.1v-2.8l2-2.1-2-3.5-2.7.9-2-.9L14 2h-4Z" /><circle cx="12" cy="12" r="3" /></svg></span><div><h3>Build container</h3><p>We build and configure it</p></div></li>
+            <li><span class="home-step-icon home-icon-green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 5v9l9 5 9-5V8M12 13v9" /></svg></span><div><h3>Running container</h3><p>Your app runs in Linux</p></div></li>
+            <li><span class="home-step-icon home-icon-purple"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><ellipse cx="12" cy="12" rx="4" ry="9" /><path d="M3 12h18" /></svg></span><div><h3>Your domain</h3><p>Live on the internet</p></div></li>
+          </ol>
+        </section>
       </section>
 
       <section class="workflow wrap" id="product" aria-labelledby="product-title">
@@ -148,6 +153,7 @@ try {
         <button class="button" type="button" data-consent="accepted">Accept All</button>
       </div>
     </dialog>
+    <script type="module" src="/src/home-build.ts"></script>
     <script type="module" src="/src/cookie-consent.ts"></script>
     <script type="module" src="/src/account-menu.ts"></script>
   </body>

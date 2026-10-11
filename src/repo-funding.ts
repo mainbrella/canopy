@@ -1,8 +1,14 @@
 import { normalizeRepo, validRepo } from './repo-run-contract.ts';
+import { readBuildFunding, type BuildFunding } from './build-onboarding.ts';
 
 export const TRY_PROMOTION_CODE = 'BRELLA-GIT-TRY5';
 export const TRY_CREDIT_CENTS = 500;
 export type RepoFunding = { repo: string; returnTo: string };
+export type CreditFunding = RepoFunding | BuildFunding;
+
+export function readCreditFunding(value: unknown, origin: string): CreditFunding | null {
+  return readRepoFunding(value, origin) || readBuildFunding(value, origin);
+}
 
 export function readRepoFunding(value: unknown, origin: string): RepoFunding | null {
   if (!value || typeof value !== 'object') return null;

@@ -5,7 +5,7 @@ import { needsSignInCookies, signInCookieMessage } from './cookie-preferences.ts
 import { trackConfirmedPayment, trackFunnel } from './acquisition-analytics.ts';
 import { dollarsToCents, formatBalance, readPrepaidBalance } from './prepaid-billing.ts';
 import { mountStripeEmbeddedCheckout } from './payments/stripeEmbeddedCheckout.ts';
-import { readRepoFunding, TRY_CREDIT_CENTS, TRY_PROMOTION_CODE, type RepoFunding } from './repo-funding.ts';
+import { readCreditFunding, TRY_CREDIT_CENTS, TRY_PROMOTION_CODE, type CreditFunding } from './repo-funding.ts';
 
 const auth = createAuthClient();
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -44,13 +44,15 @@ let capDirty = false;
 let rechargeDirty = false;
 const returnParams = new URLSearchParams(location.search);
 const billingOrigin = new URL(location.href).origin;
-let repoFunding: RepoFunding | null = returnParams.get('flow') === 'try'
-  ? readRepoFunding({ repo: returnParams.get('repo'), returnTo: returnParams.get('returnTo') }, billingOrigin) : null;
+const fundingFlow = returnParams.get('flow');
+let creditFunding: CreditFunding | null = fundingFlow === 'try'
+  ? readCreditFunding({ repo: returnParams.get('repo'), returnTo: returnParams.get('returnTo') }, billingOrigin)
+  : fundingFlow === 'build' ? readCreditFunding({ ...(returnParams.has('brief') ? { brief: returnParams.get('brief') } : {}), returnTo: returnParams.get('returnTo') }, billingOrigin) : null;
 let completionSession = returnParams.get('topup_session') || (returnParams.get('topup_return') === '1' ? returnParams.get('session_id') : null);
 let completionUserId: string | null = null;
 let balanceReadVersion = 0;
 
-type PendingTopup = { requestId: string; amountCents: number; sessionId?: string; repoFunding?: RepoFunding };
+type PendingTopup = { requestId: string; amountCents: number; sessionId?: string; creditFunding?: CreditFunding };
 let pendingTopup: PendingTopup | null = null;
 function storageKey() { return `mainbrella-prepaid-topup:${user?.id}`; }
 function restorePending() {
@@ -61,10 +63,10 @@ function restorePending() {
       && Number.isSafeInteger(saved.amountCents) && saved.amountCents >= 500
       && (!saved.sessionId || typeof saved.sessionId === 'string')) {
       pendingTopup = { requestId: saved.requestId, amountCents: saved.amountCents, ...(saved.sessionId ? { sessionId: saved.sessionId } : {}) };
-      const funding = readRepoFunding(saved.repoFunding, billingOrigin);
+      const funding = readCreditFunding(saved.creditFunding ?? saved.repoFunding, billingOrigin);
       if (funding) {
-        pendingTopup.repoFunding = funding;
-        if (!repoFunding && completionSession === saved.sessionId) repoFunding = funding;
+        pendingTopup.creditFunding = funding;
+        if (!creditFunding && completionSession === saved.sessionId) creditFunding = funding;
       }
     }
   } catch { /* Blocked storage still allows retries within this page. */ }
@@ -134,15 +136,15 @@ function closeCheckout() {
     window.dispatchEvent(new CustomEvent('checkout-processing', { detail: { processing: false } }));
   }
 }
-function renderRepoFunding() {
-  element('main').dataset.tryCheckout = String(Boolean(repoFunding));
-  element('try-credit-summary').hidden = !repoFunding;
-  element('try-checkout-back').hidden = !repoFunding;
-  if (!repoFunding) return;
+function renderCreditFunding() {
+  element('main').dataset.tryCheckout = String(Boolean(creditFunding));
+  element('try-credit-summary').hidden = !creditFunding;
+  element('try-checkout-back').hidden = !creditFunding || !('repo' in creditFunding);
+  if (!creditFunding) return;
   element('pricing-title').textContent = 'Get $5 compute credit';
-  element('pricing-intro').textContent = `For ${repoFunding.repo}. ${TRY_PROMOTION_CODE} takes $5 off this top-up. No monthly subscription.`;
-  const setup = new URL(repoFunding.returnTo, billingOrigin);
-  setup.searchParams.set('prepare', '1');
+  element('pricing-intro').textContent = `${'repo' in creditFunding ? `For ${creditFunding.repo}.` : 'Confirm your credit, then build your app.'} ${TRY_PROMOTION_CODE} takes $5 off this top-up. No monthly subscription.`;
+  const setup = new URL(creditFunding.returnTo, billingOrigin);
+  if ('repo' in creditFunding) setup.searchParams.set('prepare', '1');
   element<HTMLAnchorElement>('try-checkout-back').href = setup.pathname + setup.search + setup.hash;
   element<HTMLDetailsElement>('checkout-promotion').open = true;
   element('topup-form').hidden = !checkoutView.hidden;
@@ -164,7 +166,7 @@ function render() {
         : `Rates include ${storage.markupBps / 100}% markup. Deductions begin ${new Date(storage.chargeFrom!).toLocaleDateString('en-US', { dateStyle: 'medium', timeZone: 'UTC' })} (UTC).`;
     }
   }
-  renderRepoFunding();
+  renderCreditFunding();
   walletView.hidden = !user;
   login.hidden = Boolean(user) || loading;
   const ready = Boolean(user && balance && config?.configured && !loading && !busy);
@@ -236,7 +238,7 @@ async function completePayment(accountVersion: number, retryInForm = false) {
     const data = await api('/billing/topups/complete', { sessionId });
     if (accountVersion !== version || !user) return;
     applyBalance(data.balance);
-    const destination = pendingTopup?.sessionId === sessionId ? pendingTopup.repoFunding?.returnTo : undefined;
+    const destination = pendingTopup?.sessionId === sessionId ? pendingTopup.creditFunding?.returnTo : undefined;
     if (!pendingTopup?.sessionId || pendingTopup.sessionId === sessionId) rememberPending(null);
     completionSession = null;
     completionUserId = null;
@@ -273,7 +275,7 @@ async function load(knownUser?: User | null) {
   loading = true;
   busy = false;
   balance = null;
-  amount.value = repoFunding ? (TRY_CREDIT_CENTS / 100).toFixed(2) : '20.00';
+  amount.value = creditFunding ? (TRY_CREDIT_CENTS / 100).toFixed(2) : '20.00';
   for (const id of ['topup-status', 'usage-status', 'recharge-status']) feedback(element(id), '');
   capDirty = false;
   rechargeDirty = false;
@@ -311,8 +313,8 @@ async function load(knownUser?: User | null) {
   if (accountVersion !== version) return;
   loading = false;
   render();
-  if (repoFunding && user && balance && config?.configured && !completionSession && !returningFromCheckout) {
-    if (pendingTopup && (!pendingTopup.repoFunding || pendingTopup.repoFunding.returnTo !== repoFunding.returnTo)) {
+  if (creditFunding && user && balance && config?.configured && !completionSession && !returningFromCheckout) {
+    if (pendingTopup && (!pendingTopup.creditFunding || pendingTopup.creditFunding.returnTo !== creditFunding.returnTo)) {
       feedback(element('topup-status'), 'Another top-up is in progress. Finish it in Billing before claiming this offer.', true);
       topup.disabled = true;
     } else await openCheckout();
@@ -339,7 +341,7 @@ async function openCheckout() {
     feedback(element('topup-status'), `A ${formatBalance(pendingTopup.amountCents)} top-up is already in progress. Continue that checkout before adding another amount.`, true);
     return;
   }
-  rememberPending(pendingTopup || { requestId: crypto.randomUUID(), amountCents, ...(repoFunding ? { repoFunding } : {}) });
+  rememberPending(pendingTopup || { requestId: crypto.randomUUID(), amountCents, ...(creditFunding ? { creditFunding } : {}) });
   const accountVersion = version;
   busy = true;
   feedback(element('topup-status'), 'Opening secure checkout…');
@@ -353,7 +355,7 @@ async function openCheckout() {
       if (!(error instanceof BillingError) || !['checkout_expired', 'topup_expired'].includes(error.code)) throw error;
       // Stripe has confirmed the old checkout can no longer charge. Replace
       // its purchase identity once, without requiring a second user action.
-      rememberPending({ requestId: crypto.randomUUID(), amountCents, ...(repoFunding ? { repoFunding } : {}) });
+      rememberPending({ requestId: crypto.randomUUID(), amountCents, ...(creditFunding ? { creditFunding } : {}) });
       data = await api('/billing/topups', { requestId: pendingTopup!.requestId, amountCents });
     }
     if (accountVersion !== version || !user) return;
@@ -366,7 +368,7 @@ async function openCheckout() {
     checkoutEmail.value = user.email || '';
     checkoutEmail.disabled = false;
     checkoutEmail.readOnly = false;
-    const submitLabel = repoFunding ? 'Checking offer…' : `Pay ${formatBalance(amountCents)}`;
+    const submitLabel = creditFunding ? 'Checking offer…' : `Pay ${formatBalance(amountCents)}`;
     const submit = element<HTMLButtonElement>('checkout-submit');
     submit.textContent = submitLabel;
     element('checkout-total').textContent = `Due today: ${formatBalance(amountCents)}`;
@@ -381,7 +383,7 @@ async function openCheckout() {
       emailInput: checkoutEmail, totalElement: element('checkout-total'),
       promotionInput: checkoutPromotionInput, promotionApply: checkoutPromotionApply,
       promotionRemove: checkoutPromotionRemove, promotionStatus: checkoutPromotionStatus,
-      ...(repoFunding ? {
+      ...(creditFunding ? {
         initialPromotionCode: TRY_PROMOTION_CODE,
         noCostSubmitLabel: 'Confirm $5 credit and continue',
         onSessionChange: (session: import('@stripe/stripe-js').StripeCheckoutSession) => {

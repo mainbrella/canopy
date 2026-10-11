@@ -4,6 +4,7 @@ import { buildExamples, createBuildDraftStore } from './build-drafts.ts';
 import { buildBriefQuestions, formatBuildBriefPrompt, readBuildBriefPrompt } from './build-brief.ts';
 import { cleanDiagnosticOutput, failureOperations, formatBuildDiagnostics, operationExplanation, operationOutput } from './build-diagnostics.ts';
 import { diagnosticTime, renderBuildOperation, renderOperationList } from './build-diagnostic-view.ts';
+import { readBuildPrompt, removeBuildPrompt } from './build-onboarding.ts';
 
 type Clarification = { prompt: string; answers: [string, string]; step: 0 | 1 };
 type DiagnosticState = { key: string; loading: boolean; data?: BuildDiagnostics; error?: string };
@@ -1079,7 +1080,22 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
     busy = false; host.setAttribute('aria-busy', 'false'); controls();
     const appId = new URL(location.href).searchParams.get('app');
     if (appId && !selected) await openApp(appId);
-    else if (!appId && !selected && !clarification) restoreClarification();
+    else if (!appId && !selected && !clarification) {
+      const url = new URL(location.href);
+      const brief = url.searchParams.get('brief');
+      const incomingPrompt = readBuildPrompt(sessionStorage, brief);
+      if (incomingPrompt && brief) {
+        prompt.value = incomingPrompt;
+        beginClarification({ prompt: incomingPrompt, answers: ['', ''], step: 0 });
+        // Save the account-owned Builder brief before consuming the homepage handoff.
+        removeBuildPrompt(sessionStorage, brief);
+        url.searchParams.delete('brief');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } else {
+        restoreClarification();
+        if (brief && !clarification) reportError(new Error('Your saved idea is unavailable. Enter it again to start building.'), () => prompt.focus());
+      }
+    }
     schedule();
   }
 

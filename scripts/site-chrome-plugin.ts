@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite';
 import { readFile } from 'node:fs/promises';
+import { buildLoginUrl } from '../src/build-onboarding.ts';
 
 const agentCopyButton = `<button class="agent-copy-cta" type="button" data-copy-agent-setup aria-describedby="hero-agent-copy-status" hidden>
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="15" rx="1.5" /><path d="M4 7v14h12" /></svg>
@@ -18,12 +19,13 @@ function link([label, href]: [string, string], path: string) {
 }
 
 export function siteChrome(path: string) {
+  const homepage = path === '/' || path === '/index.html';
   const header = `<header class="site-header platform-header wrap">
     <a class="brand" href="/" aria-label="Mainbrella home"><img src="/images/logo.png" alt="" width="44" height="44" /><span>mainbrella</span></a>
     <nav id="platform-navigation" aria-label="Main navigation">
       ${navigation.map(item => link(item, path)).join('\n      ')}
       <a class="login-link" href="/login/">Sign in</a>
-      <a class="button button-small" href="/pricing/usage/">Start building</a>
+      <a class="button button-small" href="${homepage ? buildLoginUrl(null, 'https://mainbrella.com') : '/pricing/usage/'}">${homepage ? 'Get started' : 'Start building'}</a>
     </nav>
   </header>`;
   const groups: [string, [string, string][]][] = [
