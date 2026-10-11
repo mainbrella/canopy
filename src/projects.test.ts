@@ -308,6 +308,7 @@ test('Builder projects link to their workspace and Git stays optional for standa
   assert.equal(rows[0].children[0].children[0].href, '/build/?app=project-1');
   assert.equal(codeLink(f).textContent, 'Code');
   assert.equal(codeLink(f).href, '/projects/code/?project=project-1');
+  assert.equal(codeLink(f).target, undefined);
   await editButton(f, 0).fire('click');
   assert.equal(f.node('#project-git-option').hidden, true);
   await f.node('#project-cancel').fire('click');
@@ -396,6 +397,9 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(gitCell.children[0].children[0].textContent, 'owner/repo');
   assert.equal(gitCell.children[0].href, 'https://github.com/owner/repo');
   assert.equal(codeLink(f).textContent, 'Code');
+  assert.equal(codeLink(f).href, 'https://github.com/owner/repo');
+  assert.equal(codeLink(f).target, '_blank');
+  assert.equal(codeLink(f).rel, 'noopener');
   assert.equal(gitCell.children[0].children[1].textContent, 'GitHub · main');
   assert.equal(projectAction(f, 'Reconnect GitHub access').textContent, 'Reconnect GitHub access');
   assert.equal(linkedProject.git_version_id, null);

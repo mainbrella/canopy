@@ -291,7 +291,13 @@ function render() {
     if (hasCode) {
       const code = document.createElement('a');
       code.className = 'project-code-link';
-      code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
+      if (project.github_repo) {
+        code.href = `https://github.com/${encodeURIComponent(project.github_repo.split('/')[0])}/${encodeURIComponent(project.github_repo.split('/')[1] ?? '')}`;
+        code.target = '_blank';
+        code.rel = 'noopener';
+      } else {
+        code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
+      }
       code.textContent = 'Code';
       code.setAttribute('aria-label', `Browse source code for ${project.name}`);
       actions.append(code);
