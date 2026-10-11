@@ -14,6 +14,7 @@ class Element {
   listeners = new Map<string, (event: any) => unknown>();
   attributes = new Map<string, string>();
   style: Record<string, string> = {};
+  dataset: Record<string, string> = {};
   offsetWidth = 288;
   offsetHeight = 360;
   classList = { add: (name: string) => { this.className = `${this.className || ''} ${name}`.trim(); }, remove() {} };

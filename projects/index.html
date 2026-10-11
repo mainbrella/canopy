@@ -17,6 +17,7 @@
     <main id="main" class="dashboard-main" aria-busy="true">
       <div class="dashboard-section-heading">
         <h1>Projects</h1>
+        <button class="dashboard-retry" type="button" data-domain-buy>Domains</button>
         <button id="project-new" class="button button-small" type="button" disabled>New project</button>
       </div>
       <p id="projects-status" class="dashboard-status" role="status">Checking your session…</p>
@@ -99,7 +100,7 @@
         <button id="endpoint-unpublish" class="dashboard-retry" type="button" hidden>Unpublish</button>
       </div>
       <section id="endpoint-domains" hidden aria-labelledby="endpoint-domains-title">
-        <h3 id="endpoint-domains-title">Custom domains</h3>
+        <div class="domain-section-heading"><h3 id="endpoint-domains-title">Custom domains</h3><button class="dashboard-retry" type="button" data-domain-buy>Buy new domain</button></div>
         <form id="endpoint-domain-form">
           <label for="endpoint-hostname">Hostname</label>
           <input id="endpoint-hostname" type="text" maxlength="253" placeholder="app.example.com" autocomplete="off" autocapitalize="none" spellcheck="false" />
@@ -112,6 +113,89 @@
       </section>
       <div class="container-actions"><button id="endpoint-close" class="dashboard-retry" type="button">Close</button></div>
     </dialog>
+    <dialog id="domain-dialog" class="private-services-dialog domain-dialog" aria-labelledby="domain-title">
+      <div class="domain-section-heading"><h2 id="domain-title">Domains</h2><button id="domain-close" class="dashboard-retry" type="button">Close</button></div>
+      <p id="domain-status" class="dashboard-status" role="status" aria-live="polite"></p>
+      <p id="domain-sandbox" class="dashboard-status" hidden>Test mode. No real domains are registered.</p>
+      <section id="domain-browse">
+        <p id="domain-unavailable" class="dashboard-status" hidden>Domain purchases are unavailable right now.</p>
+        <form id="domain-search-form">
+          <label for="domain-keyword">Find a domain</label>
+          <div class="domain-search"><input id="domain-keyword" type="search" required maxlength="100" placeholder="Your name or example.com" autocomplete="off" autocapitalize="none" spellcheck="false" /><button id="domain-search-submit" class="button button-small" type="submit">Search</button></div>
+          <p id="domain-connection" class="dashboard-status"></p>
+        </form>
+        <div id="domain-results" aria-live="polite"></div>
+        <h3>Your domains</h3><p id="domain-empty" class="dashboard-status">You haven't purchased any domains.</p><div id="domain-owned"></div>
+      </section>
+      <section id="domain-review" hidden>
+        <h3 id="domain-review-name" tabindex="-1"></h3>
+        <form id="domain-review-form">
+          <label for="domain-years">Registration term</label><select id="domain-years"><option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option><option value="8">8 years</option><option value="9">9 years</option><option value="10">10 years</option></select>
+          <p id="domain-price"></p><p id="domain-renewal" class="dashboard-status"></p>
+          <label class="domain-checkbox"><input id="domain-auto-renew" type="checkbox" checked /> Auto-renew annually using my saved card</label>
+          <fieldset id="domain-contact-fields"><legend>Registration details</legend><p class="dashboard-status">These details identify you as the domain owner. Verify your registrant email after purchase. WHOIS privacy is included where supported.</p><div class="domain-contact-grid"><div><label for="domain-contact-firstName">First name</label><input id="domain-contact-firstName" data-contact="firstName" type="text" autocomplete="given-name" required maxlength="200" /></div>
+<div><label for="domain-contact-lastName">Last name</label><input id="domain-contact-lastName" data-contact="lastName" type="text" autocomplete="family-name" required maxlength="200" /></div>
+<div><label for="domain-contact-email">Registrant email</label><input id="domain-contact-email" data-contact="email" type="email" autocomplete="email" required maxlength="200" /></div>
+<div><label for="domain-contact-phone">Phone (international, e.g. +14155552671)</label><input id="domain-contact-phone" data-contact="phone" type="tel" autocomplete="tel" required pattern="\+[1-9][0-9]{7,14}" placeholder="+14155552671" /></div>
+<div><label for="domain-contact-address1">Street address</label><input id="domain-contact-address1" data-contact="address1" type="text" autocomplete="address-line1" required maxlength="200" /></div>
+<div><label for="domain-contact-address2">Apartment, suite (optional)</label><input id="domain-contact-address2" data-contact="address2" type="text" autocomplete="address-line2" maxlength="200" /></div>
+<div><label for="domain-contact-city">City</label><input id="domain-contact-city" data-contact="city" type="text" autocomplete="address-level2" required maxlength="200" /></div>
+<div><label for="domain-contact-state">State / province</label><input id="domain-contact-state" data-contact="state" type="text" autocomplete="address-level1" required maxlength="200" /></div>
+<div><label for="domain-contact-zip">Postal code</label><input id="domain-contact-zip" data-contact="zip" type="text" autocomplete="postal-code" required maxlength="200" /></div>
+<div><label for="domain-contact-country">Country code (e.g. US)</label><input id="domain-contact-country" data-contact="country" type="text" autocomplete="country" required minlength="2" maxlength="2" pattern="[A-Z]{2}" placeholder="US" /></div></div></fieldset>
+          <label class="domain-checkbox"><input id="domain-terms" type="checkbox" required /> <span>I agree to the <a href="https://www.name.com/policies/registration-agreement" target="_blank" rel="noopener">Name.com registration agreement</a> and <a href="/terms/" target="_blank" rel="noopener">MainBrella terms</a>, including the selected renewal setting.</span></label>
+          <div class="container-actions"><button id="domain-continue" class="button button-small" type="submit">Continue to payment</button><button id="domain-review-back" class="dashboard-retry" type="button">Back</button></div>
+        </form>
+      </section>
+      <section id="domain-checkout" hidden>
+        <h3 id="domain-checkout-name"></h3><p id="domain-total"></p>
+        <form id="domain-payment-form">
+          <label for="domain-receipt-email">Receipt email</label><input id="domain-receipt-email" type="email" required autocomplete="email" />
+          <div id="domain-billing-address"></div><div id="domain-payment"></div>
+          <p id="domain-payment-status" class="dashboard-status" role="status"></p>
+          <div class="container-actions"><button id="domain-pay" class="button button-small" type="submit" disabled>Pay and register</button><button id="domain-checkout-back" class="dashboard-retry" type="button">Back</button></div>
+        </form>
+      </section>
+      <section id="domain-progress" hidden>
+        <h3 id="domain-progress-name"></h3><p id="domain-progress-state" role="status" aria-live="polite"></p>
+        <p id="domain-verification-note" class="dashboard-status" hidden>Check your registrant email for a verification link. Complete verification within 15 days to prevent suspension.</p>
+        <p id="domain-order-id" class="dashboard-status"></p>
+        <div class="container-actions"><a id="domain-visit" class="dashboard-retry" target="_blank" rel="noopener" hidden>Open website</a><button id="domain-check" class="dashboard-retry" type="button">Check status</button><button id="domain-progress-back" class="dashboard-retry" type="button">Your domains</button></div>
+      </section>
+      <section id="domain-detail" hidden>
+        <h3 id="domain-detail-name"></h3><p id="domain-detail-expiry" class="dashboard-status"></p>
+        <form id="domain-connect-form"><label for="domain-project">Connected project</label><select id="domain-project"></select><button class="dashboard-retry" type="submit">Save connection</button></form>
+        <form id="domain-settings">
+          <label class="domain-checkbox"><input id="domain-detail-renew" type="checkbox" /> Auto-renew annually</label>
+          <label class="domain-checkbox"><input id="domain-privacy" type="checkbox" /> WHOIS privacy</label>
+          <label class="domain-checkbox"><input id="domain-locked" type="checkbox" /> Transfer lock</label>
+          <div class="container-actions"><button class="dashboard-retry" type="submit">Save settings</button><button id="domain-renew-now" class="dashboard-retry" type="button">Renew now</button></div>
+        </form>
+        <p id="domain-verify-status" class="dashboard-status"></p><button id="domain-resend" class="dashboard-retry" type="button">Resend verification email</button>
+        <details><summary>Contact details</summary><form id="domain-edit-contact"><div class="domain-contact-grid"><div><label for="domain-edit-firstName">First name</label><input id="domain-edit-firstName" data-contact="firstName" type="text" autocomplete="given-name" required maxlength="200" /></div>
+<div><label for="domain-edit-lastName">Last name</label><input id="domain-edit-lastName" data-contact="lastName" type="text" autocomplete="family-name" required maxlength="200" /></div>
+<div><label for="domain-edit-email">Registrant email</label><input id="domain-edit-email" data-contact="email" type="email" autocomplete="email" required maxlength="200" /></div>
+<div><label for="domain-edit-phone">Phone (international, e.g. +14155552671)</label><input id="domain-edit-phone" data-contact="phone" type="tel" autocomplete="tel" required pattern="\+[1-9][0-9]{7,14}" placeholder="+14155552671" /></div>
+<div><label for="domain-edit-address1">Street address</label><input id="domain-edit-address1" data-contact="address1" type="text" autocomplete="address-line1" required maxlength="200" /></div>
+<div><label for="domain-edit-address2">Apartment, suite (optional)</label><input id="domain-edit-address2" data-contact="address2" type="text" autocomplete="address-line2" maxlength="200" /></div>
+<div><label for="domain-edit-city">City</label><input id="domain-edit-city" data-contact="city" type="text" autocomplete="address-level2" required maxlength="200" /></div>
+<div><label for="domain-edit-state">State / province</label><input id="domain-edit-state" data-contact="state" type="text" autocomplete="address-level1" required maxlength="200" /></div>
+<div><label for="domain-edit-zip">Postal code</label><input id="domain-edit-zip" data-contact="zip" type="text" autocomplete="postal-code" required maxlength="200" /></div>
+<div><label for="domain-edit-country">Country code (e.g. US)</label><input id="domain-edit-country" data-contact="country" type="text" autocomplete="country" required minlength="2" maxlength="2" pattern="[A-Z]{2}" placeholder="US" /></div></div><button class="dashboard-retry" type="submit">Save contacts</button></form></details>
+        <details><summary>DNS records</summary><p class="dashboard-status">MainBrella protects the records used to connect your project.</p>
+          <div class="endpoint-table-scroll"><table class="endpoint-dns-table"><caption class="visually-hidden">Domain DNS records</caption><thead><tr><th scope="col">Type</th><th scope="col">Host</th><th scope="col">Value</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody id="domain-dns-list"></tbody></table></div>
+          <form id="domain-dns-form"><label for="domain-dns-type">Type</label><select id="domain-dns-type"><option>TXT</option><option>MX</option><option>CNAME</option><option>A</option><option>AAAA</option><option>SRV</option><option>NS</option></select>
+            <label for="domain-dns-host">Host</label><input id="domain-dns-host" type="text" placeholder="@ or mail" maxlength="253" />
+            <label for="domain-dns-answer">Value</label><input id="domain-dns-answer" type="text" required maxlength="4096" />
+            <label for="domain-dns-priority">Priority (MX / SRV)</label><input id="domain-dns-priority" type="number" min="0" max="65535" value="10" />
+            <button class="dashboard-retry" type="submit">Add record</button></form>
+          <p class="dashboard-status">Nameservers: <span id="domain-nameservers"></span></p>
+        </details>
+        <details><summary>Transfer to another registrar</summary><p class="dashboard-status">New domains are generally locked for 60 days. Turn off the transfer lock above before requesting your authorization code.</p><button id="domain-auth-code" class="dashboard-retry" type="button">Reveal transfer code</button><p><code id="domain-transfer-code"></code></p></details>
+        <button id="domain-detail-back" class="dashboard-retry" type="button">Back to domains</button>
+      </section>
+    </dialog>
+    <script type="module" src="/src/domains.ts"></script>
     <script type="module" src="/src/account-menu.ts"></script>
     <script type="module" src="/src/projects.ts"></script>
   </body>

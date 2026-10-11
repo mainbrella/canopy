@@ -258,6 +258,33 @@
 .endpoint-domain-row strong { overflow-wrap: anywhere; }
 .endpoint-domain-row .dashboard-status { margin: 0 auto 0 0; }
 .endpoint-domain-row .dashboard-error { flex-basis: 100%; margin: 0; }
+.app-body .domain-dialog { width: min(620px, calc(100% - 32px)); }
+.domain-dialog [hidden] { display: none !important; }
+.domain-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.domain-section-heading :is(h2, h3) { margin: 0; }
+.domain-dialog h3 { margin: 20px 0 8px; font-size: 16px; overflow-wrap: anywhere; }
+.domain-search { display: flex; align-items: stretch; gap: 8px; }
+.domain-search input { min-width: 0; flex: 1; }
+.domain-search button { flex-shrink: 0; }
+.domain-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.domain-row > div { min-width: 0; }
+.domain-row strong { overflow-wrap: anywhere; }
+.domain-row p { margin: 4px 0 0; }
+.domain-row button { flex-shrink: 0; min-height: 44px; }
+.domain-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.domain-dialog fieldset { margin: 20px 0; padding: 0; border: 0; min-width: 0; }
+.domain-dialog legend { font-size: 15px; font-weight: 600; }
+.private-services-dialog .domain-checkbox { display: flex; align-items: flex-start; gap: 8px; min-height: 44px; line-height: 1.6; }
+.private-services-dialog .domain-checkbox input { width: 18px; min-height: 18px; height: 18px; margin-top: 3px; flex-shrink: 0; }
+.domain-dialog details { margin: 16px 0; }
+.domain-dialog summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; }
+.domain-dialog .endpoint-table-scroll { position: relative; }
+.domain-dialog .endpoint-dns-table td { overflow-wrap: anywhere; }
+.domain-dialog .endpoint-dns-table tr > :last-child { width: 88px; }
+.domain-dialog #domain-settings .domain-checkbox { margin: 4px 0; }
+.domain-dialog #domain-billing-address, .domain-dialog #domain-payment { margin-top: 16px; }
+.domain-dialog :is(#domain-transfer-code, #domain-nameservers, #domain-order-id) { overflow-wrap: anywhere; }
+@media (max-width: 480px) { .domain-contact-grid { grid-template-columns: 1fr; } }
 .endpoint-table-scroll { max-width: 100%; margin-top: 12px; overflow-x: auto; }
 .endpoint-dns-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
 .endpoint-dns-table th, .endpoint-dns-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
