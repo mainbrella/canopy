@@ -23,7 +23,7 @@
       <p id="projects-error" class="dashboard-error" role="alert" hidden></p>
       <button id="projects-retry" class="dashboard-retry" type="button" hidden>Retry</button>
       <table class="project-table" aria-label="Projects">
-        <thead><tr><th scope="col">Name</th><th scope="col">Domain</th><th scope="col">Preview</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <thead><tr><th scope="col">Name</th><th scope="col">Domain</th><th scope="col">Preview</th><th scope="col">Git</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
         <tbody id="project-list"></tbody>
       </table>
     </main>
@@ -34,6 +34,8 @@
         <input id="project-name" type="text" maxlength="80" required autocomplete="off" />
         <label for="project-domain">Domain (optional)</label>
         <input id="project-domain" type="text" maxlength="253" placeholder="example.com" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <label id="project-git-option" class="project-git-option" for="project-git"><input id="project-git" type="checkbox" aria-describedby="project-git-note" /> Enable Git history (optional)</label>
+        <p id="project-git-note" class="dashboard-status">Save versions as you build. Enabling Git does not start a build.</p>
         <p id="project-error" class="dashboard-error" role="alert" hidden></p>
         <p id="project-status" class="dashboard-status" role="status"></p>
         <div class="container-actions">
@@ -41,6 +43,19 @@
           <button id="project-cancel" class="dashboard-retry" type="button">Cancel</button>
         </div>
       </form>
+    </dialog>
+    <dialog id="project-git-dialog" class="private-services-dialog project-git-dialog" aria-labelledby="project-git-title">
+      <h2 id="project-git-title">Git history</h2>
+      <p id="project-git-status" class="dashboard-status" role="status"></p>
+      <p id="project-git-error" class="dashboard-error" role="alert" hidden></p>
+      <button id="project-git-retry" class="dashboard-retry" type="button" hidden>Retry</button>
+      <ol id="project-git-versions" class="project-git-versions"></ol>
+      <p id="project-git-clone" class="dashboard-status" hidden>Clone the downloaded history with <code>git clone -b main project.bundle project</code>.</p>
+      <div class="container-actions">
+        <button id="project-git-download" class="button button-small" type="button" disabled>Download repository</button>
+        <a id="project-git-builder" class="dashboard-retry">Open in Builder</a>
+        <button id="project-git-close" class="dashboard-retry" type="button">Close</button>
+      </div>
     </dialog>
     <dialog id="endpoint-dialog" class="private-services-dialog endpoint-dialog" aria-labelledby="endpoint-title">
       <h2 id="endpoint-title">Endpoint</h2>

@@ -9,6 +9,7 @@ class Element {
   disabled = false;
   textContent = '';
   value = '';
+  checked = false;
   children: Element[] = [];
   listeners = new Map<string, (event: any) => unknown>();
   attributes = new Map<string, string>();
@@ -22,6 +23,7 @@ class Element {
   showModal() { this.open = true; }
   close() { this.open = false; void this.fire('close'); }
   async fire(type: string, event: any = { preventDefault() {} }) { return this.listeners.get(type)?.(event); }
+  click() { void this.fire('click'); }
 }
 
 const originalProject = { id: 'project-1', name: 'First project', domain: 'example.com', created_at: '2026-01-01T00:00:00Z' };
@@ -35,8 +37,9 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   };
   const name = node('#project-name');
   const domain = node('#project-domain');
-  node('#project-form').reset = () => { name.value = ''; domain.value = ''; };
+  node('#project-form').reset = () => { name.value = ''; domain.value = ''; node('#project-git').checked = false; };
   const calls: { url: string; options: RequestInit }[] = [];
+  const created: Element[] = [];
   const redirects: string[] = [];
   const window = {
     localStorage: { getItem: () => 'accepted', setItem() {} },
@@ -51,7 +54,7 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   };
   property('window', window);
   property('location', window.location);
-  property('document', { querySelector: node, createElement: () => new Element() });
+  property('document', { querySelector: node, createElement: () => { const element = new Element(); created.push(element); return element; } });
   property('fetch', async (url: string, options: RequestInit) => {
     calls.push({ url, options });
     return respond(url, options);
@@ -59,7 +62,7 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   await import(`./projects.ts?test=${++sequence}`);
   const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); };
   await flush();
-  return { node: (selector: string) => node(selector), calls, redirects, flush };
+  return { node: (selector: string) => node(selector), calls, redirects, flush, created };
 }
 
 function defaultResponse(url: string, options: RequestInit) {
@@ -74,7 +77,7 @@ function defaultResponse(url: string, options: RequestInit) {
 }
 
 function editButton(f: Awaited<ReturnType<typeof fixture>>, index: number) {
-  return f.node('#project-list').children[index].children[3].children[0].children[0];
+  return f.node('#project-list').children[index].children[4].children[0].children[0];
 }
 
 test('shared dialog creates and edits projects, preserves order, and resets its mode', async t => {
@@ -255,4 +258,117 @@ test('sign-out aborts pending preview lookups and ignores their late responses',
   finishPreview(Response.json({ endpoint: { projectId: 'project-1', url: `https://p-${'a'.repeat(32)}.mainbrella.dev/`, target: { kind: 'container', id: 'container-1', createdAt: '2026-01-01T00:00:00.000Z', port: 3000 }, backendStatus: 'running' }, domains: [], hosting: { supported: true, customDomains: true, apexIps: [] } }));
   await f.flush();
   assert.equal(f.node('#project-list').children.length, 0);
+});
+
+const builderProject = { ...originalProject, build_app_id: originalProject.id, git_version_id: 'version-1' };
+const savedVersion = { id: 'version-1', commitId: 'a'.repeat(40), parentVersionId: null, message: 'First saved build', verified: true, createdAt: '2026-10-01T12:00:00Z' };
+
+test('Builder projects link to their workspace and Git stays optional for standalone creation and edits', async t => {
+  const f = await fixture(t, (url, options) => {
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject, secondProject] });
+    if (options.method === 'PATCH') {
+      const fields = JSON.parse(String(options.body));
+      return Response.json({ project: { ...secondProject, ...fields, build_app_id: secondProject.id, git_version_id: null } });
+    }
+    return defaultResponse(url, options);
+  });
+  const rows = f.node('#project-list').children;
+  assert.equal(rows[0].children[0].children[0].href, '/build/?app=project-1');
+  assert.equal(rows[0].children[3].children[0].textContent, 'History');
+  await editButton(f, 0).fire('click');
+  assert.equal(f.node('#project-git-option').hidden, true);
+  await f.node('#project-cancel').fire('click');
+  await rows[1].children[3].children[0].fire('click');
+  assert.equal(f.node('#project-git-option').hidden, false);
+  assert.equal(f.node('#project-git').checked, true);
+  await f.node('#project-form').fire('submit');
+  const update = f.calls.find(call => call.options.method === 'PATCH')!;
+  assert.deepEqual(JSON.parse(String(update.options.body)), { name: 'Second project', domain: null, git: true });
+  assert.equal(f.node('#project-list').children[1].children[3].children[0].textContent, 'History');
+  await f.node('#project-new').fire('click');
+  assert.equal(f.node('#project-git').checked, false);
+  f.node('#project-name').value = 'Optional Git';
+  f.node('#project-git').checked = true;
+  await f.node('#project-form').fire('submit');
+  const create = f.calls.find(call => call.options.method === 'POST')!;
+  assert.equal(JSON.parse(String(create.options.body)).git, true);
+});
+
+test('Git history reuses saved versions and downloads an authenticated complete repository', async t => {
+  let failDownload = true;
+  let downloaded: Blob | undefined;
+  t.mock.method(URL, 'createObjectURL', (blob: Blob) => { downloaded = blob; return 'blob:test-project'; });
+  t.mock.method(URL, 'revokeObjectURL', () => {});
+  const f = await fixture(t, (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject] });
+    if (path.endsWith('/versions')) return Response.json({ versions: [savedVersion], versionId: savedVersion.id, verifiedVersionId: savedVersion.id });
+    if (path.endsWith('/repository')) return failDownload ? Response.json({ error: 'storage_export_busy' }, { status: 429 }) : new Response(new Uint8Array([0, 255, 1]));
+    return defaultResponse(url, options);
+  });
+  await f.node('#project-list').children[0].children[3].children[0].fire('click');
+  await f.flush();
+  assert.equal(f.node('#project-git-dialog').open, true);
+  assert.equal(f.node('#project-git-versions').children[0].children[0].textContent, 'First saved build');
+  assert.match(f.node('#project-git-versions').children[0].children[1].textContent, /aaaaaaaa.*Verified/);
+  assert.equal(f.node('#project-git-download').disabled, false);
+  await f.node('#project-git-download').fire('click');
+  assert.equal(f.node('#project-git-error').hidden, false);
+  assert.equal(f.node('#project-git-download').disabled, false);
+  failDownload = false;
+  await f.node('#project-git-download').fire('click');
+  assert.equal(f.node('#project-git-status').textContent, 'Repository downloaded.');
+  assert.deepEqual(new Uint8Array(await downloaded!.arrayBuffer()), new Uint8Array([0, 255, 1]));
+  const download = f.created.find(element => element.download === 'project.bundle')!;
+  assert.equal(download.href, 'blob:test-project');
+  const repository = f.calls.find(call => new URL(call.url).pathname.endsWith('/repository'))!;
+  assert.equal(repository.options.credentials, 'include');
+});
+
+test('empty Git history cannot download and history failures can be retried', async t => {
+  let fail = true;
+  const f = await fixture(t, (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject] });
+    if (path.endsWith('/versions')) return fail ? Response.json({ error: 'unavailable' }, { status: 503 }) : Response.json({ versions: [], versionId: null, verifiedVersionId: null });
+    return defaultResponse(url, options);
+  });
+  await f.node('#project-list').children[0].children[3].children[0].fire('click');
+  await f.flush();
+  assert.equal(f.node('#project-git-error').hidden, false);
+  assert.equal(f.node('#project-git-retry').hidden, false);
+  assert.equal(f.node('#project-git-download').disabled, true);
+  fail = false;
+  await f.node('#project-git-retry').fire('click');
+  await f.flush();
+  assert.match(f.node('#project-git-status').textContent, /No saved versions yet/);
+  assert.equal(f.node('#project-git-download').disabled, true);
+  assert.equal(f.node('#project-git-clone').hidden, true);
+});
+
+test('closing history or losing the session ignores pending private Git responses', async t => {
+  let finish!: (response: Response) => void;
+  let signal: AbortSignal | undefined;
+  let expire = false;
+  const f = await fixture(t, (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject] });
+    if (path.endsWith('/versions')) {
+      signal = options.signal as AbortSignal;
+      return expire ? Response.json({ error: 'not_authenticated' }, { status: 401 }) : new Promise(resolve => { finish = resolve; });
+    }
+    return defaultResponse(url, options);
+  });
+  await f.node('#project-list').children[0].children[3].children[0].fire('click');
+  await f.node('#project-git-close').fire('click');
+  finish(Response.json({ versions: [savedVersion], versionId: savedVersion.id, verifiedVersionId: savedVersion.id }));
+  await f.flush();
+  assert.equal(f.node('#project-git-versions').children.length, 0);
+  expire = true;
+  await f.node('#project-list').children[0].children[3].children[0].fire('click');
+  await f.flush();
+  assert.equal(signal?.aborted, true);
+  assert.equal(f.node('#project-git-dialog').open, false);
+  assert.equal(f.node('#project-list').children.length, 0);
+  assert.deepEqual(f.redirects, ['/login/?returnTo=%2Fprojects%2F']);
 });

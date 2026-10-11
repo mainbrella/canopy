@@ -66,6 +66,7 @@ export function buildErrorMessage(code: string, details?: string | null): string
     build_model_unpriced: 'Build is unavailable right now. Please try again shortly.',
     build_unavailable: 'Build is unavailable right now. Please try again shortly.',
     build_busy: 'Another build is running in your account. Wait for it to finish.',
+    project_hosting_in_use: 'Unpublish this project’s endpoint and remove its custom domains in Projects before deleting it.',
     revision_conflict: 'This app changed in another tab. Reload the app before trying again.',
     build_app_limit: 'You have reached the 50-app limit. Delete an app to make room.',
     build_turn_limit: 'This app has reached its 100-build limit. Export its source to keep working on it.',
