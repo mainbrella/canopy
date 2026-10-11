@@ -2,6 +2,15 @@
 .app-launch-article h1 .model-name { white-space: nowrap; color: inherit; }
 .app-launch-article code { overflow-wrap: anywhere; }
 .app-launch-article .docs-code code { overflow-wrap: normal; }
+.app-launch-article .article-video {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 32px auto;
+  border: 0;
+}
 .app-launch-article .lifecycle-table {
   width: 100%;
   margin: 24px 0;
