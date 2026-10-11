@@ -351,7 +351,7 @@ function render() {
     wrapper.addEventListener('focusout', event => {
       if (openActions?.toggle === toggle && !wrapper.contains(event.relatedTarget as Node | null)) closeActions();
     });
-    function menuButton(label: string, action: () => unknown) {
+    function menuButton(label: string, action?: () => unknown) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'project-menu-action';
@@ -360,15 +360,22 @@ function render() {
         if (busy || disposed || button.disabled) return;
         // Return focus to the visible trigger before opening a dialog.
         closeActions(true);
-        return action();
+        return action?.();
       });
       return button;
     }
     const edit = menuButton('Edit details', () => openProjectDialog(project));
     editButtons.set(project.id, edit);
-    const endpoint = menuButton('Hosting & domains', () => hosting.open(project));
+    const endpoint = menuButton('Endpoint', () => hosting.open(project));
+    const customDomains = menuButton('Custom domains', () => hosting.open(project, 'domains'));
+    const buyDomain = menuButton('Buy domain');
+    buyDomain.dataset.domainBuy = '';
+    buyDomain.dataset.projectId = project.id;
+    buyDomain.dataset.projectName = project.name;
     endpointButtons.set(project.id, endpoint);
-    panel.append(edit, endpoint);
+    endpointButtons.set(`${project.id}:domains`, customDomains);
+    endpointButtons.set(`${project.id}:buy`, buyDomain);
+    panel.append(edit, endpoint, customDomains, buyDomain);
     const sourceHeading = document.createElement('p');
     sourceHeading.className = 'project-menu-heading';
     sourceHeading.textContent = 'Source';

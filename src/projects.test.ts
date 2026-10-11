@@ -633,7 +633,7 @@ test('keyboard navigation reaches management actions and skips unavailable stora
   assert.equal(panel.hidden, false);
   assert.equal((document as any).activeElement, editButton(f, 0));
   await panel.fire('keydown', { key: 'ArrowDown', preventDefault() {} });
-  assert.equal((document as any).activeElement, projectAction(f, 'Hosting & domains'));
+  assert.equal((document as any).activeElement, projectAction(f, 'Endpoint'));
   await panel.fire('keydown', { key: 'End', preventDefault() {} });
   assert.equal((document as any).activeElement, projectAction(f, 'Reconnect GitHub access'));
   assert.equal(storageButton(f).disabled, true);
@@ -646,11 +646,35 @@ test('keyboard navigation reaches management actions and skips unavailable stora
 test('opening Hosting from Manage targets that project and returns focus to its visible trigger', async t => {
   const f = await fixture(t);
   await manageButton(f, 1).fire('click');
-  await projectAction(f, 'Hosting & domains', 1).fire('click');
+  await projectAction(f, 'Endpoint', 1).fire('click');
   await f.flush();
   assert.equal(menuPanel(f, 1).hidden, true);
   assert.equal(f.node('#endpoint-dialog').open, true);
-  assert.equal(f.node('#endpoint-title').textContent, 'Endpoint · Second project');
+  assert.equal(f.node('#endpoint-title').textContent, 'Endpoint');
+  assert.equal(f.node('#endpoint-project').textContent, 'Second project');
+  assert.equal(f.node('#endpoint-settings').hidden, false);
+  assert.equal(f.node('#endpoint-domains').hidden, true);
+  await f.node('#endpoint-close').fire('click');
+  assert.equal((document as any).activeElement, manageButton(f, 1));
+});
+
+
+test('Manage separates domain connections from publishing and scopes purchases to the project', async t => {
+  const f = await fixture(t);
+  const purchase = projectAction(f, 'Buy domain', 1);
+  assert.equal(purchase.dataset.projectId, 'project-2');
+  assert.equal(purchase.dataset.projectName, 'Second project');
+  assert.equal(purchase.dataset.domainBuy, '');
+  await manageButton(f, 1).fire('click');
+  const before = f.calls.length;
+  await projectAction(f, 'Custom domains', 1).fire('click');
+  await f.flush();
+  assert.equal(menuPanel(f, 1).hidden, true);
+  assert.equal(f.node('#endpoint-title').textContent, 'Custom domains');
+  assert.equal(f.node('#endpoint-project').textContent, 'Second project');
+  assert.equal(f.node('#endpoint-settings').hidden, true);
+  assert.equal(f.node('#endpoint-domains').hidden, false);
+  assert.equal(f.calls.slice(before).some(call => ['/containers', '/capabilities', '/private-services/networks'].includes(new URL(call.url).pathname)), false);
   await f.node('#endpoint-close').fire('click');
   assert.equal((document as any).activeElement, manageButton(f, 1));
 });

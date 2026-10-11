@@ -143,7 +143,8 @@ test('controller ignores a save response after the dialog closes and another pro
   controller.open({ id: 'project-2', name: 'Second' }); await flush();
   resolveSave(Response.json({ ...endpoint, endpoint: { ...endpoint.endpoint, projectId: 'project-1', url: 'https://stale.mainbrella.app', target: { kind: 'container', id: 'container-1', createdAt: '2026-01-01T00:00:00.000Z', port: 3000 }, backendStatus: 'running' } }));
   await saving; await flush();
-  assert.equal(node('#endpoint-title').textContent, 'Endpoint · Second');
+  assert.equal(node('#endpoint-title').textContent, 'Endpoint');
+  assert.equal(node('#endpoint-project').textContent, 'Second');
   assert.equal(node('#endpoint-url').href, `https://p-${'2'.repeat(32)}.mainbrella.dev/`);
 });
 

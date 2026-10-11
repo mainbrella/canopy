@@ -148,6 +148,9 @@ export async function copyDnsValue(value: string, writeText: (text: string) => P
 export function createProjectHosting({ onUnauthenticated, onClose, fetcher = fetch }: { onUnauthenticated: () => void; onClose?: (projectId: string) => void; fetcher?: typeof fetch }) {
   const dialog = document.querySelector<HTMLDialogElement>('#endpoint-dialog')!;
   const title = document.querySelector<HTMLElement>('#endpoint-title')!;
+  const projectName = document.querySelector<HTMLElement>('#endpoint-project')!;
+  const settings = document.querySelector<HTMLElement>('#endpoint-settings')!;
+  const dnsDetails = document.querySelector<HTMLDetailsElement>('#endpoint-dns-details')!;
   const status = document.querySelector<HTMLElement>('#endpoint-status')!;
   const error = document.querySelector<HTMLElement>('#endpoint-error')!;
   const targetMode = document.querySelector<HTMLSelectElement>('#endpoint-mode')!;
@@ -175,6 +178,7 @@ export function createProjectHosting({ onUnauthenticated, onClose, fetcher = fet
   let data: EndpointData | null = null;
   let containers: Container[] = [];
   let networks: PrivateNetwork[] = [];
+  let currentView: 'endpoint' | 'domains' = 'endpoint';
   let networkingSupported = false;
   let catalogError = false;
   let busy = false, disposed = false, epoch = 0;
@@ -184,7 +188,7 @@ export function createProjectHosting({ onUnauthenticated, onClose, fetcher = fet
   function controls() {
     dialog.setAttribute('aria-busy', String(busy));
     const locked = busy || disposed;
-    for (const node of [targetMode, container, port, network, service, hostname, save] as (HTMLInputElement | HTMLSelectElement | HTMLButtonElement)[]) node.disabled = locked || (node === save && !data?.hosting.supported) || (node === network && !networkingSupported) || (node === service && !networkingSupported);
+    for (const node of [targetMode, container, port, network, service, hostname, save] as (HTMLInputElement | HTMLSelectElement | HTMLButtonElement)[]) node.disabled = locked || (node === save && (!data?.hosting.supported || catalogError)) || (node === network && !networkingSupported) || (node === service && !networkingSupported);
     unpublish.disabled = locked || !data?.endpoint.target;
     close.disabled = disposed;
     document.querySelector<HTMLButtonElement>('#endpoint-domain-add')!.disabled = locked || !data?.hosting.customDomains;
@@ -246,21 +250,24 @@ export function createProjectHosting({ onUnauthenticated, onClose, fetcher = fet
     localNote.hidden = !localDevelopment || !data?.hosting.customDomains;
     localNote.textContent = localDevelopment ? 'DNS and TLS are simulated locally. Click Verify DNS twice to activate the alias.' : '';
     domainForm.hidden = !data?.hosting.customDomains;
-    domainSection.hidden = !data || (!data.hosting.customDomains && data.domains.length === 0);
+    domainSection.hidden = currentView !== 'domains' || !data;
+    dnsDetails.hidden = !data?.domains.some(item => item.dnsRecords.length || item.apexRecords?.length);
   }
-  function replaceDomain(updated: ProjectDomain) { const at = data!.domains.findIndex(item => item.id === updated.id); if (at < 0) data!.domains.push(updated); else data!.domains[at] = updated; renderDomains(); }
+  function replaceDomain(updated: ProjectDomain) { if (updated.status !== 'active') dnsDetails.open = true; const at = data!.domains.findIndex(item => item.id === updated.id); if (at < 0) data!.domains.push(updated); else data!.domains[at] = updated; renderDomains(); }
   function render() {
     if (!data || !currentProject) return;
-    title.textContent = `Endpoint · ${currentProject.name}`;
+    title.textContent = currentView === 'domains' ? 'Custom domains' : 'Endpoint';
+    projectName.textContent = currentProject.name;
     const linked = data.endpoint.target !== null;
     const safeUrl = safeEndpointUrl(data.endpoint.url);
     url.hidden = !linked || data.endpoint.backendStatus !== 'running' || !safeUrl;
     if (safeUrl) url.href = safeUrl.href;
     url.textContent = safeUrl?.href ?? '';
     unpublish.hidden = !linked;
-    if (!data.hosting.supported) feedback('Public endpoints are unavailable in this environment.');
+    if (currentView === 'domains') feedback(!data.hosting.customDomains ? 'Custom domains are unavailable in this environment.' : !linked ? 'Publish an endpoint before your domain can serve this project.' : 'Connect a domain you own, then add its DNS records at your provider.');
+    else if (!data.hosting.supported) feedback('Public endpoints are unavailable in this environment.');
     else if (catalogError) feedback('Endpoint loaded, but target options could not be refreshed. Retry to load current containers and networks.', true);
-    else if (!linked) feedback('Choose a running container or registered network service to publish a public URL.');
+    else if (!linked) feedback('Choose a running target to publish a public URL.');
     else feedback(data.endpoint.backendStatus === 'running' ? 'Endpoint is running.' : 'The linked target is unavailable. Start it, then select it and publish again.');
     const target = data.endpoint.target;
     targetMode.value = target?.kind ?? 'container';
@@ -272,12 +279,14 @@ export function createProjectHosting({ onUnauthenticated, onClose, fetcher = fet
   }
   async function load() {
     const id = currentProject!.id, at = epoch;
-    busy = true; feedback('Loading endpoint…'); controls();
+    busy = true; feedback(currentView === 'domains' ? 'Loading domains…' : 'Loading endpoint…'); controls();
     try {
       const endpoint = await client.endpoint(id);
       if (disposed || epoch !== at) return;
       data = endpoint;
       renderDomains();
+      dnsDetails.open = data.domains.some(item => item.status !== 'active');
+      if (currentView === 'domains') { render(); return; }
       const caps = await client.capabilities().catch(() => null);
       if (disposed || epoch !== at) return;
       networkingSupported = caps?.networking?.privateServices === true;
@@ -318,7 +327,25 @@ export function createProjectHosting({ onUnauthenticated, onClose, fetcher = fet
   close.addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => { const projectId = currentProject?.id; epoch++; requestAbort.abort(); currentProject = null; data = null; busy = false; feedback(''); records.replaceChildren(); apex.replaceChildren(); domainList.replaceChildren(); if (projectId) onClose?.(projectId); });
   return {
-    open(project: { id: string; name: string; domain?: string | null }) { if (disposed) return; dialog.dataset.projectId = project.id; epoch++; requestAbort.abort(); requestAbort = new AbortController(); client = createProjectHostingClient({ fetcher, onUnauthenticated, signal: requestAbort.signal }); currentProject = project; data = null; catalogError = false; containers = []; networks = []; hostname.value = project.domain ?? ''; port.value = '3000'; targetMode.value = 'container'; container.value = ''; network.value = ''; service.value = ''; identities.clear(); feedback(''); domainSection.hidden = true; localNote.hidden = true; dialog.showModal(); load(); },
+    open(project: { id: string; name: string; domain?: string | null }, view: 'endpoint' | 'domains' = 'endpoint') {
+      if (disposed) return;
+      currentView = view;
+      settings.hidden = view !== 'endpoint';
+      title.textContent = view === 'domains' ? 'Custom domains' : 'Endpoint';
+      projectName.textContent = project.name;
+      close.setAttribute('aria-label', view === 'domains' ? 'Close custom domains' : 'Close endpoint settings');
+      epoch++;
+      requestAbort.abort();
+      requestAbort = new AbortController();
+      client = createProjectHostingClient({ fetcher, onUnauthenticated, signal: requestAbort.signal });
+      currentProject = project;
+      data = null; catalogError = false; containers = []; networks = [];
+      hostname.value = project.domain ?? ''; port.value = '3000'; targetMode.value = 'container';
+      container.replaceChildren(); network.replaceChildren(); service.replaceChildren(); identities.clear();
+      feedback(''); url.hidden = true; unpublish.hidden = true; domainSection.hidden = true; localNote.hidden = true;
+      dialog.showModal();
+      load();
+    },
     dispose() { disposed = true; epoch++; requestAbort.abort(); dialog.close(); controls(); },
   };
 }

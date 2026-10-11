@@ -248,11 +248,11 @@
 .private-services-dialog :is(input, select) { display: block; box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--control-border); border-radius: 4px; background: var(--paper); color: var(--ink); }
 .private-services-dialog .dashboard-status { margin-top: 6px; font-size: 12px; }
 .private-services-dialog .container-actions { flex-wrap: wrap; margin-top: 20px; }
-.endpoint-dialog { width: min(620px, calc(100% - 32px)); }
+.app-body .endpoint-dialog { width: min(520px, calc(100% - 32px)); }
 .endpoint-dialog h3 { margin: 22px 0 8px; font-size: 15px; }
 .endpoint-dialog [hidden] { display: none !important; }
 .endpoint-dialog .endpoint-actions { margin-top: 14px; }
-.endpoint-dialog #endpoint-domains { margin-top: 22px; }
+
 .endpoint-domain-list { display: grid; gap: 8px; margin-top: 10px; }
 .endpoint-domain-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .endpoint-domain-row strong { overflow-wrap: anywhere; }
@@ -278,13 +278,52 @@
 .private-services-dialog .domain-checkbox input { width: 18px; min-height: 18px; height: 18px; margin-top: 3px; flex-shrink: 0; }
 .domain-dialog details { margin: 16px 0; }
 .domain-dialog summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; }
-.domain-dialog .endpoint-table-scroll { position: relative; }
+/* Project tasks keep their title and dismissal visible while content scrolls. */
+.app-body .private-services-dialog.project-task-dialog { box-sizing: border-box; padding: 0; }
+.project-task-dialog[open] { display: flex; flex-direction: column; }
+.project-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-shrink: 0; padding: 20px 24px 12px; }
+.project-dialog-heading > div { min-width: 0; }
+.project-dialog-heading h2 { margin: 0; font-size: 20px; line-height: 1.4; letter-spacing: 0; }
+.project-dialog-heading .dashboard-status { margin: 4px 0 0; overflow-wrap: anywhere; }
+.app-body .dialog-close { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; padding: 0; margin: -8px -8px 0 0; border-color: transparent; font-size: 24px; font-weight: 400; line-height: 1; }
+.project-dialog-body { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 24px 20px; }
+.project-dialog-body > .dashboard-status:empty, .endpoint-feedback .dashboard-status:empty { display: none; }
+.endpoint-feedback { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.endpoint-feedback .dashboard-status { margin: 0; }
+.app-body .endpoint-feedback .dashboard-retry { min-height: 44px; flex-shrink: 0; border-color: transparent; color: var(--muted); }
+.endpoint-target-grid { display: grid; grid-template-columns: minmax(0, 1fr) 144px; gap: 16px; }
+.endpoint-target-grid > div { min-width: 0; }
+#endpoint-network-field { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.endpoint-public-url { display: block; margin: 8px 0; overflow-wrap: anywhere; font-size: 13px; }
+.endpoint-dialog details summary { min-height: 44px; align-content: center; cursor: pointer; font-size: 13px; }
+.endpoint-dialog .endpoint-table-scroll:has(tbody:empty) { display: none; }
+.project-task-dialog .dialog-step-actions { position: sticky; bottom: -20px; z-index: 1; justify-content: flex-end; margin: 16px -24px -20px; padding: 16px 24px 20px; background: var(--surface); }
+.dialog-step-actions > .dashboard-retry { margin-right: auto; }
+.domain-steps { display: flex; gap: 24px; padding: 0; margin: 4px 0 16px; list-style: none; counter-reset: purchase-step; color: var(--muted); font-size: 12px; }
+.domain-steps li { counter-increment: purchase-step; }
+.domain-steps li::before { content: counter(purchase-step) ". "; }
+.domain-steps [aria-current="step"] { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 6px; }
+.domain-dialog :is(#domain-review, #domain-contact, #domain-checkout) > h3 { margin-top: 0; }
+.domain-dialog #domain-contact-fields { margin: 12px 0; }
+.domain-dialog #domain-contact-fields > .dashboard-status { margin: 0; }
+.project-task-dialog label { line-height: 1.4; }
+.project-task-dialog :is(#domain-price, #domain-total) { margin: 12px 0 4px; }
+.domain-dialog .domain-owned-details { margin-bottom: 0; }
+@media (max-width: 480px) {
+  .app-body .project-task-dialog { padding: 0; }
+  .project-dialog-heading { padding: 16px 16px 8px; }
+  .project-dialog-body { padding: 0 16px 16px; }
+  .project-task-dialog .dialog-step-actions { bottom: -16px; margin-right: -16px; margin-left: -16px; margin-bottom: -16px; padding: 12px 16px 16px; }
+  .endpoint-target-grid { grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; }
+  .domain-steps { gap: 20px; }
+}
+.project-task-dialog .endpoint-table-scroll { position: relative; }
 .domain-dialog .endpoint-dns-table td { overflow-wrap: anywhere; }
 .domain-dialog .endpoint-dns-table tr > :last-child { width: 88px; }
 .domain-dialog #domain-settings .domain-checkbox { margin: 4px 0; }
 .domain-dialog #domain-billing-address, .domain-dialog #domain-payment { margin-top: 16px; }
 .domain-dialog :is(#domain-transfer-code, #domain-nameservers, #domain-order-id) { overflow-wrap: anywhere; }
-@media (max-width: 480px) { .domain-contact-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .domain-contact-grid { gap: 0 12px; } }
 .endpoint-table-scroll { max-width: 100%; margin-top: 12px; overflow-x: auto; }
 .endpoint-dns-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
 .endpoint-dns-table th, .endpoint-dns-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }

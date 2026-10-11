@@ -18,6 +18,8 @@ function lock() {
   node<HTMLButtonElement>('checkout-back').disabled = processing;
   node<HTMLButtonElement>('search-submit').disabled = busy;
   node<HTMLButtonElement>('continue').disabled = busy || !order;
+  node<HTMLButtonElement>('review-next').disabled = busy || !order;
+  for (const id of ['review-back', 'contact-back']) node<HTMLButtonElement>(id).disabled = busy;
   node<HTMLSelectElement>('years').disabled = busy;
   dialog.setAttribute('aria-busy', String(busy));
 }
@@ -28,7 +30,17 @@ async function run(action: () => Promise<void>) {
   catch (error) { if (at === version) feedback(domainMessages[(error as Error).message] ?? 'Could not complete this request. Try again.', true); }
   finally { if (at === version) { busy = false; lock(); } }
 }
-function view(name: string) { for (const id of ['browse', 'review', 'checkout', 'progress', 'detail']) node(id).hidden = id !== name; }
+function view(name: string) {
+  for (const id of ['browse', 'review', 'contact', 'checkout', 'progress', 'detail']) node(id).hidden = id !== name;
+  node('steps').hidden = !['review', 'contact', 'checkout'].includes(name);
+  node('steps').querySelectorAll<HTMLElement>('[data-domain-step]').forEach(step => {
+    if (step.dataset.domainStep === name) step.setAttribute('aria-current', 'step');
+    else step.removeAttribute('aria-current');
+  });
+  node('body').scrollTop = 0;
+  const heading = node(name).querySelector<HTMLElement>('h3');
+  if (heading) { heading.tabIndex = -1; heading.focus(); }
+}
 function cleanupPayment() { payment?.(); payment = null; node('payment').replaceChildren(); node('billing-address').replaceChildren(); }
 async function list() {
   const at = version, value = await client.request(''); if (at !== version) return;
@@ -52,14 +64,18 @@ async function list() {
   node('empty').hidden = value.domains.length + value.orders.length > 0;
 }
 async function choose(name: string, kind: 'registration' | 'renewal' = 'registration') {
+  const at = version;
   selectedName = name; selectedKind = kind;
   node<HTMLSelectElement>('years').value = '1';
   await refreshQuote();
+  if (at !== version || !order) return;
   node('contact-fields').hidden = kind === 'renewal';
   node<HTMLFieldSetElement>('contact-fields').disabled = kind === 'renewal';
   node<HTMLInputElement>('auto-renew').checked = true;
   node<HTMLInputElement>('terms').checked = false;
-  view('review'); node('review-name').focus();
+  node('contact-title').textContent = kind === 'renewal' ? 'Review renewal' : 'Registration details';
+  node('review-next').textContent = kind === 'renewal' ? 'Continue' : 'Registration details';
+  view('review');
 }
 async function refreshQuote() {
   order = null;
@@ -69,6 +85,7 @@ async function refreshQuote() {
   if (at !== version) return;
   order = quoted; node('review-name').textContent = quoted.domainName;
   node('price').textContent = `${domainMoney(quoted.amountCents)} for ${quoted.years} ${quoted.years === 1 ? 'year' : 'years'}${quoted.premium ? ' · Premium domain' : ''}`;
+  node('contact-summary').textContent = `${quoted.domainName} · ${domainMoney(quoted.amountCents)} for ${quoted.years} ${quoted.years === 1 ? 'year' : 'years'}`;
   node('renewal').textContent = `Renews at ${domainMoney(quoted.renewalCents)}/year. Auto-renew charges your saved card 30 days before expiry. A higher price requires your approval.`;
 }
 async function pay() {
@@ -140,9 +157,16 @@ async function detail(name: string) {
   const fields = node('edit-contact').querySelectorAll<HTMLInputElement>('input[data-contact]');
   fields.forEach(input => { input.value = domain.contacts?.registrant?.[input.dataset.contact!] ?? ''; });
 }
-async function open(id?: string, resume?: string) {
+async function open(id?: string, resume?: string, projectName?: string) {
   version++; abort.abort(); abort = new AbortController(); clearTimeout(timer); cleanupPayment();
-  projectId = id; order = null; processing = false; busy = false;
+  projectId = id; order = null; selectedName = ''; processing = false; busy = false;
+  node('title').textContent = id ? 'Buy domain' : 'Domains';
+  node('context').hidden = !projectName; node('context').textContent = projectName ?? '';
+  node('results').replaceChildren(); node<HTMLInputElement>('keyword').value = '';
+  node<HTMLDetailsElement>('owned-details').open = !id;
+  node('owned').replaceChildren(); node('empty').hidden = true;
+  node('search-form').hidden = true; node('unavailable').hidden = true; node('sandbox').hidden = true;
+  node('connection').textContent = '';
   client = createDomainClient({ signal: abort.signal, onUnauthenticated: () => location.assign(`/login/?returnTo=${encodeURIComponent(location.pathname + location.search)}`) });
   feedback(); lock(); view('browse'); dialog.showModal();
   await run(async () => {
@@ -168,11 +192,13 @@ node<HTMLFormElement>('search-form').addEventListener('submit', event => { event
   if (!results.results?.length) feedback('No available domains found. Try another name.');
 }); });
 node<HTMLSelectElement>('years').addEventListener('change', () => { void run(refreshQuote); });
-node<HTMLFormElement>('review-form').addEventListener('submit', event => { event.preventDefault(); void run(pay); });
+node<HTMLFormElement>('review-form').addEventListener('submit', event => { event.preventDefault(); if (!busy && order) { feedback(); view('contact'); } });
+node<HTMLFormElement>('contact-form').addEventListener('submit', event => { event.preventDefault(); void run(pay); });
+node('contact-back').addEventListener('click', () => { if (!busy) { feedback(); view('review'); } });
 node('close').addEventListener('click', () => { if (!processing) dialog.close(); });
 dialog.addEventListener('cancel', event => { if (processing) event.preventDefault(); });
 dialog.addEventListener('close', () => { version++; abort.abort(); clearTimeout(timer); cleanupPayment(); });
-for (const id of ['review-back', 'detail-back', 'progress-back']) node(id).addEventListener('click', () => { if (busy) return; progressVersion++; clearTimeout(timer); cleanupPayment(); view('browse'); void run(list); });
+for (const id of ['review-back', 'detail-back', 'progress-back']) node(id).addEventListener('click', () => { if (busy) return; progressVersion++; clearTimeout(timer); cleanupPayment(); view('browse'); node<HTMLDetailsElement>('owned-details').open = id !== 'review-back'; void run(list); });
 node('checkout-back').addEventListener('click', () => { if (!processing) { cleanupPayment(); view('browse'); void run(list); } });
 node('check').addEventListener('click', () => { clearTimeout(timer); void run(progress); });
 node('renew-now').addEventListener('click', () => { void run(() => choose(detailName, 'renewal')); });
@@ -199,9 +225,8 @@ node<HTMLFormElement>('edit-contact').addEventListener('submit', event => { even
   await client.request('/settings', 'PATCH', { domainName: detailName, contact }); await detail(detailName); feedback('Contact details saved. Check your email for verification.');
 }); });
 document.addEventListener('click', event => {
-  const target = (event.target as HTMLElement).closest('[data-domain-buy]'); if (!target) return;
-  const project = target.closest<HTMLDialogElement>('#endpoint-dialog')?.dataset.projectId;
-  void open(project);
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-domain-buy]'); if (!target || target.disabled) return;
+  void open(target.dataset.projectId, undefined, target.dataset.projectName);
 });
 const returnedOrder = new URL(location.href).searchParams.get('domainOrder');
 if (returnedOrder && /^[0-9a-f-]{36}$/.test(returnedOrder)) {
