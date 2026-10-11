@@ -47,15 +47,20 @@
     <dialog id="github-dialog" class="private-services-dialog" aria-labelledby="github-dialog-title">
       <h2 id="github-dialog-title">Connect GitHub</h2>
       <form id="github-form">
-        <label for="github-repo">Repository</label>
-        <input id="github-repo" type="text" required placeholder="owner/repository or GitHub URL" autocomplete="off" autocapitalize="none" spellcheck="false" />
-        <label for="github-branch">Branch</label>
-        <input id="github-branch" type="text" required value="main" autocomplete="off" autocapitalize="none" spellcheck="false" />
-        <p id="github-note" class="dashboard-status">Builder will commit to GitHub and turn off hosted Git. Use an empty branch when moving existing Git history.</p>
+        <p id="github-install-note" class="dashboard-status">Install the Mainbrella Build app on your personal account or organization. In GitHub, choose all repositories or just the ones you want to use.</p>
+        <div id="github-picker" hidden>
+          <label for="github-repo">Repository</label>
+          <select id="github-repo" required aria-describedby="github-status"></select>
+          <button id="github-more" class="dashboard-retry" type="button" hidden>Load more repositories</button>
+          <label for="github-branch">Branch</label>
+          <input id="github-branch" type="text" required value="main" autocomplete="off" autocapitalize="none" spellcheck="false" />
+          <p id="github-note" class="dashboard-status">Builder will commit to GitHub and turn off hosted Git. Use an empty branch when moving existing Git history.</p>
+        </div>
         <p id="github-error" class="dashboard-error" role="alert" hidden></p>
         <p id="github-status" class="dashboard-status" role="status"></p>
         <div class="container-actions">
-          <button id="github-submit" class="button button-small" type="submit">Authorize GitHub</button>
+          <button id="github-submit" class="button button-small" type="submit">Install GitHub app</button>
+          <button id="github-manage" class="dashboard-retry" type="button" hidden>Manage repository access</button>
           <button id="github-cancel" class="dashboard-retry" type="button">Cancel</button>
         </div>
       </form>

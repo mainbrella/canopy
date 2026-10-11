@@ -24,7 +24,7 @@ const formStatus = document.querySelector<HTMLElement>('#project-status')!;
 const dialogTitle = document.querySelector<HTMLElement>('#project-dialog-title')!;
 const githubDialog = document.querySelector<HTMLDialogElement>('#github-dialog')!;
 const githubForm = document.querySelector<HTMLFormElement>('#github-form')!;
-const githubRepo = document.querySelector<HTMLInputElement>('#github-repo')!;
+const githubRepo = document.querySelector<HTMLSelectElement>('#github-repo')!;
 const githubBranch = document.querySelector<HTMLInputElement>('#github-branch')!;
 const githubSubmit = document.querySelector<HTMLButtonElement>('#github-submit')!;
 const githubCancel = document.querySelector<HTMLButtonElement>('#github-cancel')!;
@@ -32,6 +32,10 @@ const githubError = document.querySelector<HTMLElement>('#github-error')!;
 const githubStatus = document.querySelector<HTMLElement>('#github-status')!;
 const githubTitle = document.querySelector<HTMLElement>('#github-dialog-title')!;
 const githubNote = document.querySelector<HTMLElement>('#github-note')!;
+const githubPicker = document.querySelector<HTMLElement>('#github-picker')!;
+const githubInstallNote = document.querySelector<HTMLElement>('#github-install-note')!;
+const githubManage = document.querySelector<HTMLButtonElement>('#github-manage')!;
+const githubMore = document.querySelector<HTMLButtonElement>('#github-more')!;
 const abort = new AbortController();
 const previewClient = createProjectHostingClient({ onUnauthenticated: () => goToLogin(), signal: abort.signal });
 const hosting = createProjectHosting({ onUnauthenticated: () => goToLogin(), onClose: refreshPreview });
@@ -51,6 +55,11 @@ let refreshOnClose = false;
 let githubProject: Project | null = null;
 let githubReauthorize = false;
 let githubAuthorized = false;
+let githubLoading = false;
+let githubGeneration = 0;
+let githubCursor: string | null = null;
+interface GithubRepository { id: number; fullName: string; defaultBranch: string; private: boolean }
+let githubRepositories: GithubRepository[] = [];
 let githubActions = new Map<string, HTMLButtonElement>();
 const builderURL = (id: string) => `/build/?${new URLSearchParams({ app: id })}`;
 
@@ -74,7 +83,10 @@ function controls() {
   for (const button of endpointButtons.values()) button.disabled = busy || disposed;
   for (const button of gitButtons.values()) button.disabled = busy || disposed;
   for (const button of githubActions.values()) button.disabled = busy || disposed;
-  githubRepo.disabled = githubBranch.disabled = githubSubmit.disabled = githubCancel.disabled = busy || disposed;
+  githubRepo.disabled = githubBranch.disabled = busy || disposed || githubLoading || !githubAuthorized;
+  githubSubmit.disabled = busy || disposed || githubLoading || githubAuthorized && !githubRepo.value;
+  githubCancel.disabled = busy || disposed;
+  githubManage.disabled = githubMore.disabled = busy || disposed || githubLoading;
   form.setAttribute('aria-busy', String(busy));
   githubForm.setAttribute('aria-busy', String(busy));
 }
@@ -268,30 +280,85 @@ function githubButton(project: Project) {
   return button;
 }
 
-function openGitHubDialog(project: Project, reauthorize = false, repo = project.github_repo ?? '', branch = project.github_branch ?? 'main') {
+async function openGitHubDialog(project: Project, reauthorize = false, repo = '', branch = 'main') {
   if (disposed || !authenticated) return;
   githubProject = project;
   githubReauthorize = reauthorize;
+  const generation = ++githubGeneration;
+  githubLoading = false;
+  githubRepositories = [];
+  githubCursor = null;
   githubForm.reset();
-  githubRepo.value = repo;
+  githubRepo.replaceChildren();
   githubBranch.value = branch;
-  githubRepo.readOnly = githubBranch.readOnly = Boolean(project.github_repo);
-  githubNote.hidden = Boolean(project.github_repo);
+  githubPicker.hidden = true;
+  githubInstallNote.hidden = false;
+  githubManage.hidden = githubMore.hidden = true;
+  githubNote.hidden = false;
   githubError.hidden = true;
   githubError.textContent = '';
   githubStatus.textContent = '';
   githubAuthorized = false;
-  githubSubmit.textContent = 'Authorize GitHub';
+  githubSubmit.textContent = 'Install GitHub app';
   githubTitle.textContent = project.github_repo ? 'Reconnect GitHub access' : 'Connect GitHub';
   githubDialog.showModal();
-  githubRepo.focus();
+  controls();
+  githubSubmit.focus();
+  if (!reauthorize) await loadGithubRepositories(generation, repo, branch);
 }
 
-function parseRepository(value: string): string | null {
-  const input = value.trim();
-  const match = input.match(/^(?:https:\/\/github\.com\/)?([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i);
-  if (!match || match[1] === '.' || match[1] === '..' || match[2] === '.' || match[2] === '..') return null;
-  return `${match[1]}/${match[2]}`;
+async function loadGithubRepositories(generation = githubGeneration, preferredRepo = githubRepo.value, preferredBranch = githubBranch.value) {
+  githubLoading = true;
+  githubError.hidden = true;
+  githubStatus.textContent = 'Loading repositories…';
+  controls();
+  try {
+    const data = await githubRequest(`/github/build/repositories${githubCursor ? `?${new URLSearchParams({ cursor: githubCursor })}` : ''}`, 'GET');
+    if (disposed || generation !== githubGeneration) return;
+    if (!Array.isArray(data.repositories) || data.nextCursor !== null && typeof data.nextCursor !== 'string'
+      || data.repositories.some((repo: GithubRepository) => typeof repo.fullName !== 'string' || typeof repo.defaultBranch !== 'string')) throw new Error('github_unavailable');
+    githubRepositories = [...new Map([...githubRepositories, ...data.repositories].map((repo: GithubRepository) => [repo.fullName, repo])).values()]
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
+    githubCursor = data.nextCursor;
+    githubAuthorized = true;
+    githubPicker.hidden = false;
+    githubInstallNote.hidden = true;
+    githubManage.hidden = false;
+    githubMore.hidden = !githubCursor;
+    githubSubmit.textContent = 'Link repository';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = githubRepositories.length ? 'Choose a repository' : 'No writable repositories available';
+    githubRepo.replaceChildren(placeholder);
+    for (const repo of githubRepositories) {
+      const option = document.createElement('option');
+      option.value = repo.fullName;
+      option.textContent = `${repo.fullName}${repo.private ? ' (private)' : ''}`;
+      githubRepo.append(option);
+    }
+    const selected = githubRepositories.find(repo => repo.fullName === preferredRepo)
+      ?? (githubRepositories.length === 1 ? githubRepositories[0] : null);
+    githubRepo.value = selected?.fullName ?? '';
+    githubBranch.value = selected?.fullName === preferredRepo ? preferredBranch : selected?.defaultBranch ?? 'main';
+    githubStatus.textContent = githubRepositories.length ? '' : 'No writable repositories are available. Update repository access in GitHub, then return here.';
+  } catch (cause) {
+    if (disposed || generation !== githubGeneration) return;
+    const code = cause instanceof Error ? cause.message : 'github_unavailable';
+    githubStatus.textContent = '';
+    if (code === 'github_connection_required') {
+      githubAuthorized = false;
+      githubPicker.hidden = true;
+      githubInstallNote.hidden = false;
+      githubManage.hidden = githubMore.hidden = true;
+      githubReauthorize = true;
+      githubSubmit.textContent = 'Install GitHub app';
+    } else {
+      githubError.textContent = githubErrorMessage(code);
+      githubError.hidden = false;
+    }
+  } finally {
+    if (generation === githubGeneration) { githubLoading = false; controls(); }
+  }
 }
 
 function githubErrorMessage(code: string) {
@@ -329,12 +396,12 @@ async function request(fields?: { name: string; domain: string | null; git?: boo
   return data;
 }
 
-async function githubRequest(path: string, method: string, body: unknown, timeoutMs = 15_000) {
+async function githubRequest(path: string, method: string, body?: unknown, timeoutMs = 15_000) {
   const response = await fetch(`${API_ORIGIN}${path}`, {
     method, credentials: 'include', redirect: 'error',
     signal: AbortSignal.any([abort.signal, AbortSignal.timeout(timeoutMs)]),
     headers: { accept: 'application/json', 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (response.status === 401) { goToLogin(); throw new Error('not_authenticated'); }
   const data = await response.json().catch(() => null);
@@ -342,7 +409,7 @@ async function githubRequest(path: string, method: string, body: unknown, timeou
   return data;
 }
 
-function handleGitHubReturn() {
+async function handleGitHubReturn() {
   const params = new URLSearchParams(location.search);
   const projectId = params.get('githubProject');
   const result = params.get('github');
@@ -351,14 +418,21 @@ function handleGitHubReturn() {
   if (!project) return;
   const repo = params.get('githubRepo') ?? project.github_repo ?? '';
   const branch = params.get('githubBranch') ?? project.github_branch ?? 'main';
+  for (const key of ['githubProject', 'github', 'githubRepo', 'githubBranch']) params.delete(key);
+  window.history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
   if (result === 'connected') {
     if (project.github_repo) {
-      status.textContent = 'GitHub access updated.';
+      try {
+        await githubRequest(`/projects/github?id=${encodeURIComponent(project.id)}`, 'PUT', { repo: project.github_repo, branch: project.github_branch ?? 'main' });
+        if (!disposed) status.textContent = 'GitHub access updated.';
+      } catch (cause) {
+        if (disposed) return;
+        await openGitHubDialog(project, true);
+        githubError.textContent = githubErrorMessage(cause instanceof Error ? cause.message : 'github_unavailable');
+        githubError.hidden = false;
+      }
     } else {
-      openGitHubDialog(project, false, repo, branch);
-      githubSubmit.textContent = 'Link repository';
-      githubStatus.textContent = 'GitHub is authorized. Link this repository to finish switching this project to GitHub.';
-      githubAuthorized = true;
+      await openGitHubDialog(project, false, repo, branch);
     }
   } else {
     status.textContent = result === 'approval_pending'
@@ -366,7 +440,7 @@ function handleGitHubReturn() {
       : result === 'cancelled' ? 'GitHub authorization was cancelled.' : githubErrorMessage(result);
     if (!project.github_repo) {
       const message = status.textContent;
-      openGitHubDialog(project, false, repo, branch);
+      await openGitHubDialog(project, true, repo, branch);
       githubError.textContent = message;
       githubError.hidden = false;
     }
@@ -391,7 +465,7 @@ async function load() {
     projects = data.projects;
     for (const id of previews.keys()) if (!projects.some(project => project.id === id)) { previews.delete(id); previewEpoch.delete(id); }
     render();
-    handleGitHubReturn();
+    await handleGitHubReturn();
   } catch {
     if (disposed) return;
     status.textContent = '';
@@ -488,10 +562,41 @@ dialog.addEventListener('close', () => {
 });
 githubCancel.addEventListener('click', () => githubDialog.close());
 githubDialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+githubDialog.addEventListener('close', () => { githubGeneration++; githubLoading = false; controls(); });
+githubRepo.addEventListener('change', () => {
+  githubBranch.value = githubRepositories.find(repo => repo.fullName === githubRepo.value)?.defaultBranch ?? 'main';
+  controls();
+});
+githubMore.addEventListener('click', () => loadGithubRepositories());
+async function installGithubApp() {
+  if (busy || disposed || !githubProject) return;
+  busy = true;
+  controls();
+  githubError.hidden = true;
+  githubStatus.textContent = 'Opening GitHub…';
+  try {
+    const returnTo = `/projects/?${new URLSearchParams({ githubProject: githubProject.id })}`;
+    const result = await githubRequest('/github/build/connect', 'POST', {
+      projectId: githubProject.id, returnTo, ...(githubReauthorize ? { reauthorize: true } : {}),
+    });
+    if (disposed) return;
+    const target = typeof result.url === 'string' ? new URL(result.url) : null;
+    if (!target || target.protocol !== 'https:' || target.origin !== 'https://github.com') throw new Error('github_build_unavailable');
+    window.location.replace(target.href);
+  } catch (cause) {
+    if (disposed) return;
+    githubStatus.textContent = '';
+    githubError.textContent = githubErrorMessage(cause instanceof Error ? cause.message : 'github_unavailable');
+    githubError.hidden = false;
+  } finally { busy = false; controls(); }
+}
+githubManage.addEventListener('click', installGithubApp);
 githubForm.addEventListener('submit', async event => {
   event.preventDefault();
-  if (busy || disposed || !githubProject || !githubForm.reportValidity()) return;
-  const repo = parseRepository(githubRepo.value);
+  if (busy || disposed || githubLoading || !githubProject) return;
+  if (!githubAuthorized) { await installGithubApp(); return; }
+  if (!githubForm.reportValidity()) return;
+  const repo = githubRepositories.find(repo => repo.fullName === githubRepo.value)?.fullName;
   const branch = githubBranch.value.trim();
   if (!repo || !branch || branch.length > 255 || /[\s~^:?*\[\\]/.test(branch) || branch.startsWith('/') || branch.endsWith('/') || branch.endsWith('.')) {
     githubError.textContent = 'Enter a valid GitHub repository and branch.';
@@ -502,7 +607,6 @@ githubForm.addEventListener('submit', async event => {
   controls();
   githubError.hidden = true;
   try {
-    if (githubAuthorized) {
       githubStatus.textContent = 'Linking repository… This can take up to two minutes.';
       const result = await githubRequest(`/projects/github?id=${encodeURIComponent(githubProject.id)}`, 'PUT', { repo, branch }, 120_000);
       if (disposed) return;
@@ -516,24 +620,13 @@ githubForm.addEventListener('submit', async event => {
         const refreshed = await request();
         if (Array.isArray(refreshed.projects) && !disposed) { projects = refreshed.projects; render(); status.textContent = 'GitHub repository linked.'; }
       } catch { /* Keep the successful link shown while the project list refreshes later. */ }
-      return;
-    }
-    githubStatus.textContent = 'Opening GitHub authorization…';
-    const returnParams = new URLSearchParams({ githubProject: githubProject.id, githubRepo: repo, githubBranch: branch });
-    const returnTo = `/projects/?${returnParams}`;
-    const result = await githubRequest('/github/build/connect', 'POST', {
-      projectId: githubProject.id, repo, branch, returnTo, ...(githubReauthorize ? { reauthorize: true } : {}),
-    });
-    const target = typeof result.url === 'string' ? new URL(result.url) : null;
-    if (!target || target.protocol !== 'https:' || target.origin !== 'https://github.com') throw new Error('github_build_unavailable');
-    window.location.replace(target.href);
   } catch (cause) {
     if (disposed) return;
     if (githubAuthorized && cause instanceof Error && cause.message === 'github_connection_required') {
       githubAuthorized = false;
       githubReauthorize = true;
-      githubSubmit.textContent = 'Authorize GitHub';
-      githubStatus.textContent = 'GitHub access expired. Authorize again to finish linking this repository.';
+      githubSubmit.textContent = 'Install GitHub app';
+      githubStatus.textContent = 'GitHub access expired. Reconnect to finish linking this repository.';
     }
     githubError.textContent = githubErrorMessage(cause instanceof Error ? cause.message : 'github_build_unavailable');
     githubError.hidden = false;
