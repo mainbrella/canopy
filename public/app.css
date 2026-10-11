@@ -377,6 +377,13 @@
 .overview-activity-list { margin: 0; padding: 0; list-style: none; }
 .overview-activity { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .overview-activity-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; background: var(--surface); color: var(--muted); }
+.overview-activity-icon[data-kind] { background: color-mix(in srgb, var(--overview-icon-color) 10%, var(--surface)); color: var(--overview-icon-color); }
+.overview-activity-icon[data-kind="production"] { --overview-icon-color: var(--blue); }
+.overview-activity-icon[data-kind="ad_hoc"] { --overview-icon-color: #80cbc4; }
+.overview-activity-icon[data-kind="storage"] { --overview-icon-color: #edc27f; }
+.overview-activity-icon[data-kind="ai"] { --overview-icon-color: #c4b5fd; }
+.overview-activity-icon[data-kind="funding"] { --overview-icon-color: #8fd7aa; }
+.overview-activity-icon[data-kind="history"] { --overview-icon-color: #9ccafa; }
 .overview-activity-icon svg { width: 20px; height: 20px; }
 .overview-activity-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .overview-activity-title { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }

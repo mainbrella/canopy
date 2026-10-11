@@ -23,6 +23,7 @@ function activityRow(activity: OverviewActivity) {
   const row = element('li', 'overview-activity');
   row.dataset.activityId = activity.id;
   const icon = element('span', 'overview-activity-icon');
+  icon.dataset.kind = activity.kind;
   icon.setAttribute('aria-hidden', 'true');
   // These are fixed local paths; all account content is inserted as text.
   icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${iconPaths[activity.kind]}</svg>`;
