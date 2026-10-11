@@ -13,7 +13,7 @@ const navigation: [string, string][] = [
 
 function link([label, href]: [string, string], path: string) {
   const current = href.endsWith('/') && (path === `${href}index.html`
-    || (href === '/blog/' && path.startsWith('/blog/')));
+    || (['/blog/', '/projects/'].includes(href) && path.startsWith(href)));
   return `<a href="${href}"${current ? ' aria-current="page"' : ''}>${label}</a>`;
 }
 

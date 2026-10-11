@@ -1,6 +1,5 @@
 import { API_ORIGIN, createAuthClient } from './auth.ts';
 import { createProjectHosting, createProjectHostingClient, safeEndpointUrl } from './project-hosting.ts';
-import { createBuildClient } from './build-api.ts';
 
 interface Project { id: string; name: string; domain?: string | null; created_at: string; build_app_id?: string | null; git_version_id?: string | null }
 
@@ -23,19 +22,9 @@ const cancel = document.querySelector<HTMLButtonElement>('#project-cancel')!;
 const formError = document.querySelector<HTMLElement>('#project-error')!;
 const formStatus = document.querySelector<HTMLElement>('#project-status')!;
 const dialogTitle = document.querySelector<HTMLElement>('#project-dialog-title')!;
-const gitDialog = document.querySelector<HTMLDialogElement>('#project-git-dialog')!;
-const gitTitle = document.querySelector<HTMLElement>('#project-git-title')!;
-const gitStatus = document.querySelector<HTMLElement>('#project-git-status')!;
-const gitError = document.querySelector<HTMLElement>('#project-git-error')!;
-const gitRetry = document.querySelector<HTMLButtonElement>('#project-git-retry')!;
-const gitVersions = document.querySelector<HTMLOListElement>('#project-git-versions')!;
-const gitDownload = document.querySelector<HTMLButtonElement>('#project-git-download')!;
-const gitBuilder = document.querySelector<HTMLAnchorElement>('#project-git-builder')!;
-const gitClone = document.querySelector<HTMLElement>('#project-git-clone')!;
 const abort = new AbortController();
 const previewClient = createProjectHostingClient({ onUnauthenticated: () => goToLogin(), signal: abort.signal });
 const hosting = createProjectHosting({ onUnauthenticated: () => goToLogin(), onClose: refreshPreview });
-const buildClient = createBuildClient(() => goToLogin(), abort.signal);
 let projects: Project[] = [];
 let editButtons = new Map<string, HTMLButtonElement>();
 let endpointButtons = new Map<string, HTMLButtonElement>();
@@ -49,11 +38,6 @@ let busy = false;
 let authenticated = false;
 let disposed = false;
 let refreshOnClose = false;
-let gitProject: Project | null = null;
-let gitEpoch = 0;
-let gitHasVersions = false;
-let gitBusy = false;
-
 const builderURL = (id: string) => `/build/?${new URLSearchParams({ app: id })}`;
 
 function goToLogin() {
@@ -61,9 +45,6 @@ function goToLogin() {
   abort.abort();
   hosting.dispose();
   dialog.close();
-  gitDialog.close();
-  gitVersions.replaceChildren();
-  gitDownload.disabled = true;
   list.replaceChildren();
   controls();
   window.location.replace(`/login/?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
@@ -179,18 +160,26 @@ function render() {
     previewCells.set(project.id, previewCell);
     const gitCell = document.createElement('td');
     gitCell.className = 'project-git';
-    const gitButton = document.createElement('button');
-    gitButton.type = 'button';
-    gitButton.className = 'dashboard-retry';
-    gitButton.textContent = project.build_app_id ? 'History' : 'Enable Git';
-    gitButton.setAttribute('aria-label', `${project.build_app_id ? 'View Git history for' : 'Enable Git for'} ${project.name}`);
-    gitButton.addEventListener('click', () => {
-      if (busy || disposed) return;
-      if (project.build_app_id) void openGit(project);
-      else { openProjectDialog(project); git.checked = true; git.focus(); }
-    });
-    gitButtons.set(project.id, gitButton);
-    gitCell.append(gitButton);
+    if (project.build_app_id || project.git_version_id) {
+      const code = document.createElement('a');
+      code.className = 'dashboard-retry';
+      code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
+      code.textContent = 'Code';
+      code.setAttribute('aria-label', `Browse source code for ${project.name}`);
+      gitCell.append(code);
+    } else {
+      const enableGit = document.createElement('button');
+      enableGit.type = 'button';
+      enableGit.className = 'dashboard-retry';
+      enableGit.textContent = 'Enable Git';
+      enableGit.setAttribute('aria-label', `Enable Git for ${project.name}`);
+      enableGit.addEventListener('click', () => {
+        if (busy || disposed) return;
+        openProjectDialog(project); git.checked = true; git.focus();
+      });
+      gitButtons.set(project.id, enableGit);
+      gitCell.append(enableGit);
+    }
     const actions = document.createElement('div');
     actions.className = 'container-actions';
     const edit = document.createElement('button');
@@ -273,8 +262,8 @@ function openProjectDialog(project?: Project) {
   dialogTitle.textContent = editingProject ? 'Edit project' : 'New project';
   create.textContent = editingProject ? 'Save changes' : 'Create project';
   git.checked = false;
-  gitOption.hidden = Boolean(editingProject?.build_app_id);
-  gitNote.textContent = editingProject?.build_app_id ? 'Git history is enabled. Your saved versions are preserved.'
+  gitOption.hidden = Boolean(editingProject?.build_app_id || editingProject?.git_version_id);
+  gitNote.textContent = (editingProject?.build_app_id || editingProject?.git_version_id) ? 'Git history is enabled. Your saved versions are preserved.'
     : 'Save versions as you build. Enabling Git does not start a build.';
   if (editingProject) {
     name.value = editingProject.name;
@@ -300,7 +289,7 @@ dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); }
 form.addEventListener('submit', async event => {
   event.preventDefault();
   if (busy || disposed || !form.reportValidity()) return;
-  const fields = { name: name.value.trim(), domain: domain.value.trim() || null, ...(!editingProject?.build_app_id && git.checked ? { git: true } : {}) };
+  const fields = { name: name.value.trim(), domain: domain.value.trim() || null, ...(!(editingProject?.build_app_id || editingProject?.git_version_id) && git.checked ? { git: true } : {}) };
   if (!fields.name) {
     formError.textContent = 'Enter a project name.';
     formError.hidden = false;
@@ -340,80 +329,6 @@ form.addEventListener('submit', async event => {
     formStatus.textContent = '';
     controls();
     if (restoreFocusId && !disposed) editButtons.get(restoreFocusId)?.focus();
-  }
-});
-
-async function openGit(project: Project) {
-  if (disposed || !project.build_app_id) return;
-  gitProject = project;
-  const epoch = ++gitEpoch;
-  gitHasVersions = false;
-  gitBusy = true;
-  gitTitle.textContent = `Git history · ${project.name}`;
-  gitStatus.textContent = 'Loading versions…';
-  gitError.hidden = gitRetry.hidden = gitClone.hidden = true;
-  gitVersions.replaceChildren();
-  gitDownload.disabled = true;
-  gitBuilder.href = builderURL(project.build_app_id);
-  gitDialog.setAttribute('aria-busy', 'true');
-  if (!gitDialog.open) gitDialog.showModal();
-  try {
-    const data = await buildClient.versions(project.build_app_id);
-    if (disposed || epoch !== gitEpoch) return;
-    if (!Array.isArray(data.versions) || data.versions.some(version => typeof version.message !== 'string'
-      || !/^[a-f0-9]{40}$/.test(version.commitId) || !Number.isFinite(Date.parse(version.createdAt)))) throw new Error('invalid_response');
-    for (const version of data.versions) {
-      const row = document.createElement('li');
-      const message = document.createElement('strong');
-      message.textContent = version.message;
-      const details = document.createElement('span');
-      details.textContent = `${version.commitId.slice(0, 8)} · ${new Date(version.createdAt).toLocaleString()} · ${version.verified ? 'Verified' : 'Checkpoint'}`;
-      row.append(message, details);
-      gitVersions.append(row);
-    }
-    gitHasVersions = Boolean(data.versionId && data.versions.some(version => version.id === data.versionId));
-    gitClone.hidden = !gitHasVersions;
-    gitStatus.textContent = data.versions.length ? '' : 'No saved versions yet. Build in this project to save its first version.';
-  } catch {
-    if (disposed || epoch !== gitEpoch) return;
-    gitStatus.textContent = '';
-    gitError.textContent = 'Could not load Git history. Check your connection and try again.';
-    gitError.hidden = gitRetry.hidden = false;
-  } finally {
-    if (!disposed && epoch === gitEpoch) {
-      gitBusy = false;
-      gitDownload.disabled = !gitHasVersions;
-      gitDialog.setAttribute('aria-busy', 'false');
-    }
-  }
-}
-
-gitRetry.addEventListener('click', () => { if (gitProject && !gitBusy) void openGit(gitProject); });
-document.querySelector<HTMLButtonElement>('#project-git-close')!.addEventListener('click', () => gitDialog.close());
-gitDialog.addEventListener('close', () => { gitEpoch++; gitProject = null; gitBusy = false; });
-gitDownload.addEventListener('click', async () => {
-  if (disposed || gitBusy || !gitHasVersions || !gitProject?.build_app_id) return;
-  const project = gitProject, epoch = gitEpoch;
-  gitBusy = true;
-  gitDownload.disabled = true;
-  gitError.hidden = true;
-  gitStatus.textContent = 'Preparing repository…';
-  try {
-    const blob = await buildClient.export(project.build_app_id!, true);
-    if (disposed || epoch !== gitEpoch) return;
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url; link.download = 'project.bundle';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    gitStatus.textContent = 'Repository downloaded.';
-  } catch {
-    if (disposed || epoch !== gitEpoch) return;
-    gitStatus.textContent = '';
-    gitError.textContent = 'Could not download the repository. Try again shortly.';
-    gitError.hidden = false;
-  } finally {
-    if (!disposed && epoch === gitEpoch) { gitBusy = false; gitDownload.disabled = !gitHasVersions; }
   }
 });
 

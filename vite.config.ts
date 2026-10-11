@@ -81,7 +81,7 @@ export default defineConfig({
             return;
           }
           const match = request.url?.match(/^\/([^?]*[^/?])(\?.*)?$/);
-          const routes = ['pricing', 'balance', 'about', 'privacy', 'terms', 'login', 'profile', 'dashboard', 'build', 'projects', 'api-keys', 'run', ...publicPages];
+          const routes = ['pricing', 'balance', 'about', 'privacy', 'terms', 'login', 'profile', 'dashboard', 'build', 'projects', 'projects/code', 'api-keys', 'run', ...publicPages];
           if (!match || !routes.includes(match[1])) {
             next();
             return;
@@ -112,6 +112,7 @@ export default defineConfig({
         dashboard: fileURLToPath(new URL("./dashboard/index.html", import.meta.url)),
         balance: fileURLToPath(new URL("./balance/index.html", import.meta.url)),
         projects: fileURLToPath(new URL("./projects/index.html", import.meta.url)),
+        projectCode: fileURLToPath(new URL("./projects/code/index.html", import.meta.url)),
         privacy: fileURLToPath(new URL("./privacy/index.html", import.meta.url)),
         terms: fileURLToPath(new URL("./terms/index.html", import.meta.url)),
         ...Object.fromEntries(publicPages.map(page => [page, fileURLToPath(new URL(`./${page}/index.html`, import.meta.url))])),

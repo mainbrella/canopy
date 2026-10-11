@@ -37,9 +37,23 @@ test('builder HTML cannot rely on the site for styles or images', async t => {
   await assert.rejects(checkBuild('builder', directory), /resource belongs to another deployment/);
 });
 
-test('site artifacts reject accidentally bundling builder grammars', async t => {
+test('site artifacts require a project code entry when bundling syntax grammars', async t => {
   const manifest = { 'dashboard/index.html': { file: 'assets/dashboard.js', isEntry: true },
     'node_modules/@shikijs/langs/dist/cpp.mjs': { file: 'assets/cpp.js' } };
   const directory = await artifact(t, manifest, ['assets/dashboard.js', 'assets/cpp.js']);
-  await assert.rejects(checkBuild('site', directory), /syntax grammars/);
+  await assert.rejects(checkBuild('site', directory), /Syntax grammars/);
+});
+
+
+test('site code pages can share syntax grammars without bundling the Builder workspace', async t => {
+  const manifest = {
+    'dashboard/index.html': { file: 'assets/dashboard.js', isEntry: true },
+    'projects/code/index.html': { file: 'assets/code.js', isEntry: true, dynamicImports: ['node_modules/@shikijs/langs/dist/cpp.mjs'] },
+    'node_modules/@shikijs/langs/dist/cpp.mjs': { file: 'assets/cpp.js' },
+  };
+  const directory = await artifact(t, manifest, ['assets/dashboard.js', 'assets/code.js', 'assets/cpp.js']);
+  await checkBuild('site', directory);
+  manifest['src/build-dashboard.ts'] = { file: 'assets/build-dashboard.js' };
+  await writeFile(join(directory, '.vite/manifest.json'), JSON.stringify(manifest));
+  await assert.rejects(checkBuild('site', directory), /builder workspace/);
 });

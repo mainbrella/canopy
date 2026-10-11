@@ -261,7 +261,6 @@ test('sign-out aborts pending preview lookups and ignores their late responses',
 });
 
 const builderProject = { ...originalProject, build_app_id: originalProject.id, git_version_id: 'version-1' };
-const savedVersion = { id: 'version-1', commitId: 'a'.repeat(40), parentVersionId: null, message: 'First saved build', verified: true, createdAt: '2026-10-01T12:00:00Z' };
 
 test('Builder projects link to their workspace and Git stays optional for standalone creation and edits', async t => {
   const f = await fixture(t, (url, options) => {
@@ -274,7 +273,8 @@ test('Builder projects link to their workspace and Git stays optional for standa
   });
   const rows = f.node('#project-list').children;
   assert.equal(rows[0].children[0].children[0].href, '/build/?app=project-1');
-  assert.equal(rows[0].children[3].children[0].textContent, 'History');
+  assert.equal(rows[0].children[3].children[0].textContent, 'Code');
+  assert.equal(rows[0].children[3].children[0].href, '/projects/code/?project=project-1');
   await editButton(f, 0).fire('click');
   assert.equal(f.node('#project-git-option').hidden, true);
   await f.node('#project-cancel').fire('click');
@@ -284,7 +284,7 @@ test('Builder projects link to their workspace and Git stays optional for standa
   await f.node('#project-form').fire('submit');
   const update = f.calls.find(call => call.options.method === 'PATCH')!;
   assert.deepEqual(JSON.parse(String(update.options.body)), { name: 'Second project', domain: null, git: true });
-  assert.equal(f.node('#project-list').children[1].children[3].children[0].textContent, 'History');
+  assert.equal(f.node('#project-list').children[1].children[3].children[0].textContent, 'Code');
   await f.node('#project-new').fire('click');
   assert.equal(f.node('#project-git').checked, false);
   f.node('#project-name').value = 'Optional Git';
@@ -294,81 +294,21 @@ test('Builder projects link to their workspace and Git stays optional for standa
   assert.equal(JSON.parse(String(create.options.body)).git, true);
 });
 
-test('Git history reuses saved versions and downloads an authenticated complete repository', async t => {
-  let failDownload = true;
-  let downloaded: Blob | undefined;
-  t.mock.method(URL, 'createObjectURL', (blob: Blob) => { downloaded = blob; return 'blob:test-project'; });
-  t.mock.method(URL, 'revokeObjectURL', () => {});
+test('projects with Git code and no Builder link still expose a standalone Code link', async t => {
   const f = await fixture(t, (url, options) => {
-    const path = new URL(url).pathname;
-    if (path === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject] });
-    if (path.endsWith('/versions')) return Response.json({ versions: [savedVersion], versionId: savedVersion.id, verifiedVersionId: savedVersion.id });
-    if (path.endsWith('/repository')) return failDownload ? Response.json({ error: 'storage_export_busy' }, { status: 429 }) : new Response(new Uint8Array([0, 255, 1]));
-    return defaultResponse(url, options);
-  });
-  await f.node('#project-list').children[0].children[3].children[0].fire('click');
-  await f.flush();
-  assert.equal(f.node('#project-git-dialog').open, true);
-  assert.equal(f.node('#project-git-versions').children[0].children[0].textContent, 'First saved build');
-  assert.match(f.node('#project-git-versions').children[0].children[1].textContent, /aaaaaaaa.*Verified/);
-  assert.equal(f.node('#project-git-download').disabled, false);
-  await f.node('#project-git-download').fire('click');
-  assert.equal(f.node('#project-git-error').hidden, false);
-  assert.equal(f.node('#project-git-download').disabled, false);
-  failDownload = false;
-  await f.node('#project-git-download').fire('click');
-  assert.equal(f.node('#project-git-status').textContent, 'Repository downloaded.');
-  assert.deepEqual(new Uint8Array(await downloaded!.arrayBuffer()), new Uint8Array([0, 255, 1]));
-  const download = f.created.find(element => element.download === 'project.bundle')!;
-  assert.equal(download.href, 'blob:test-project');
-  const repository = f.calls.find(call => new URL(call.url).pathname.endsWith('/repository'))!;
-  assert.equal(repository.options.credentials, 'include');
-});
-
-test('empty Git history cannot download and history failures can be retried', async t => {
-  let fail = true;
-  const f = await fixture(t, (url, options) => {
-    const path = new URL(url).pathname;
-    if (path === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject] });
-    if (path.endsWith('/versions')) return fail ? Response.json({ error: 'unavailable' }, { status: 503 }) : Response.json({ versions: [], versionId: null, verifiedVersionId: null });
-    return defaultResponse(url, options);
-  });
-  await f.node('#project-list').children[0].children[3].children[0].fire('click');
-  await f.flush();
-  assert.equal(f.node('#project-git-error').hidden, false);
-  assert.equal(f.node('#project-git-retry').hidden, false);
-  assert.equal(f.node('#project-git-download').disabled, true);
-  fail = false;
-  await f.node('#project-git-retry').fire('click');
-  await f.flush();
-  assert.match(f.node('#project-git-status').textContent, /No saved versions yet/);
-  assert.equal(f.node('#project-git-download').disabled, true);
-  assert.equal(f.node('#project-git-clone').hidden, true);
-});
-
-test('closing history or losing the session ignores pending private Git responses', async t => {
-  let finish!: (response: Response) => void;
-  let signal: AbortSignal | undefined;
-  let expire = false;
-  const f = await fixture(t, (url, options) => {
-    const path = new URL(url).pathname;
-    if (path === '/projects' && options.method === 'GET') return Response.json({ projects: [builderProject] });
-    if (path.endsWith('/versions')) {
-      signal = options.signal as AbortSignal;
-      return expire ? Response.json({ error: 'not_authenticated' }, { status: 401 }) : new Promise(resolve => { finish = resolve; });
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') {
+      return Response.json({ projects: [{ ...originalProject, git_version_id: 'saved-head' }] });
     }
     return defaultResponse(url, options);
   });
-  await f.node('#project-list').children[0].children[3].children[0].fire('click');
-  await f.node('#project-git-close').fire('click');
-  finish(Response.json({ versions: [savedVersion], versionId: savedVersion.id, verifiedVersionId: savedVersion.id }));
-  await f.flush();
-  assert.equal(f.node('#project-git-versions').children.length, 0);
-  expire = true;
-  await f.node('#project-list').children[0].children[3].children[0].fire('click');
-  await f.flush();
-  assert.equal(signal?.aborted, true);
-  assert.equal(f.node('#project-git-dialog').open, false);
-  assert.equal(f.node('#project-list').children.length, 0);
-  assert.deepEqual(f.redirects, ['/login/?returnTo=%2Fprojects%2F']);
+  const row = f.node('#project-list').children[0];
+  assert.equal(row.children[0].textContent, originalProject.name);
+  assert.equal(row.children[0].children.length, 0);
+  const code = row.children[3].children[0];
+  assert.equal(code.textContent, 'Code');
+  assert.equal(code.href, '/projects/code/?project=project-1');
+  assert.equal(code.attributes.get('aria-label'), 'Browse source code for First project');
+  await editButton(f, 0).fire('click');
+  assert.equal(f.node('#project-git-option').hidden, true);
+  assert.equal(f.calls.some(call => new URL(call.url).pathname.startsWith('/build/')), false);
 });

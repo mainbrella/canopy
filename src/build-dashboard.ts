@@ -1,5 +1,5 @@
 import { BuildAPIError, buildErrorMessage, createBuildClient, safeBuildPreviewURL, type BuildActivity, type BuildImage, type BuildApp, type BuildConfig, type BuildTurn, type BuildModel, type BuildModelOptions, type BuildDiagnostics, type BuildVersion } from './build-api.ts';
-import { createBuildFileBrowser } from './build-files.ts';
+import { createBuildSourceBrowser } from './build-source.ts';
 import { buildExamples, createBuildDraftStore } from './build-drafts.ts';
 import { buildBriefQuestions, formatBuildBriefPrompt, readBuildBriefPrompt } from './build-brief.ts';
 import { cleanDiagnosticOutput, failureOperations, formatBuildDiagnostics, operationExplanation, operationOutput } from './build-diagnostics.ts';
@@ -48,10 +48,6 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   const previewStatus = node<HTMLElement>('#build-preview-status');
   const frame = node<HTMLIFrameElement>('#build-preview-frame');
   const openPreview = node<HTMLAnchorElement>('#build-open-preview');
-  const sourceView = node<HTMLSelectElement>('#build-source-view');
-  const sourceCommit = node<HTMLElement>('#build-source-commit');
-  const sourceMessage = node<HTMLElement>('#build-source-message');
-  const fileBrowser = createBuildFileBrowser(node<HTMLElement>('#build-files'));
   const tabs = ['preview', 'code', 'history', 'logs'].map(id => node<HTMLButtonElement>(`#build-${id}-tab`));
   const historyStatus = node<HTMLElement>('#build-history-status');
   const historyList = node<HTMLOListElement>('#build-history-list');
@@ -66,13 +62,13 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   const mobile = window.matchMedia('(max-width: 900px)');
   const controller = new AbortController();
   const client = createBuildClient(() => { dispose(); onUnauthenticated(); }, controller.signal);
+  const sourceBrowser = createBuildSourceBrowser(node<HTMLElement>('#build-code-panel'), client, reportError);
   const modelSelects = ['create', 'update'].map(id => node<HTMLSelectElement>(`#build-${id}-model`));
   const effortSelects = ['create', 'update'].map(id => node<HTMLSelectElement>(`#build-${id}-effort`));
   let modelOptions: BuildModelOptions = {};
   let config: BuildConfig | null = null;
   let apps: BuildApp[] = [];
   let selected: BuildApp | null = null;
-  let sourceVersion = 0;
   let userId: string | null = null;
   let disposed = false;
   let busy = false;
@@ -651,15 +647,9 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   }
 
   function renderApp(app: BuildApp) {
-    const appChanged = selected?.id !== app.id;
-    const sourceChanged = appChanged || selected?.versionId !== app.versionId || selected?.revision !== app.revision || Boolean(selected?.activeTurnId && !app.activeTurnId);
+    const sourceChanged = selected?.id !== app.id || selected?.versionId !== app.versionId || selected?.revision !== app.revision || Boolean(selected?.activeTurnId && !app.activeTurnId);
     const historyChanged = selected?.id !== app.id || selected?.versionId !== app.versionId || selected?.verifiedVersionId !== app.verifiedVersionId;
-    if (appChanged) {
-      sourceVersion++; fileBrowser.status('Loading files…', true);
-      sourceView.querySelector('[data-historical-version]')?.remove();
-      sourceView.value = app.versionId ? 'repository' : 'working';
-    } else if (!selected?.versionId && app.versionId) sourceView.value = 'repository';
-    sourceView.options[0].disabled = !app.versionId;
+    sourceBrowser.setApp(app);
     selected = app; remember(app);
     retentionWarning.replaceChildren(); retentionWarning.hidden = !app.retention?.notice;
     if (app.retention?.notice) {
@@ -739,29 +729,7 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   }
 
   async function loadSource() {
-    if (!selected || disposed) return;
-    const id = selected.id, current = ++sourceVersion;
-    const versionId = sourceView.value === 'working' ? null : sourceView.value === 'repository' ? selected.versionId : sourceView.value;
-    fileBrowser.status('Loading files…'); sourceCommit.textContent = ''; sourceMessage.hidden = true;
-    node<HTMLElement>('#build-code-panel').setAttribute('aria-busy', 'true');
-    try {
-      const next = await client.files(id, versionId);
-      if (disposed || selected?.id !== id || current !== sourceVersion) return;
-      if (next.version) {
-        sourceCommit.textContent = next.version.commitId.slice(0, 8);
-        sourceMessage.textContent = next.version.message; sourceMessage.hidden = false;
-      } else {
-        sourceCommit.textContent = `Revision ${next.revision}`;
-      }
-      fileBrowser.setFiles(next.files, path => client.fileText(id, path, versionId), path => client.fileURL(id, path, versionId));
-    } catch (cause) {
-      if (!disposed && selected?.id === id && current === sourceVersion) {
-        fileBrowser.status('Could not load files.');
-        reportError(cause, () => loadSource());
-      }
-    } finally {
-      if (current === sourceVersion) node<HTMLElement>('#build-code-panel').setAttribute('aria-busy', 'false');
-    }
+    if (selected && !disposed) await sourceBrowser.load();
   }
 
   function setTab(tab: HTMLButtonElement, focus = false) {
@@ -851,9 +819,7 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
         const browse = document.createElement('button'); browse.type = 'button'; browse.className = 'dashboard-retry'; browse.textContent = 'Files';
         browse.setAttribute('aria-label', `Browse files in ${saved.message}`);
         browse.addEventListener('click', () => {
-          sourceView.querySelector('[data-historical-version]')?.remove();
-          const option = document.createElement('option'); option.value = saved.id; option.textContent = `Version ${saved.commitId.slice(0, 8)}`;
-          option.dataset.historicalVersion = ''; sourceView.append(option); sourceView.value = saved.id;
+          sourceBrowser.selectVersion(saved);
           setTab(tabs[1], true);
         });
         const restore = document.createElement('button'); restore.type = 'button'; restore.className = 'dashboard-retry'; restore.textContent = 'Restore'; restore.dataset.restoreVersion = '';
@@ -873,7 +839,7 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
     if (!selected || busy || selected.activeTurnId || !window.confirm(`Restore version ${saved.commitId.slice(0, 8)}? This creates a new version and restarts the preview. Your history will remain available.`)) return;
     const app = selected, key = submissionKey(JSON.stringify(['restore', app.id, app.revision, saved.id]));
     void mutate(() => client.restore(app, saved.id, key), ({ app: next }) => {
-      clearSubmission(key); sourceVersion++; renderApp(next); setTab(tabs[0]);
+      clearSubmission(key); sourceBrowser.invalidate(); renderApp(next); setTab(tabs[0]);
     });
   }
 
@@ -935,7 +901,7 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
     await mutate(() => client.read(id), ({ app }) => {
       reconnecting = false;
       clearClarification(); previewPreference = null; mobileView = 'conversation';
-      update.value = ''; sourceVersion++; conversationKey = '';
+      update.value = ''; sourceBrowser.invalidate(); conversationKey = '';
       const lastBuild = app.turns?.slice().reverse().find(turn => turn.mode === 'build');
       if (lastBuild) { modelOptions = { model: lastBuild.model, effort: lastBuild.effort ?? undefined }; renderModelOptions(); }
       setAppURL(id); renderApp(app); setTab(tabs[0]); update.focus();
@@ -1036,7 +1002,7 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   });
   node<HTMLButtonElement>('#build-back').addEventListener('click', () => {
     if (busy || update.value.trim() && !window.confirm('Leave this app without sending your changes?')) return;
-    version++; sourceVersion++; selected = null; update.value = '';
+    version++; sourceBrowser.reset(); selected = null; update.value = '';
     clearClarification(); previewPreference = null; mobileView = 'conversation';
     disconnectStream();
     frame.removeAttribute('src'); setAppURL(null); clearError();
@@ -1065,7 +1031,6 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
       setTab(tabs[next], true);
     });
   }
-  sourceView.addEventListener('change', () => void loadSource());
   retry.addEventListener('click', () => { const action = retryAction; clearError(); void action?.(); });
 
   function loadLocalBriefs(id: string) {
@@ -1127,13 +1092,13 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   document.addEventListener('visibilitychange', visibility);
   function dispose() {
     retentionWarning.remove();
-    disposed = true; version++; sourceVersion++; controller.abort(); clearTimeout(timer);
+    disposed = true; version++; sourceBrowser.invalidate(); controller.abort(); clearTimeout(timer);
     disconnectStream(); optimistic = null;
     diagnostics.clear();
     reconnecting = false;
     apps = []; selected = null; config = null; modelOptions = {}; renderModelOptions(); pendingSubmission = null; clarification = null;
     prompt.value = ''; update.value = ''; name.value = ''; messages.replaceChildren(); list.replaceChildren();
-    node<HTMLElement>('#build-local-list').replaceChildren(); fileBrowser.status('', true); node<HTMLElement>('#build-logs').textContent = '';
+    node<HTMLElement>('#build-local-list').replaceChildren(); sourceBrowser.reset(); node<HTMLElement>('#build-logs').textContent = '';
     frame.removeAttribute('src'); openPreview.removeAttribute('href'); controls();
     window.removeEventListener('beforeunload', beforeUnload);
     document.removeEventListener('visibilitychange', visibility);

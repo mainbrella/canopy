@@ -19,8 +19,12 @@ export async function checkBuild(target, directory = target === 'builder' ? 'dis
   } else {
     assert.ok(entries.includes('dashboard/index.html'), 'Site must include the dashboard');
     assert.ok(!entries.includes('build/index.html'), 'Site must not publish the builder');
-    assert.ok(!Object.keys(manifest).some(key => key.includes('@shikijs/') || key.endsWith('/build-dashboard.ts')),
-      'Site must not bundle the builder or its syntax grammars');
+    assert.ok(!Object.keys(manifest).some(key => key.endsWith('/build-dashboard.ts')),
+      'Site must not bundle the builder workspace');
+    // The standalone source browser shares syntax highlighting with Builder.
+    if (Object.keys(manifest).some(key => key.includes('@shikijs/'))) {
+      assert.ok(entries.includes('projects/code/index.html'), 'Syntax grammars require the project code page');
+    }
   }
   for (const chunk of Object.values(manifest)) {
     for (const file of [chunk.file, ...(chunk.css ?? []), ...(chunk.assets ?? [])]) {
