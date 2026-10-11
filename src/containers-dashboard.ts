@@ -7,6 +7,8 @@ import { createContainerObservations } from './container-observations.ts';
 import { createWorkspacesDashboard } from './workspaces-dashboard.ts';
 import { createPrivateServices } from './private-services.ts';
 import { formatBalance } from './prepaid-billing.ts';
+import { canResumeContainer, createLifecycleClient, lifecycleError, type ContainerAction } from './container-lifecycle.ts';
+import { createSandboxSecurity } from './sandbox-security.ts';
 
 type CreationState = {
   active: boolean; containers: unknown[];
@@ -16,9 +18,14 @@ type CreationState = {
   billing?: Pick<NonNullable<ContainerData['billing']>, 'balanceCents'> | null;
 };
 
+export function occupiedContainerSlots(containers: unknown[]) {
+  return containers.filter(container => !(container && typeof container === 'object'
+    && 'status' in container && container.status === 'stopped' && 'workspaceId' in container && container.workspaceId)).length;
+}
+
 export function canCreateContainer(data: CreationState | null, size = 'lite') {
   return Boolean(data && (!data.active || (
-    data.containers.length < data.limits.maxContainers
+    occupiedContainerSlots(data.containers) < data.limits.maxContainers
       && data.usage.starts < data.limits.maxStartsPerMonth
       // Wallet and cap figures are rounded snapshots. The server reserves exact
       // runtime and can have newer funding, so don't block prepaid attempts here.
@@ -72,7 +79,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
   const panel = document.querySelector<HTMLElement>('#resources-panel')!;
   const filters = document.querySelector<HTMLElement>('#container-filters')!;
   const search = document.querySelector<HTMLInputElement>('#container-search')!;
-  let activeTab: 'containers' | 'networks' | 'workspaces' = 'containers';
+  let activeTab: 'containers' | 'networks' | 'workspaces' | 'secrets' = 'containers';
   const filteredContainers = () => (data?.containers ?? []).filter(container =>
     containerLifecycle(container) === lifecycle && !privateServices.membership(container) && `${container.name ?? ''} ${container.id}`.toLowerCase().includes(search.value.trim().toLowerCase()));
   const usage = document.querySelector<HTMLElement>('#container-usage')!;
@@ -105,9 +112,20 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
   let previewsSupported = false;
   let observability: ObservabilityCapabilities = {};
   let persistence: PersistenceCapabilities = {};
+  const lifecycleRequest = createLifecycleClient({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
+  const lifecycleKeys = new Map<string, string>();
+  const pendingForkNames = new Map<string, string>();
+  const forkIdentity = (container: Container) => JSON.stringify([container.id, container.createdAt]);
+  const forkDialog = document.querySelector<HTMLDialogElement>('#container-fork-dialog')!;
+  const forkForm = forkDialog.querySelector<HTMLFormElement>('form')!;
+  const forkName = forkDialog.querySelector<HTMLInputElement>('input')!;
+  const forkError = forkDialog.querySelector<HTMLElement>('[role="alert"]')!;
+  const forkStatus = forkDialog.querySelector<HTMLElement>('[role="status"]')!;
+  let forkSource: Container | null = null;
   const workspaces = createWorkspacesDashboard({onUnauthenticated:()=>{dispose();onUnauthenticated();},onChanged:()=>load()});
   const observations = createContainerObservations({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
   const previews = createContainerPreviews({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
+  const security = createSandboxSecurity({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
 
   const privateServices = createPrivateServices({ onUnauthenticated: () => { dispose(); onUnauthenticated(); },
     onChanged: () => { if (!disposed && data) render(); }, lifecycle });
@@ -170,7 +188,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
       const size = data?.sizes?.find(item => item.id === selectedSize());
       sizeRate.textContent = size ? production ? `${formatBalance(hourlyCost(size) * 100)}/hour · about ${formatBalance(monthlyCost(size) * 100)}/30-day month. Launch requires at least ${formatBalance(productionLaunchFunding(data!, size))} of funding for 24 hours across the resulting production fleet. Your remaining monthly cap must also cover that runtime.` : `${size.name} costs ${formatBalance(hourlyCost(size) * 100)}/hour.` : '';
       if (data?.active && !canCreateContainer(data, selectedSize())) {
-        sizeRate.textContent = data.containers.length >= data.limits.maxContainers
+        sizeRate.textContent = occupiedContainerSlots(data.containers) >= data.limits.maxContainers
           ? 'All container slots are in use. Stop a container to free a slot.'
           : data.usage.starts >= data.limits.maxStartsPerMonth ? 'Your monthly start allowance is used up.'
           : (data.usage.availableComputeUnitHours ?? 1) <= 0 ? 'Your compute allowance is used or reserved by running containers.'
@@ -185,10 +203,13 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
     previews.setBusy(busy || !data || disposed);
     privateServices.setBusy(busy || !data || disposed);
     workspaces.setBusy(busy || !data || disposed);
+    security.setBusy(busy || !data || disposed);
+    forkDialog.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button[type="submit"]').forEach(control => { control.disabled = busy || disposed; });
+    forkName.readOnly = Boolean(forkSource && pendingForkNames.has(forkIdentity(forkSource)));
   }
 
   async function request(method: string, id?: string, createdAt?: string) {
-    const image = { ...(production ? { lifecycle, startupCommand: startupCommand.value.trim() } : {}), name: containerName.value.trim(), ...imageSelection(imageSelect.value), ...(data?.sizes?.length ? { size: selectedSize() } : {}) };
+    const image = method === 'POST' ? { ...(production ? { lifecycle, startupCommand: startupCommand.value.trim() } : {}), name: containerName.value.trim(), ...imageSelection(imageSelect.value), ...(data?.sizes?.length ? { size: selectedSize() } : {}), ...security.creationSettings() } : undefined;
     const url = new URL(`${API_ORIGIN}/containers`);
     if (id) url.searchParams.set('id', id);
     if (createdAt) url.searchParams.set('createdAt', createdAt);
@@ -261,7 +282,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
     range.textContent = `${filtered.length ? page * pageSize + 1 : 0}–${Math.min((page + 1) * pageSize, filtered.length)} of ${filtered.length}`;
     const remaining = Math.max(0, data.limits.maxStartsPerMonth - data.usage.starts);
     usage.hidden = (!data.active && !data.billing) || !overview;
-    usageContainers.textContent = `${data.containers.length} / ${data.limits.maxContainers.toLocaleString()}`;
+    usageContainers.textContent = `${occupiedContainerSlots(data.containers)} / ${data.limits.maxContainers.toLocaleString()}`;
     usageConcurrency.textContent = data.limits.maxConcurrentComputeUnits !== undefined
       ? `${data.usage.concurrentComputeUnits ?? 0} / ${data.limits.maxConcurrentComputeUnits.toLocaleString()} concurrent compute units` : 'Active container slots';
     document.querySelector<HTMLElement>('#usage-compute-label')!.textContent = data.billing ? 'Compute used / monthly cap' : 'Compute-unit hours available';
@@ -322,16 +343,18 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
           state.append(size);
         }
         const expires = document.createElement('span');
-        expires.textContent = container.lifecycle === 'production' ? container.status === 'stopped' ? container.stopReason === 'spend_limit_reached' ? 'Funding or spending cap reached' : ['subscription_required', 'insufficient_balance', 'prepaid_balance_required'].includes(container.stopReason ?? '') ? 'Add prepaid balance' : 'Recovery pending' : 'Runs while funded' : `Stops by ${expiry.toLocaleString([], expiryOptions)}`;
+        expires.textContent = container.status === 'stopped' && container.workspaceId
+          ? (container.persistenceExpiresAt ?? 0) > Date.now() ? `Files saved until ${new Date(container.persistenceExpiresAt!).toLocaleDateString()}` : 'Saved filesystem expired'
+          : container.lifecycle === 'production' ? container.status === 'stopped' ? container.stopReason === 'spend_limit_reached' ? 'Funding or spending cap reached' : ['subscription_required', 'insufficient_balance', 'prepaid_balance_required'].includes(container.stopReason ?? '') ? 'Add prepaid balance' : 'Recovery pending' : 'Runs while funded' : `Stops by ${expiry.toLocaleString([], expiryOptions)}`;
         state.append(expires);
         const stop = document.createElement('button');
         stop.type = 'button';
         stop.className = 'dashboard-retry button-danger';
-        stop.textContent = production && container.status === 'stopped' ? 'Delete' : 'Stop';
-        stop.dataset.action = 'stop';
-        stop.setAttribute('aria-label', `Stop ${container.name || container.id}`);
+        stop.textContent = 'Delete';
+        stop.dataset.action = 'delete';
+        stop.setAttribute('aria-label', `Delete ${container.name || container.id}`);
         stop.addEventListener('click', () => {
-          if (window.confirm(`${production && container.status === 'stopped' ? 'Delete' : 'Stop'} ${container.name || container.id}?${production ? ' Automatic recovery will be disabled.' : ''} Its files will be lost.`)) mutate('DELETE', container.id, container.createdAt);
+          if (window.confirm(`Delete ${container.name || container.id}? Its filesystem and saved stop state will be permanently removed.${production ? ' Automatic recovery will be disabled.' : ''}`)) mutate('DELETE', container.id, container.createdAt);
         });
         details.append(heading, state);
         const actions = document.createElement('div');
@@ -357,6 +380,33 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
         menuToggle.setAttribute('aria-label', `Actions for ${container.name || member?.member.name || container.id}`);
         const menuActions = document.createElement('div'); menuActions.className = 'container-menu-items';
         menuActions.append(connect, stop); menu.append(menuToggle, menuActions); actions.append(shell, menu);
+        if (canResumeContainer(container, persistence)) {
+          const resume = document.createElement('button'); resume.type = 'button'; resume.className = 'dashboard-retry';
+          resume.textContent = 'Resume'; resume.dataset.action = 'resume';
+          resume.setAttribute('aria-label', `Resume ${container.name || container.id}`);
+          resume.onclick = () => runLifecycle('resume', container);
+          shell.replaceWith(resume);
+        }
+        if (running && persistence.filesystemAfterStop === true) {
+          const suspend = document.createElement('button'); suspend.type = 'button'; suspend.className = 'dashboard-retry';
+          suspend.textContent = 'Stop and save'; suspend.dataset.action = 'stop';
+          suspend.setAttribute('aria-label', `Stop and save ${container.name || container.id}`);
+          suspend.onclick = () => runLifecycle('stop', container);
+          menuActions.append(suspend);
+        }
+        if (running && persistence.filesystemFork === true) {
+          const fork = document.createElement('button'); fork.type = 'button'; fork.className = 'dashboard-retry';
+          fork.textContent = 'Fork'; fork.dataset.action = 'fork';
+          fork.setAttribute('aria-label', `Fork ${container.name || container.id}`);
+          fork.onclick = () => {
+            if (busy || disposed) return;
+            forkSource = container; forkName.value = pendingForkNames.get(forkIdentity(container)) ?? `${container.name || 'Container'} fork`.slice(0, 80);
+            forkDialog.querySelector<HTMLButtonElement>('[type="submit"]')!.textContent = pendingForkNames.has(forkIdentity(container)) ? 'Retry fork' : 'Create fork';
+            controls();
+            forkError.hidden = true; forkStatus.textContent = ''; forkDialog.showModal(); forkName.focus();
+          };
+          menuActions.append(fork);
+        }
         const cell = (text: string, index: number, label: string) => {
           const td = document.createElement('td'); td.className = `machine-column-${index}`; td.dataset.label = label; td.textContent = text; return td;
         };
@@ -463,6 +513,36 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
     }
   }
 
+  async function runLifecycle(action: ContainerAction, container: Container, name?: string) {
+    if (busy || disposed || !data) return;
+    const fingerprint = JSON.stringify([action, container.id, container.createdAt, name]);
+    const key = lifecycleKeys.get(fingerprint) ?? crypto.randomUUID();
+    lifecycleKeys.set(fingerprint, key);
+    if (action === 'fork') pendingForkNames.set(forkIdentity(container), name ?? '');
+    busy = true; stateVersion++; clearTimeout(timer); error.hidden = true; forkError.hidden = true;
+    const targetError = action === 'fork' ? forkError : error;
+    const targetStatus = action === 'fork' ? forkStatus : status;
+    targetStatus.textContent = action === 'stop' ? 'Saving filesystem and stopping…' : action === 'resume' ? 'Restoring filesystem…' : 'Copying filesystem and starting fork…';
+    controls();
+    try {
+      const result = await lifecycleRequest(action, container, key, name);
+      if (disposed) return;
+      if (action === 'stop' && terminal?.id === container.id && terminal.createdAt === container.createdAt) closeTerminal(true);
+      data = result; lifecycleKeys.delete(fingerprint); if (action === 'fork') pendingForkNames.delete(forkIdentity(container)); render();
+      if (action === 'fork') forkDialog.close();
+      refresh.focus();
+    } catch (caught) {
+      if (disposed) return;
+      targetStatus.textContent = '';
+      targetError.textContent = lifecycleError(caught instanceof Error ? caught.message : ''); targetError.hidden = false;
+      if (action === 'fork') forkDialog.querySelector<HTMLButtonElement>('[type="submit"]')!.textContent = 'Retry fork';
+      if (action === 'fork' && !forkDialog.open) { error.textContent = targetError.textContent; error.hidden = false; }
+    } finally {
+      busy = false; controls();
+      if (targetError.hidden) schedule();
+    }
+  }
+
   function schedule() {
     clearTimeout(timer);
     if (!disposed) timer = setTimeout(() => {
@@ -488,6 +568,8 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
       observability = capabilities?.observability ?? {};
       persistence = capabilities?.persistence ?? {};
       workspaces.configure(persistence);
+      security.configure({ internetControl: capabilities?.networking?.internetControl === true,
+        egressPolicies: capabilities?.networking?.egressPolicies === true, secrets: capabilities?.secrets?.vault === true });
       observations.configure(observability);
       data = result;
       privateServices.configure(capabilities?.networking?.privateServices === true);
@@ -529,7 +611,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
     let mutationError = method === 'POST' ? launchError : error;
     create.textContent = method === 'POST' ? 'Creating…' : 'Create container';
     launchStatus.textContent = method === 'POST' ? 'Starting your container…' : '';
-    status.textContent = method === 'POST' ? 'Starting your container…' : 'Stopping your container…';
+    status.textContent = method === 'POST' ? 'Starting your container…' : 'Deleting your container…';
     controls();
     try {
       const result = await request(method, id, createdAt);
@@ -545,6 +627,10 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
       if (!launch.open) mutationError = error;
       const message = cause.message === 'invalid_container_name'
         ? 'Enter a container name of up to 80 characters without control characters.'
+        : cause.message === 'invalid_network_rules' ? 'Enter at least one allowed destination, with no more than 64 allow or deny rules.'
+        : cause.message === 'network_unavailable' ? 'The selected network policy is unavailable. Refresh before choosing another setting.'
+        : ['invalid_network_policy', 'invalid_secret_bindings', 'secret_not_found', 'secret_binding_not_allowed'].includes(cause.message) ? 'Check the outbound rules and selected secrets. Every secret hostname must be allowed by the policy.'
+        : ['network_policy_unavailable', 'secrets_unavailable', 'secret_mediation_unavailable'].includes(cause.message) ? 'The selected outbound policy or secret service is unavailable. Try again when service is restored.'
         : cause.message === 'production_requires_usage' ? 'Production requires prepaid compute funding. Add balance in billing.'
         : cause.message === 'insufficient_production_balance' ? 'Fund at least 24 hours of runtime for the resulting production fleet, and ensure your remaining monthly spending cap covers those 24 hours.'
         : cause.message === 'production_unavailable' ? 'The production runtime is unavailable. Refresh and try again.'
@@ -571,7 +657,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
               ? 'This container has already stopped or been replaced. Refresh to see the current containers.'
             : cause.message === 'billing_unavailable'
               ? 'Billing is temporarily unavailable. Try again shortly.'
-          : `Could not ${method === 'POST' ? 'create' : 'stop'} your container. Refresh to check its status.`;
+          : `Could not ${method === 'POST' ? 'create' : 'delete'} your container. Refresh to check its status.`;
       mutationError.replaceChildren();
       mutationError.append(document.createTextNode(message));
       if (['subscription_required', 'production_requires_usage', 'insufficient_production_balance', 'spend_limit_reached'].includes(cause.message)) {
@@ -597,10 +683,12 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
   function dispose() {
     privateServices.dispose();
     workspaces.dispose();
+    security.dispose();
     observations.dispose();
     previews.dispose();
     closeTerminal();
     launch.close();
+    forkDialog.close();
     disposed = true;
     clearTimeout(timer);
     data = null;
@@ -626,13 +714,14 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
       button.setAttribute('aria-selected', String(selected));
       button.tabIndex = selected ? 0 : -1;
     }
-    panel.hidden = tab === 'workspaces';
+    panel.hidden = tab === 'workspaces' || tab === 'secrets';
     panel.setAttribute('aria-labelledby', `${tab}-tab`);
     filters.hidden = tab !== 'containers';
     openLaunch.hidden = tab !== 'containers';
-    refresh.hidden = tab === 'workspaces';
+    refresh.hidden = tab === 'workspaces' || tab === 'secrets';
     privateServices.setVisible(tab === 'networks');
     workspaces.setVisible(tab === 'workspaces');
+    security.setVisible(tab === 'secrets');
     render();
   }
   tabs.forEach((button, index) => {
@@ -664,6 +753,8 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
     }
   });
   containerName.addEventListener('input', () => containerName.setCustomValidity(''));
+  forkForm.onsubmit = event => { event.preventDefault(); if (forkSource && forkName.value.trim() && forkForm.reportValidity()) runLifecycle('fork', forkSource, forkName.value.trim()); };
+  forkDialog.querySelector<HTMLButtonElement>('[data-fork-close]')!.onclick = () => forkDialog.close();
   launchForm.addEventListener('submit', event => { event.preventDefault(); mutate('POST'); });
   refresh.addEventListener('click', () => load());
   function selectImageTab(tab: typeof imageTab) {

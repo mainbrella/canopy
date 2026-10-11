@@ -14,8 +14,7 @@ machines share the same monthly spending cap, concurrency and start safeguards.
 
 A startup command must be one line and at most 4,096 characters. The dashboard
 requires it; API callers can omit it for an always-on shell machine. The command
-runs from the selected immutable image on every machine recovery. Include all
-required setup in the image or command. Application processes are supervised
+runs from the selected immutable image on recovery unless the machine was explicitly stopped and resumed from a checkpoint. Checkpoint-backed production recovery restores that saved filesystem and fails closed if the checkpoint becomes unavailable. Writes since that checkpoint are not crash-durable. Include required setup in the image or command. Application processes are supervised
 with restart backoff up to 60 seconds; output goes to
 `/tmp/mainbrella-production.log`. Runtime recovery backs off from 30 seconds to
 five minutes. Recovery retains the logical `id` and `createdAt`, private network

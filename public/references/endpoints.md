@@ -5,7 +5,7 @@
 | --- | --- |
 | `GET /containers` | 200: current containers, effective plan, limits, and usage. Does not renew idle time. |
 | `POST /containers` | 200: reserves a start and boots the selected machine size (default lite) using the default Node image or optional JSON `{catalogId, size}` / `{imageId, size}` selection; returns status after readiness. 402 without paid access; 409 if the concurrency cap is occupied; optional `Idempotency-Key` resolves retries to one reservation for 24 hours and adds `creation` identity/status; 429 if monthly starts are exhausted. |
-| `DELETE /containers?id=<id>&createdAt=<generation>` | 200: stops the selected container and returns status. Generation is optional but recommended to reject stale actions. An explicit ID is required when multiple containers exist. Does not refund starts. |
+| `DELETE /containers?id=<id>&createdAt=<generation>` | 200: permanently deletes the selected container without saving its filesystem and returns status. Generation is optional but recommended to reject stale actions. An explicit ID is required when multiple containers exist. Does not refund starts. |
 | `POST /containers/exec?id=small&createdAt=<ISO generation>` with `{"command":"echo hello","timeoutMs":30000}` | 200: `{stdout, stderr, exitCode, timedOut, outputTruncated}`. ID and exact generation are required. Runs a foreground `/bin/sh -lc` command without SSH or a PTY. |
 | `GET /containers/files?id=<id>&createdAt=<generation>&path=<absolute-path>` | 200: raw `application/octet-stream` bytes for a regular file, up to 1 MiB. ID, exact generation, and URL-encoded path are required. |
 | `PUT /containers/files?id=<id>&createdAt=<generation>&path=<absolute-path>` with a raw byte body | 200: `{path, size}` after writing up to 1 MiB. An empty body creates an empty file. Requires an existing parent directory. |
@@ -48,7 +48,7 @@ Lifecycle response example (UTC timestamps and usage month):
 }
 ```
 
-The response also includes a `sizes` catalog (omitted above for brevity). `containers` is empty when Ad Hoc containers stop; Production desired services remain visible with `status: "stopped"`. During a concurrent launch, a reserved slot
+The response also includes a `sizes` catalog (omitted above for brevity). `containers` retains explicitly suspended Ad Hoc machines until deletion; destructive or automatic expiry stops remove them; Production desired services remain visible with `status: "stopped"`. During a concurrent launch, a reserved slot
 may appear with `status: "starting"`; terminal and SSH access require `running`.
 Unpaid status has `plan: null`, `active: false` and zero limits. An unpaid first
 start returns 402 without provisioning or consuming quota. If an existing billing
@@ -67,8 +67,7 @@ terminal connections (browser/SSH combined). An account permits ten live SSH
 access tokens, each lasting at most 15 minutes or the machine deadline. Process
 resume after stop, custom resources, teams, advanced logs/audits and
 priority capacity are unavailable. New accounts fund compute with one-time payments; unused balance carries forward. Existing fixed-price subscriptions retain their terms.
-Ordinary stop discards unsaved filesystem changes; save a workspace explicitly
-to restore its filesystem into a fresh container.
+Use `POST /containers/stop` and `/containers/resume` when `persistence.filesystemAfterStop` is enabled. Destructive DELETE and automatic expiry do not save files. Saved workspaces provide explicit captures independently of resumable stop.
 
 Ownership and resources come from the authenticated account and server policy.
 Request bodies and client headers cannot override the owner, plan, registry image, raw resource configuration,

@@ -78,6 +78,7 @@
               <button id="containers-tab" type="button" role="tab" aria-selected="true" aria-controls="resources-panel" data-resource-tab="containers">Containers</button>
               <button id="networks-tab" type="button" role="tab" aria-selected="false" aria-controls="resources-panel" tabindex="-1" data-resource-tab="networks">Networks</button>
               <button id="workspaces-tab" type="button" role="tab" aria-selected="false" aria-controls="saved-workspaces" tabindex="-1" data-resource-tab="workspaces">Saved workspaces</button>
+              <button id="secrets-tab" type="button" role="tab" aria-selected="false" aria-controls="sandbox-secrets" tabindex="-1" data-resource-tab="secrets">Secrets</button>
             </div>
             <div class="container-actions">
               <button id="containers-refresh" class="dashboard-retry" type="button" disabled>Refresh</button>
@@ -152,7 +153,28 @@
             <p class="dashboard-error" role="alert" hidden></p>
             <div class="container-actions"><button type="button" class="dashboard-retry" data-workspaces-refresh>Refresh workspaces</button><button type="button" class="dashboard-retry" data-workspaces-retry hidden>Retry save</button></div>
           </section>
+          <section id="sandbox-secrets" role="tabpanel" aria-labelledby="secrets-tab" hidden>
+            <div class="container-actions"><button type="button" class="dashboard-retry" data-secrets-refresh>Refresh secrets</button><button type="button" class="button button-small" data-secrets-new>New secret</button></div>
+            <ul class="container-list" aria-label="Sandbox secrets"></ul>
+            <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+          </section>
         </section>
+        <dialog id="sandbox-secret-dialog" class="private-services-dialog" aria-labelledby="sandbox-secret-title">
+          <form>
+            <h2 id="sandbox-secret-title">New sandbox secret</h2>
+            <fieldset class="sandbox-secret-fields">
+              <legend class="visually-hidden">Secret destination</legend>
+              <label for="sandbox-secret-name">Name</label><input id="sandbox-secret-name" type="text" required maxlength="80" autocomplete="off">
+              <label for="sandbox-secret-host">Allowed HTTPS hostname</label><input id="sandbox-secret-host" type="text" required maxlength="253" placeholder="api.example.com" autocomplete="off" autocapitalize="none" spellcheck="false">
+              <label for="sandbox-secret-header">Request header</label><select id="sandbox-secret-header"><option value="authorization">Authorization</option><option value="x-api-key">X-API-Key</option><option value="api-key">API-Key</option></select>
+              <label for="sandbox-secret-prefix">Value prefix (optional)</label><input id="sandbox-secret-prefix" type="text" maxlength="32" autocomplete="off" spellcheck="false" placeholder="Bearer ">
+            </fieldset>
+            <label for="sandbox-secret-value">Secret value</label><input id="sandbox-secret-value" type="password" required maxlength="4096" autocomplete="new-password" spellcheck="false" aria-describedby="sandbox-secret-note">
+            <p id="sandbox-secret-note" class="dashboard-status">Injected into HTTPS requests to the allowed hostname. Values cannot be read back. Use a scoped credential with a trusted service.</p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Save secret</button><button type="button" class="dashboard-retry" data-secret-close>Cancel</button></div>
+          </form>
+        </dialog>
         <dialog id="network-create-dialog" class="private-services-dialog" aria-labelledby="network-create-title">
           <form>
             <h2 id="network-create-title">New network</h2>
@@ -179,6 +201,17 @@
             <p id="private-member-port-note" class="dashboard-status">Register a port to receive HTTP at http://NAME.internal. Leave blank to only call services. Public previews are enabled separately.</p>
             <p class="dashboard-error" role="alert" hidden></p>
             <div class="container-actions"><button type="submit" class="button button-small">Attach machine</button><button type="button" class="dashboard-retry" data-private-close>Cancel</button></div>
+          </form>
+        </dialog>
+        <dialog id="container-fork-dialog" class="private-services-dialog" aria-labelledby="container-fork-title">
+          <form>
+            <h2 id="container-fork-title">Fork container</h2>
+            <label for="container-fork-name">Name</label>
+            <input id="container-fork-name" type="text" required maxlength="80" autocomplete="off">
+            <p class="dashboard-status">Copies saved filesystem changes into a new container. Running processes and memory are not copied. The new machine uses your normal compute allowance.</p>
+            <p class="dashboard-status" role="status"></p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Create fork</button><button type="button" class="dashboard-retry" data-fork-close>Cancel</button></div>
           </form>
         </dialog>
         <dialog id="container-launch-dialog" class="container-launch" aria-labelledby="launch-title">
@@ -209,6 +242,17 @@
                 <legend>Machine size</legend>
                 <div id="machine-options" class="machine-options"><p class="dashboard-status">Loading machine sizes…</p></div>
               </fieldset>
+              <details id="sandbox-network-settings" class="sandbox-network-settings" hidden>
+                <summary>Outbound access</summary>
+                <label for="sandbox-network-mode">Internet access</label>
+                <select id="sandbox-network-mode"><option value="unrestricted">Unrestricted</option><option value="blocked">No internet</option><option value="restricted">Allow listed destinations</option></select>
+                <div data-network-policy hidden>
+                  <label for="sandbox-network-allow">Allow</label><textarea id="sandbox-network-allow" rows="3" maxlength="16384" placeholder="api.example.com&#10;*.example.org" aria-describedby="sandbox-network-note" autocapitalize="none" spellcheck="false"></textarea>
+                  <label for="sandbox-network-deny">Deny (optional)</label><textarea id="sandbox-network-deny" rows="2" maxlength="16384" placeholder="private.example.org" autocapitalize="none" spellcheck="false"></textarea>
+                  <p id="sandbox-network-note" class="dashboard-status">One domain, wildcard domain, or public IP range per line, up to 64 each. Deny rules take precedence. Restricted access supports HTTP and HTTPS only. This policy is fixed for the machine’s lifetime.</p>
+                </div>
+                <fieldset data-secret-bindings hidden><legend>Inject secrets</legend><div data-binding-list></div><p class="dashboard-status">Allow each selected secret’s hostname above.</p></fieldset>
+              </details>
               <div class="launch-footer">
                 <div class="launch-notes">
                   <p id="container-size-rate" class="dashboard-status"></p>

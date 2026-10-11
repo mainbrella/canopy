@@ -47,5 +47,4 @@ Expired, foreign-generation or missing records return 404 `execution_not_found`.
 New execution admission requires paid access and a running generation. On a
 runtime restart, unfinished jobs become `interrupted` and their matching container
 generation stops to revoke orphan processes. This can terminate other work on that
-generation. Jobs are never replayed automatically. Filesystem/process persistence
-across stop or restart is not supported.
+generation. Jobs are never replayed automatically. Process state is not preserved. Filesystem-only Stop/Resume is available when advertised by capability discovery.

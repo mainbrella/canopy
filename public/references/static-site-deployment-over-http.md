@@ -3,7 +3,7 @@
 
 This produces a **temporary preview**, not persistent hosting. The preview expires
 no later than the container's hard lease; inactivity can stop the container sooner.
-Ordinary stop discards the upload. Report the returned preview `expiresAt` beside
+Destructive deletion discards the upload; a resumable stop requires the filesystem persistence capability. Report the returned preview `expiresAt` beside
 the URL, rather than calculating expiration from the requested TTL. Container IDs
 are opaque: an ID such as `small` does not establish the requested machine size.
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 const locationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
 Object.defineProperty(globalThis, 'location', { value: { hostname: 'localhost' }, configurable: true });
-const { canCreateContainer, imageSelection, productionLaunchFunding } = await import('./containers-dashboard.ts');
+const { canCreateContainer, imageSelection, productionLaunchFunding, occupiedContainerSlots } = await import('./containers-dashboard.ts');
 if (locationDescriptor) Object.defineProperty(globalThis, 'location', locationDescriptor);
 else Reflect.deleteProperty(globalThis, "location");
 
@@ -43,6 +43,12 @@ test('paid users can create only while below both the concurrency and monthly-st
   assert.equal(canCreateContainer(data()), true);
   assert.equal(canCreateContainer(data({ containers: Array(5).fill({}) })), false);
   assert.equal(canCreateContainer(data({ usage: { starts: 10 } })), false);
+});
+
+test('suspended snapshots release running slots while production recovery slots remain reserved', () => {
+  const containers = [{ status: 'running' }, { status: 'stopped', workspaceId: 'snapshot' }, { status: 'stopped', lifecycle: 'production' }];
+  assert.equal(occupiedContainerSlots(containers), 2);
+  assert.equal(canCreateContainer(data({ containers, limits: { maxContainers: 3, maxStartsPerMonth: 10 } })), true);
 });
 
 test('image selection sends a catalog ID or owned custom ID, and keeps the default body empty', () => {

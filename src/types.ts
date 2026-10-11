@@ -9,10 +9,13 @@ export interface Container extends ContainerIdentity {
   imageName?: string;
   name?: string;
   status: string;
-  expiresAt: number;
+  expiresAt: string | number;
   lifecycle?: 'ad_hoc' | 'production';
   stopReason?: string;
   size?: string;
+  workspaceId?: string;
+  persistenceExpiresAt?: number;
+  internet?: boolean;
 }
 export interface MachineSize {
   id: string; name: string; cpuVcpu: number; diskGB: number;
@@ -69,7 +72,7 @@ export interface ContainerData {
   imageCatalog?: { id: string; name: string }[];
 }
 export interface ObservabilityCapabilities { lifecycleEvents?: boolean; metrics?: boolean; webhooks?: boolean }
-export interface PersistenceCapabilities { workspaces?: boolean; snapshots?: boolean }
+export interface PersistenceCapabilities { workspaces?: boolean; snapshots?: boolean; filesystemAfterStop?: boolean; filesystemFork?: boolean }
 export interface ClientOptions { fetcher?: typeof fetch; onUnauthenticated?: () => void; signal?: AbortSignal }
 export interface ImageData {
   buildsEnabled: boolean;

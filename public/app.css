@@ -431,6 +431,18 @@
 .resource-tabs [role="tab"][aria-selected="true"] { border-bottom-color: var(--blue); color: var(--ink); }
 .resource-tabs [role="tab"]:hover { color: var(--ink); }
 .resource-tabs [role="tab"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.dashboard-body .resource-tabs { flex-wrap: wrap; }
+.sandbox-secret-fields { padding: 0; border: 0; margin: 0; min-width: 0; }
+.sandbox-network-settings { margin: 16px 0; max-width: 620px; }
+.sandbox-network-settings summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; font-size: 14px; }
+.sandbox-network-settings label, .sandbox-network-settings legend { display: block; margin: 12px 0 6px; font-size: 13px; }
+.sandbox-network-settings select, .sandbox-network-settings textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--control-border); border-radius: 4px; background: var(--surface); color: var(--ink); padding: 10px 12px; font: inherit; font-size: 14px; }
+.sandbox-network-settings textarea { resize: vertical; }
+.sandbox-network-settings fieldset { border: 0; margin: 8px 0 0; padding: 0; min-width: 0; }
+.sandbox-network-settings .secret-binding { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; overflow-wrap: anywhere; }
+.sandbox-network-settings .secret-binding input { flex-shrink: 0; width: 18px; height: 18px; }
+.sandbox-network-settings select:focus-visible, .sandbox-network-settings textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+#sandbox-secrets .container-row { overflow-wrap: anywhere; }
 .dashboard-body #saved-workspaces { padding-top: 4px; }
 @media (max-width: 600px) {
   .dashboard-body .resource-tabs { gap: 12px; width: 100%; }

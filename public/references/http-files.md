@@ -18,7 +18,7 @@ directory operations below when supported by the deployment.
 Runtime file operations are bounded by 30 seconds and the hard container deadline,
 share the four-command execution pool, and renew idle activity. Disconnect or stop
 requests cancellation. A lost response may hide a completed write; read to reconcile
-before retrying. Ordinary stop discards unsaved files; save a workspace or export
+before retrying. Destructive deletion discards unsaved files; save a workspace or export
 outputs first. Custom
 images must retain `/bin/sh` and GNU coreutils, supplied by Mainbrella's base image.
 
