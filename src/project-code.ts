@@ -2,7 +2,7 @@ import { API_ORIGIN, createAuthClient } from './auth.ts';
 import { BuildAPIError, buildErrorMessage, createBuildClient } from './build-api.ts';
 import { createBuildSourceBrowser } from './build-source.ts';
 
-interface Project { id: string; name: string; build_app_id?: string | null; git_version_id?: string | null }
+interface Project { id: string; name: string; build_app_id?: string | null; git_version_id?: string | null; github_repo?: string | null; github_branch?: string | null }
 
 const auth = createAuthClient();
 const main = document.querySelector<HTMLElement>('#main')!;
@@ -12,6 +12,7 @@ const error = document.querySelector<HTMLElement>('#code-error')!;
 const retry = document.querySelector<HTMLButtonElement>('#code-retry')!;
 const panel = document.querySelector<HTMLElement>('#code-source')!;
 const download = document.querySelector<HTMLButtonElement>('#code-download')!;
+const githubLink = document.querySelector<HTMLAnchorElement>('#code-github')!;
 const controller = new AbortController();
 const client = createBuildClient(goToLogin, controller.signal);
 const source = createBuildSourceBrowser(panel, client, reportError);
@@ -22,7 +23,7 @@ let retryAction: () => Promise<void> = load;
 function goToLogin() {
   if (disposed) return;
   disposed = true; generation++; controller.abort(); source.reset();
-  panel.hidden = download.hidden = true; download.disabled = true;
+  panel.hidden = download.hidden = githubLink.hidden = true; download.disabled = true;
   title.textContent = 'Code'; document.title = 'Code · Mainbrella';
   status.textContent = ''; error.hidden = retry.hidden = true;
   window.location.replace(`/login/?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
@@ -65,17 +66,27 @@ async function load() {
     const project: Project | undefined = data.projects.find((project: Project) => project.id === projectId);
     if (!project) { status.textContent = 'Project not found or unavailable to your account.'; return; }
     title.textContent = `${project.name} · Code`; document.title = `${project.name} · Code · Mainbrella`;
-    if (!project.build_app_id && !project.git_version_id) { status.textContent = 'Git is not enabled for this project.'; return; }
+    if (project.github_repo) {
+      const [owner, repository] = project.github_repo.split('/');
+      if (owner && repository) {
+        githubLink.href = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}`;
+        githubLink.textContent = `Open ${project.github_repo} on GitHub`;
+        githubLink.hidden = false;
+      }
+    }
+    if (!project.build_app_id && !project.git_version_id && !project.github_repo) { status.textContent = 'Git is not enabled for this project.'; return; }
     // Git-only projects use the same source storage, without opening a Builder workspace.
     const id = project.build_app_id ?? project.id;
     const versions = await client.versions(id);
     if (disposed || current !== generation) return;
     sourceId = id;
-    source.setApp({ id, versionId: versions.versionId });
+    source.setApp({ id, versionId: versions.versionId, ...(project.github_repo ? { github: {
+      repo: project.github_repo, branch: project.github_branch ?? 'main', commitId: versions.versionId, url: githubLink.href,
+    } } : {}) });
     source.setVersions(versions.versions);
     panel.hidden = false; status.textContent = '';
-    download.hidden = !versions.versionId;
-    download.disabled = !versions.versionId;
+    download.hidden = !versions.versionId || Boolean(project.github_repo);
+    download.disabled = !versions.versionId || Boolean(project.github_repo);
     await source.load();
   } catch (cause) {
     if (disposed || current !== generation) return;

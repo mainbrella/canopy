@@ -50,6 +50,27 @@ test('funding and revision errors retain their public codes and human-readable r
   assert.equal(buildErrorMessage('unexpected_build_error'), 'Build error: unexpected_build_error');
 });
 
+test('GitHub-backed build errors give specific recovery steps', () => {
+  const expected: Record<string, string> = {
+    github_connection_required: 'Reconnect GitHub in Projects, then try again.',
+    github_build_unavailable: 'GitHub linking is unavailable right now. Try again shortly.',
+    github_write_access_required: 'Grant this app write access to the GitHub repository, then try again.',
+    github_branch_conflict: 'The remote branch changed. Retry to sync the latest repository state before continuing.',
+    github_source_conflict: 'GitHub and Builder changed the same file. Save your working version of that file to GitHub, then retry.',
+    github_branch_protected: 'Choose a branch that allows app commits, or update the branch protection rules.',
+    github_source_limit: 'This repository exceeds Builder source limits. Reduce its size in GitHub before building.',
+    github_rate_limited: 'GitHub is limiting requests right now. Wait briefly and try again.',
+    github_unavailable: 'GitHub is temporarily unavailable. Try again shortly.',
+    github_project_busy: 'This project is already processing a change. Wait for it to finish, then try again.',
+    github_repository_hosted: 'This repository is hosted on GitHub. Open GitHub to view or clone it.',
+  };
+  for (const [code, message] of Object.entries(expected)) {
+    assert.equal(buildErrorMessage(code), message);
+    assert.doesNotMatch(message, /Build error:|Could not complete that action/);
+  }
+  assert.equal(buildErrorMessage('github_branch_conflict', 'Remote branch is now at abc123'), `${expected.github_branch_conflict}\n\nRemote branch is now at abc123`);
+});
+
 test('failed builds include the actual command output with its line breaks', () => {
   const output = "failed\nsrc/App.tsx(12,5): error TS2304: Cannot find name 'total'.\nFix src/App.tsx.";
   assert.equal(buildErrorMessage('build_check_failed', output), `${buildErrorMessage('build_check_failed')}\n\n${output}`);

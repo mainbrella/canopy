@@ -29,7 +29,7 @@ class Element {
 const originalProject = { id: 'project-1', name: 'First project', domain: 'example.com', created_at: '2026-01-01T00:00:00Z' };
 const secondProject = { id: 'project-2', name: 'Second project', created_at: '2026-01-02T00:00:00Z' };
 
-async function fixture(t: TestContext, respond: (url: string, options: RequestInit) => Promise<Response> | Response = defaultResponse) {
+async function fixture(t: TestContext, respond: (url: string, options: RequestInit) => Promise<Response> | Response = defaultResponse, search = '') {
   const nodes = new Map<string, Element>();
   const node = (selector: string) => {
     if (!nodes.has(selector)) nodes.set(selector, new Element());
@@ -38,13 +38,14 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   const name = node('#project-name');
   const domain = node('#project-domain');
   node('#project-form').reset = () => { name.value = ''; domain.value = ''; node('#project-git').checked = false; };
+  node('#github-form').reset = () => {};
   const calls: { url: string; options: RequestInit }[] = [];
   const created: Element[] = [];
   const redirects: string[] = [];
   const window = {
     localStorage: { getItem: () => 'accepted', setItem() {} },
     sessionStorage: { getItem: () => 'accepted', setItem() {} },
-    location: { hostname: 'localhost', pathname: '/projects/', search: '', hash: '', replace: (url: string) => redirects.push(url) },
+    location: { hostname: 'localhost', pathname: '/projects/', search, hash: '', replace: (url: string) => redirects.push(url) },
     addEventListener() {}, dispatchEvent() {},
   };
   const property = (key: string, value: unknown) => {
@@ -68,6 +69,8 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
 function defaultResponse(url: string, options: RequestInit) {
   if (new URL(url).pathname === '/auth/me') return Response.json({ user: { id: 'account' } });
   if (new URL(url).pathname === '/projects/endpoint') return Response.json({ endpoint: { projectId: new URL(url).searchParams.get('id'), url: 'https://p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mainbrella.dev/', target: null, backendStatus: 'unlinked' }, domains: [], hosting: { supported: true, customDomains: true, apexIps: [] } });
+  if (new URL(url).pathname === '/github/build/connect') return Response.json({ url: 'https://github.com/login/oauth/authorize?client_id=app' });
+  if (new URL(url).pathname === '/projects/github') return Response.json({ github: { repo: 'owner/repo', branch: 'main', commitId: 'a'.repeat(40), url: 'https://github.com/owner/repo' } });
   if (options.method === 'GET') return Response.json({ projects: [originalProject, secondProject] });
   if (options.method === 'PATCH') {
     const requested = JSON.parse(String(options.body));
@@ -311,4 +314,88 @@ test('projects with Git code and no Builder link still expose a standalone Code 
   await editButton(f, 0).fire('click');
   assert.equal(f.node('#project-git-option').hidden, true);
   assert.equal(f.calls.some(call => new URL(call.url).pathname.startsWith('/build/')), false);
+});
+
+test('Git cells offer GitHub linking and authorize with a validated GitHub destination', async t => {
+  const f = await fixture(t);
+  const cell = f.node('#project-list').children[0].children[3];
+  const connect = cell.children.find(child => child.textContent === 'Connect GitHub')!;
+  await connect.fire('click');
+  assert.equal(f.node('#github-dialog').open, true);
+  assert.equal(f.node('#github-branch').value, 'main');
+  f.node('#github-repo').value = 'https://github.com/acme/site.git';
+  await f.node('#github-form').fire('submit');
+  const call = f.calls.find(item => new URL(item.url).pathname === '/github/build/connect')!;
+  const body = JSON.parse(String(call.options.body));
+  assert.equal(body.repo, 'acme/site');
+  assert.equal(body.branch, 'main');
+  assert.equal(body.projectId, 'project-1');
+  const returnTo = new URL(body.returnTo, 'https://mainbrella.com');
+  assert.equal(returnTo.pathname, '/projects/');
+  assert.equal(returnTo.searchParams.get('githubRepo'), 'acme/site');
+  assert.match(f.redirects[0], /^https:\/\/github\.com\//);
+});
+
+test('OAuth return requires an explicit final link and refreshes the row after success', async t => {
+  let linkedProject: any = null;
+  const f = await fixture(t, (url, options) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [linkedProject ?? originalProject] });
+    if (parsed.pathname === '/projects/github' && options.method === 'PUT') {
+      const input = JSON.parse(String(options.body));
+      linkedProject = { ...originalProject, git_version_id: null, github_repo: input.repo, github_branch: input.branch, github_commit_id: 'a'.repeat(40) };
+      return Response.json({ github: { repo: input.repo, branch: input.branch, commitId: 'a'.repeat(40), url: `https://github.com/${input.repo}` } });
+    }
+    return defaultResponse(url, options);
+  }, '?githubProject=project-1&github=connected&githubRepo=owner%2Frepo&githubBranch=main');
+  await f.flush();
+  assert.equal(f.node('#github-dialog').open, true);
+  assert.equal(f.node('#github-repo').value, 'owner/repo');
+  assert.equal(f.node('#github-submit').textContent, 'Link repository');
+  assert.equal(f.calls.some(call => new URL(call.url).pathname === '/projects/github'), false);
+  await f.node('#github-form').fire('submit');
+  const link = f.calls.find(call => new URL(call.url).pathname === '/projects/github')!;
+  assert.equal(link.options.method, 'PUT');
+  assert.deepEqual(JSON.parse(String(link.options.body)), { repo: 'owner/repo', branch: 'main' });
+  const gitCell = f.node('#project-list').children[0].children[3];
+  assert.equal(gitCell.children[0].textContent, 'owner/repo');
+  assert.equal(gitCell.children[0].href, 'https://github.com/owner/repo');
+  assert.equal(gitCell.children[1].textContent, 'Code');
+  assert.match(gitCell.children[2].textContent, /^GitHub · main/);
+  assert.equal(gitCell.children[3].textContent, 'Reconnect access');
+  assert.equal(linkedProject.git_version_id, null);
+  assert.ok(f.calls.filter(call => new URL(call.url).pathname === '/projects' && call.options.method === 'GET').length >= 2);
+  await gitCell.children[3].fire('click');
+  assert.equal(f.node('#github-repo').readOnly, true);
+  assert.equal(f.node('#github-branch').readOnly, true);
+  assert.equal(f.node('#github-note').hidden, true);
+});
+
+test('editing a GitHub project keeps hosted Git off', async t => {
+  const f = await fixture(t, (url, options) => {
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [{ ...originalProject, github_repo: 'owner/repo', github_branch: 'release' }] });
+    return defaultResponse(url, options);
+  });
+  await editButton(f, 0).fire('click');
+  assert.equal(f.node('#project-git-option').hidden, true);
+  assert.match(f.node('#project-git-note').textContent, /GitHub.*Hosted Git is off/);
+  await f.node('#project-cancel').fire('click');
+});
+
+test('expired GitHub access can be reauthorized without losing the repository draft', async t => {
+  const f = await fixture(t, (url, options) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [originalProject] });
+    if (parsed.pathname === '/projects/github' && options.method === 'PUT') return Response.json({ error: 'github_connection_required' }, { status: 409 });
+    return defaultResponse(url, options);
+  }, '?githubProject=project-1&github=connected&githubRepo=owner%2Frepo&githubBranch=feature%2Fsync');
+  await f.flush();
+  await f.node('#github-form').fire('submit');
+  assert.equal(f.node('#github-repo').value, 'owner/repo');
+  assert.equal(f.node('#github-branch').value, 'feature/sync');
+  assert.equal(f.node('#github-submit').textContent, 'Authorize GitHub');
+  assert.match(f.node('#github-status').textContent, /access expired/i);
+  await f.node('#github-form').fire('submit');
+  const authorization = f.calls.filter(call => new URL(call.url).pathname === '/github/build/connect').at(-1)!;
+  assert.equal(JSON.parse(String(authorization.options.body)).reauthorize, true);
 });

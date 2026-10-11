@@ -1,4 +1,4 @@
-import { BuildAPIError, buildErrorMessage, createBuildClient, safeBuildPreviewURL, type BuildActivity, type BuildImage, type BuildApp, type BuildConfig, type BuildTurn, type BuildModel, type BuildModelOptions, type BuildDiagnostics, type BuildVersion } from './build-api.ts';
+import { BuildAPIError, buildErrorMessage, createBuildClient, safeBuildPreviewURL, type BuildActivity, type BuildImage, type BuildApp, type BuildConfig, type BuildTurn, type BuildModel, type BuildModelOptions, type BuildDiagnostics, type BuildVersion, type BuildGitHub } from './build-api.ts';
 import { createBuildSourceBrowser } from './build-source.ts';
 import { buildExamples, createBuildDraftStore } from './build-drafts.ts';
 import { buildBriefQuestions, formatBuildBriefPrompt, readBuildBriefPrompt } from './build-brief.ts';
@@ -8,6 +8,18 @@ import { readBuildPrompt, removeBuildPrompt } from './build-onboarding.ts';
 
 type Clarification = { prompt: string; answers: [string, string]; step: 0 | 1 };
 type DiagnosticState = { key: string; loading: boolean; data?: BuildDiagnostics; error?: string };
+
+export function githubBranchURL(github: BuildGitHub): string | null {
+  const parts = github.repo.split('/');
+  const validRepo = parts.length === 2 && /^[A-Za-z0-9-]+$/.test(parts[0]) && /^[A-Za-z0-9_.-]+$/.test(parts[1])
+    && parts[1] !== '.' && parts[1] !== '..';
+  if (!validRepo) return null;
+  const branchParts = github.branch.split('/');
+  const validBranchPart = (part: string) => /^[A-Za-z0-9_@.+-]+$/.test(part) && part !== '.' && part !== '..';
+  if (!branchParts.length || !branchParts.every(validBranchPart)) return null;
+  const url = new URL(`https://github.com/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/tree/${branchParts.map(encodeURIComponent).join('/')}`);
+  return url.origin === 'https://github.com' ? url.href : null;
+}
 
 export function selectBuildModelOptions(models: BuildModel[], defaultModel: string | undefined, options: BuildModelOptions): BuildModelOptions {
   const previous = models.find(model => model.id === options.model);
@@ -162,7 +174,9 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
     node<HTMLButtonElement>('#build-stop').disabled = locked || Boolean(selected?.activeTurnId);
     node<HTMLButtonElement>('#build-start-preview').disabled = locked || readOnly || !available;
     node<HTMLButtonElement>('#build-resume').disabled = locked || readOnly || !config?.available;
-    node<HTMLButtonElement>('#build-repository').hidden = !selected?.versionId;
+    const repository = node<HTMLButtonElement>('#build-repository');
+    repository.hidden = !selected?.github && !selected?.versionId;
+    repository.textContent = selected?.github ? 'Open GitHub' : 'Download Git repository';
     for (const button of historyList.querySelectorAll<HTMLButtonElement>('[data-restore-version]')) button.disabled = locked || readOnly || active || !config?.available;
     for (const select of modelSelects) select.disabled = locked || !config?.models || modelSelects[0].options.length < 2;
     for (const select of effortSelects) select.disabled = locked || !config?.models || select.options.length < 2;
@@ -995,6 +1009,12 @@ export function createBuildDashboard({ onUnauthenticated }: { onUnauthenticated:
   node<HTMLButtonElement>('#build-repository').addEventListener('click', () => {
     if (!selected) return;
     const app = selected;
+    if (app.github) {
+      const url = githubBranchURL(app.github);
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      else status.textContent = 'Could not open this GitHub repository. Check its repository and branch details.';
+      return;
+    }
     void mutate(() => client.export(app.id, true), blob => {
       const url = URL.createObjectURL(blob), link = document.createElement('a');
       link.href = url; link.download = `${app.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app'}.bundle`;

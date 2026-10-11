@@ -1,8 +1,12 @@
-import type { BuildVersion, createBuildClient } from './build-api.ts';
+import type { BuildGitHub, BuildVersion, createBuildClient } from './build-api.ts';
 import { createBuildFileBrowser } from './build-files.ts';
 
-type SourceApp = { id: string; versionId?: string | null };
+type SourceApp = { id: string; versionId?: string | null; github?: BuildGitHub | null };
 type SourceClient = Pick<ReturnType<typeof createBuildClient>, 'files' | 'fileText' | 'fileURL'>;
+
+export function repositoryBranchLabel(github?: Pick<BuildGitHub, 'branch'> | null) {
+  return github?.branch?.trim() || 'main';
+}
 
 // Shared by Builder and the standalone project code page.
 export function createBuildSourceBrowser(host: HTMLElement, client: SourceClient, onError: (cause: unknown, retry: () => Promise<void>) => void) {
@@ -64,7 +68,8 @@ export function createBuildSourceBrowser(host: HTMLElement, client: SourceClient
         view.value = next.versionId ? 'repository' : 'working';
       } else if (!app.versionId && next.versionId) view.value = 'repository';
       view.options[0].disabled = !next.versionId;
-      app = { id: next.id, versionId: next.versionId };
+      view.options[0].textContent = repositoryBranchLabel(next.github);
+      app = { id: next.id, versionId: next.versionId, github: next.github };
     },
     setVersions(versions: BuildVersion[]) {
       const selected = view.value;

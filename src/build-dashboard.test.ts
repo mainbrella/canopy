@@ -4,7 +4,8 @@ import type { BuildModel, BuildTurn } from './build-api.ts';
 
 const locationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
 Object.defineProperty(globalThis, 'location', { value: { hostname: 'localhost' }, configurable: true });
-const { selectBuildModelOptions, buildProgressText } = await import('./build-dashboard.ts');
+const { selectBuildModelOptions, buildProgressText, githubBranchURL } = await import('./build-dashboard.ts');
+const { repositoryBranchLabel } = await import('./build-source.ts');
 if (locationDescriptor) Object.defineProperty(globalThis, 'location', locationDescriptor);
 else Reflect.deleteProperty(globalThis, 'location');
 
@@ -62,4 +63,13 @@ test('live progress prioritizes executing tools and handles older servers withou
   turn.activity![1].status = 'skipped';
   assert.equal(buildProgressText(turn), 'Working on your app…');
   assert.equal(buildProgressText(undefined), 'Connecting to Build…');
+});
+
+test('GitHub repository navigation is fixed to github.com and follows the linked branch', () => {
+  const github = { repo: 'OpenAI/site', branch: 'feature/source-sync', commitId: 'a'.repeat(40), url: 'https://github.com/OpenAI/site' };
+  assert.equal(githubBranchURL(github), 'https://github.com/OpenAI/site/tree/feature/source-sync');
+  assert.equal(githubBranchURL({ ...github, repo: 'github.com.evil.test/site' }), null);
+  assert.equal(githubBranchURL({ ...github, branch: '../settings' }), null);
+  assert.equal(repositoryBranchLabel({ branch: github.branch }), 'feature/source-sync');
+  assert.equal(repositoryBranchLabel(undefined), 'main');
 });

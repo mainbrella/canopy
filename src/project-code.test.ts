@@ -109,6 +109,18 @@ test('Git-only projects browse saved files and images without loading Builder or
   assert.equal(image.alt, 'public/logo.jpg');
 });
 
+test('GitHub-backed code links to GitHub and hides the local repository bundle action', async t => {
+  const f = await fixture(t, url => {
+    const path = new URL(url).pathname;
+    if (path === '/projects') return Response.json({ projects: [{ ...project, git_version_id: null, github_repo: 'acme/site', github_branch: 'release/ui' }] });
+    return defaultResponse(url);
+  });
+  assert.equal(f.node('#code-github').href, 'https://github.com/acme/site');
+  assert.equal(f.node('#code-github').hidden, false);
+  assert.equal(f.node('#code-download').hidden, true);
+  assert.equal(f.view.options[0].textContent, 'release/ui');
+});
+
 test('the shared version selector browses historical and working source', async t => {
   const f = await fixture(t);
   f.view.value = 'older'; await f.view.fire('change'); await f.flush();

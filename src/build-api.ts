@@ -30,7 +30,7 @@ export type BuildTurn = {
 };
 export type BuildApp = {
   id: string; name: string; prompt: string; revision: number; activeTurnId: string | null;
-  versionId?: string | null; verifiedVersionId?: string | null; retention?: StorageRetention;
+  versionId?: string | null; verifiedVersionId?: string | null; github?: BuildGitHub | null; retention?: StorageRetention;
   container: { id: string; createdAt: string; expiresAt: string } | null;
   preview: { id: string; url: string; expiresAt: number } | null;
   createdAt: string; updatedAt: string; turns?: BuildTurn[];
@@ -43,6 +43,7 @@ export type BuildFileInfo = { path: string; size: number; type: 'text' | 'image'
 export type BuildVersionDetail = { version: BuildVersion; files: BuildFileInfo[]; changes: { path: string; type: 'added' | 'modified' | 'deleted'; fileType: 'text' | 'image' }[] };
 export type BuildFiles = { revision: number; version: BuildVersion | null; files: BuildFileInfo[] };
 export type BuildSource = { revision: number; files: Record<string, string> };
+export type BuildGitHub = { repo: string; branch: string; commitId: string | null; url: string };
 export class BuildAPIError extends Error {
   constructor(public code: string, public details?: string) { super(buildErrorMessage(code, details)); }
 }
@@ -83,6 +84,17 @@ export function buildErrorMessage(code: string, details?: string | null): string
     invalid_request: 'Check your app name or prompt and try again.',
     source_limit: 'This app has reached the source size limit. Try a smaller change.',
     build_git_unavailable: 'Could not save the Git version. Your working source is retained; try again.',
+    github_connection_required: 'Reconnect GitHub in Projects, then try again.',
+    github_build_unavailable: 'GitHub linking is unavailable right now. Try again shortly.',
+    github_write_access_required: 'Grant this app write access to the GitHub repository, then try again.',
+    github_branch_conflict: 'The remote branch changed. Retry to sync the latest repository state before continuing.',
+    github_source_conflict: 'GitHub and Builder changed the same file. Save your working version of that file to GitHub, then retry.',
+    github_branch_protected: 'Choose a branch that allows app commits, or update the branch protection rules.',
+    github_source_limit: 'This repository exceeds Builder source limits. Reduce its size in GitHub before building.',
+    github_rate_limited: 'GitHub is limiting requests right now. Wait briefly and try again.',
+    github_unavailable: 'GitHub is temporarily unavailable. Try again shortly.',
+    github_project_busy: 'This project is already processing a change. Wait for it to finish, then try again.',
+    github_repository_hosted: 'This repository is hosted on GitHub. Open GitHub to view or clone it.',
     version_not_found: 'This saved version is unavailable. Refresh version history and try again.',
     file_not_found: 'This file is unavailable in the selected version.',
     build_source_unavailable: 'Could not load or save the source files. Try again shortly.',

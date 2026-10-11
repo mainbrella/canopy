@@ -44,6 +44,22 @@
         </div>
       </form>
     </dialog>
+    <dialog id="github-dialog" class="private-services-dialog" aria-labelledby="github-dialog-title">
+      <h2 id="github-dialog-title">Connect GitHub</h2>
+      <form id="github-form">
+        <label for="github-repo">Repository</label>
+        <input id="github-repo" type="text" required placeholder="owner/repository or GitHub URL" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <label for="github-branch">Branch</label>
+        <input id="github-branch" type="text" required value="main" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <p id="github-note" class="dashboard-status">Builder will commit to GitHub and turn off hosted Git. Use an empty branch when moving existing Git history.</p>
+        <p id="github-error" class="dashboard-error" role="alert" hidden></p>
+        <p id="github-status" class="dashboard-status" role="status"></p>
+        <div class="container-actions">
+          <button id="github-submit" class="button button-small" type="submit">Authorize GitHub</button>
+          <button id="github-cancel" class="dashboard-retry" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="endpoint-dialog" class="private-services-dialog endpoint-dialog" aria-labelledby="endpoint-title">
       <h2 id="endpoint-title">Endpoint</h2>
       <p id="endpoint-status" class="dashboard-status" role="status"></p>
