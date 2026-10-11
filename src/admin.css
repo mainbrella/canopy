@@ -125,6 +125,13 @@ th { color: var(--muted); font-weight: 500; white-space: nowrap; }
 .email-fields:disabled input, .email-fields:disabled textarea { opacity: .65; }
 .email-send-submit { justify-self: start; }
 .email-status:not(:empty) { margin-top: 12px; color: var(--muted); }
+.email-all-content { max-width: 640px; margin-top: 24px; }
+.email-all-status { margin-top: 8px; color: var(--muted); }
+.email-all-list { display: grid; gap: 2px; margin: 12px 0 0; padding: 0; list-style: none; }
+.email-all-list li label { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+.email-all-list li label:hover { background: var(--surface); }
+.email-all-list input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: #a8c7fa; }
+.email-all-address { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 600px) {
   .site-header { padding-inline: 16px; }
@@ -138,6 +145,7 @@ th { color: var(--muted); font-weight: 500; white-space: nowrap; }
   .ledger-content { margin-top: 16px; }
   .acquisition-content { margin-top: 16px; }
   .email-content { margin-top: 16px; }
+  .email-all-content { margin-top: 16px; }
   .email-fields input, .email-fields textarea { font-size: 16px; }
   .acquisition-filters input, .acquisition-filters select { font-size: 16px; }
   .app-shell.is-admin { display: flex; flex-direction: column; align-items: stretch; gap: 0; }

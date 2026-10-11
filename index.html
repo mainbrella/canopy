@@ -24,6 +24,7 @@
         <a href="/ledger" data-admin-route="ledger">Ledger</a>
         <a href="/acquisition" data-admin-route="acquisition">Acquisition Review</a>
         <a href="/email" data-admin-route="email">Email</a>
+        <a href="/email-all" data-admin-route="email-all">Email All</a>
       </nav>
       <main id="main" tabindex="-1">
         <section class="login-content" aria-labelledby="login-title" aria-busy="true">
@@ -145,6 +146,15 @@
             <p class="email-status" role="status"></p>
             <div class="email-error users-error" role="alert" hidden></div>
           </form>
+        </section>
+        <section class="email-all-content" aria-labelledby="email-all-title" hidden>
+          <div class="users-heading">
+            <h1 id="email-all-title" tabindex="-1">Email All</h1>
+            <button class="email-all-refresh" type="button">Refresh</button>
+          </div>
+          <p class="email-all-status" role="status" aria-live="polite">Loading marketing users…</p>
+          <div class="email-all-error users-error" role="alert" hidden></div>
+          <ul class="email-all-list" aria-label="Marketing users" hidden></ul>
         </section>
       </main>
     </div>

@@ -2,6 +2,7 @@ import { createAuthClient, GOOGLE_CLIENT_ID, API_ORIGIN } from './auth.ts';
 import { createLedgerView } from './ledger.ts';
 import { createAcquisitionView } from './acquisition.ts';
 import { createEmailView } from './email.ts';
+import { createEmailAllView } from './email-all.ts';
 import type { AdminUser, User } from './types.ts';
 
 const auth = createAuthClient();
@@ -53,6 +54,10 @@ const emailPage = requiredElement<HTMLElement>('.email-content');
 const emailTitle = requiredElement<HTMLHeadingElement>('#email-title');
 const emailStatus = requiredElement<HTMLElement>('.email-status');
 const emailError = requiredElement<HTMLElement>('.email-error');
+const emailAllPage = requiredElement<HTMLElement>('.email-all-content');
+const emailAllTitle = requiredElement<HTMLHeadingElement>('#email-all-title');
+const emailAllStatus = requiredElement<HTMLElement>('.email-all-status');
+const emailAllError = requiredElement<HTMLElement>('.email-all-error');
 const ADMIN_EMAIL = 'oneone@gmail.com';
 const signInPrompt = 'Continue with Google or email and password.';
 
@@ -88,10 +93,17 @@ const email = createEmailView({
   submit: requiredElement<HTMLButtonElement>('.email-send-submit'),
   status: emailStatus, error: emailError,
 }, () => isAdmin() && !signingOut, handleAdminAuthFailure);
+const emailAll = createEmailAllView({
+  page: emailAllPage,
+  status: emailAllStatus,
+  error: emailAllError,
+  list: requiredElement<HTMLUListElement>('.email-all-list'),
+  refresh: requiredElement<HTMLButtonElement>('.email-all-refresh'),
+}, () => isAdmin() && !signingOut, handleAdminAuthFailure);
 
 function currentAdminRoute() {
   const path = location.pathname.replace(/\/$/, '');
-  return path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
+  return path === '/email-all' ? 'email-all' : path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
 }
 
 function isAdmin() {
@@ -136,6 +148,8 @@ async function showCurrentState() {
   ledger.setActive(false);
   acquisition.setActive(false);
   email.setActive(false);
+  emailAll.setActive(false);
+  emailAll.clear();
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
   for (const link of adminNav.querySelectorAll<HTMLAnchorElement>('a[data-admin-route]')) link.removeAttribute('aria-current');
@@ -146,6 +160,7 @@ async function showCurrentState() {
   ledgerPage.hidden = true;
   acquisitionPage.hidden = true;
   emailPage.hidden = true;
+  emailAllPage.hidden = true;
   page.hidden = false;
   loginTitle.textContent = 'Log in';
   clearError();
@@ -169,13 +184,16 @@ function showAccessDenied() {
   ledger.setActive(false);
   acquisition.setActive(false);
   email.setActive(false);
+  emailAll.setActive(false);
   email.clear();
+  emailAll.clear();
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
   usersPage.hidden = true;
   ledgerPage.hidden = true;
   acquisitionPage.hidden = true;
   emailPage.hidden = true;
+  emailAllPage.hidden = true;
   usersRows.replaceChildren();
   usersTable.hidden = true;
   page.hidden = false;
@@ -201,15 +219,17 @@ function showAdminRoute() {
   ledgerPage.hidden = route !== 'ledger';
   acquisitionPage.hidden = route !== 'acquisition';
   emailPage.hidden = route !== 'email';
+  emailAllPage.hidden = route !== 'email-all';
   ledger.setActive(route === 'ledger');
   acquisition.setActive(route === 'acquisition');
   email.setActive(route === 'email');
+  emailAll.setActive(route === 'email-all');
   if (route === 'users') {
     usersTitle.focus({ preventScroll: true });
     void loadUsers();
   } else {
     usersRequest++;
-    (route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
+    (route === 'email-all' ? emailAllTitle : route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
   }
 }
 
@@ -227,7 +247,7 @@ adminNav.addEventListener('click', (event) => {
   const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-admin-route]') : null;
   if (!target || target.origin !== location.origin || target.target || target.hasAttribute('download')) return;
   const route = target.dataset.adminRoute;
-  if (route !== 'users' && route !== 'ledger' && route !== 'acquisition' && route !== 'email') return;
+  if (route !== 'users' && route !== 'ledger' && route !== 'acquisition' && route !== 'email' && route !== 'email-all') return;
   event.preventDefault();
   const nextPath = `/${route}`;
   const currentRoute = currentAdminRoute();
@@ -394,10 +414,11 @@ signOutButton.addEventListener('click', async () => {
   ledger.setActive(false);
   acquisition.setActive(false);
   email.setActive(false);
+  emailAll.setActive(false);
   signOutButton.disabled = true;
   page.setAttribute('aria-busy', 'true');
   const currentStatus = page.hidden ? usersStatus : status;
-  const currentPageStatus = !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
+  const currentPageStatus = !emailAllPage.hidden ? emailAllStatus : !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
   currentPageStatus.textContent = 'Signing out…';
   clearError();
   let restoreAdminRoute = false;
@@ -405,6 +426,7 @@ signOutButton.addEventListener('click', async () => {
   try {
     await auth.signOut();
     email.clear();
+    emailAll.clear();
     user = null;
     await showCurrentState();
     emailInput.focus();
@@ -432,12 +454,13 @@ googleRetry.addEventListener('click', () => {
 window.addEventListener('auth-change', (event) => {
   if (event.detail?.user !== null || !user || signingOut) return;
   email.clear();
+  emailAll.clear();
   user = null;
   showCurrentState();
 });
 
 function showError(cause: unknown) {
-  const target = page.hidden ? (!emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
+  const target = page.hidden ? (!emailAllPage.hidden ? emailAllError : !emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
   target.textContent = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
   target.hidden = false;
 }
@@ -453,6 +476,8 @@ function clearError() {
   acquisitionError.hidden = true;
   emailError.textContent = '';
   emailError.hidden = true;
+  emailAllError.textContent = '';
+  emailAllError.hidden = true;
 }
 
 function loadGoogleIdentityScript() {

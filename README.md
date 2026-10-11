@@ -28,8 +28,9 @@ to `https://api.mainbrella.com`.
 
 Override these defaults with `VITE_API_URL` and `VITE_GOOGLE_CLIENT_ID` if needed.
 The authenticated navigation includes Users at `/users`, Ledger at `/ledger`,
-Acquisition Review at `/acquisition`, and Email at `/email`. All paths can be loaded directly,
-including in the static production build. The ledger shows entries
+Acquisition Review at `/acquisition`, Email at `/email`, and Email All at
+`/email-all`. All paths can be loaded directly, including in the static
+production build. The ledger shows entries
 by creation time (`recorded_at` descending, then sequence descending), 100 entries
 per page, using a fixed `throughSequence` snapshot across pages; Refresh starts a
 new snapshot. The backend must have applied migration `020_accounting_ledger.sql`
@@ -54,6 +55,10 @@ and footer. A successful response confirms acceptance for sending, not inbox
 delivery. Failed sends preserve the draft; successful sends keep From and clear
 the other fields. The backend needs its `MARKETING_EMAIL` binding; local Wrangler
 development simulates sending.
+
+Email All loads the first 25 eligible marketing users from
+`GET /api/get-marketing-users` and displays them with checked checkboxes. The
+endpoint excludes users who opted out; this view does not send messages.
 
 Google sign-in also requires the admin origin (`https://raindrop.mainbrella.com`,
 or `http://localhost:5174` for development) in the existing Google OAuth client's
