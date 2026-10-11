@@ -1,4 +1,5 @@
 import type { BuildFileInfo } from './build-api.ts';
+import { buildCodeFragment, buildCodeTokens } from './build-code.ts';
 
 export type BuildFileEntry = { name: string; path: string; directory: boolean };
 export function buildFileEntries(paths: string[], directory = ''): BuildFileEntry[] {
@@ -63,6 +64,9 @@ export function createBuildFileBrowser(host: HTMLElement) {
           const pre = document.createElement('pre'), code = document.createElement('code');
           pre.tabIndex = 0; pre.setAttribute('aria-label', current); code.textContent = text;
           pre.append(code); state.replaceWith(pre);
+          void buildCodeTokens(file.path, text, () => request === generation).then(tokens => {
+            if (tokens && request === generation) code.replaceChildren(buildCodeFragment(text, tokens));
+          });
         }).catch(() => {
           if (request !== generation) return;
           state.textContent = 'Could not load this file.';
