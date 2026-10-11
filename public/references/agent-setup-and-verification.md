@@ -5,7 +5,7 @@ The [published skill](https://mainbrella.com/SKILL.md) guides project detection,
 integration, and troubleshooting. Provision `MAINBRELLA_API_KEY` through your
 existing secret manager or environment loader; never put it into chat or commit it.
 The dependency-free SDKs are published as `@mainbrella/sdk` 0.1.0 on npm
-and `mainbrella` 0.1.0 on PyPI. The P1 source additions (code contexts, streaming transfers, image tags, SDK prewarming and MCP) require a new release and matching API/runtime deployment. See the
+and `mainbrella` 0.1.0 on PyPI. The source additions (code contexts, streaming transfers, image management, managed pools, MCP and desktop helpers) require a new release and matching API/runtime support. See the
 [JavaScript](https://mainbrella.com/sdk/javascript.md) and
 [Python](https://mainbrella.com/sdk/python.md) references for installation and APIs.
 Native HTTP remains sufficient for lifecycle, execution and file transfer;

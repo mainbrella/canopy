@@ -34,5 +34,8 @@ Generated from backend API.md and SDK READMEs. Local implementation does not est
 - [OTLP lifecycle and workload export](otlp-lifecycle-and-workload-export.md)
 - [MCP agent integration](mcp-agent-integration.md)
 - [Image versions and tags (unreleased)](image-versions-and-tags-unreleased.md)
+- [Server-managed prewarming pools (unreleased)](server-managed-prewarming-pools-unreleased.md)
+- [Image build cache and private bases (unreleased)](image-build-cache-and-private-bases-unreleased.md)
+- [Desktop automation helpers (unreleased)](desktop-automation-helpers-unreleased.md)
 - [Mainbrella JavaScript SDK](javascript-sdk.md)
 - [Mainbrella Python SDK](python-sdk.md)

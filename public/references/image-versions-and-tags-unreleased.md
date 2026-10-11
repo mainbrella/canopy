@@ -21,5 +21,6 @@ removes its tags, and deleting a tag does not delete its image.
 Resolve a tag once and pass its image ID to `POST /containers`; keep that same
 ID and idempotency key when retrying an uncertain creation. Moving a tag never
 changes an existing container. Apply `039_image_tags.sql` before deployment.
-These routes and SDK helpers do not enable gated builds, private registries or
-cross-build caching. See [custom image rollout](docs/custom-images.md).
+These routes and SDK helpers do not enable gated builds. Cache reuse and private
+base imports additionally require the image-build configuration below. See
+[custom image rollout](docs/custom-images.md).

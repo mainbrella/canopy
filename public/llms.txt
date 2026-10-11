@@ -44,5 +44,8 @@ Generated from the canonical API and SDK documentation. Check deployment capabil
 - [OTLP lifecycle and workload export](https://mainbrella.com/references/otlp-lifecycle-and-workload-export.md)
 - [MCP agent integration](https://mainbrella.com/references/mcp-agent-integration.md)
 - [Image versions and tags (unreleased)](https://mainbrella.com/references/image-versions-and-tags-unreleased.md)
+- [Server-managed prewarming pools (unreleased)](https://mainbrella.com/references/server-managed-prewarming-pools-unreleased.md)
+- [Image build cache and private bases (unreleased)](https://mainbrella.com/references/image-build-cache-and-private-bases-unreleased.md)
+- [Desktop automation helpers (unreleased)](https://mainbrella.com/references/desktop-automation-helpers-unreleased.md)
 - [Mainbrella JavaScript SDK](https://mainbrella.com/references/javascript-sdk.md)
 - [Mainbrella Python SDK](https://mainbrella.com/references/python-sdk.md)

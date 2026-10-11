@@ -33,7 +33,10 @@ WORKDIR /workspace</code></pre>
 <p>Launch only once the image is <code>ready</code>, using <code>{"imageId":"…"}</code> instead of <code>catalogId</code>. Inspect build logs when a build fails. Current defaults are ten builds per UTC month, three saved images, and a 300-second build deadline; always use the limits returned by the API.</p>
 <h2>Versions and tags</h2>
 <p>Each successful build has an immutable image ID and digest. The source API adds owner-scoped tags: <code>PUT /images/tags/{tag}</code> with <code>{"imageId":"…"}</code>, <code>GET /images/tags/{tag}</code> to resolve it, and DELETE to remove the tag. Tags move; pin the resolved image ID when creating a sandbox so retries use the same version. These routes require migration and deployment.</p>
-<p>The source JS/Python SDKs expose image builds, status, logs, deletion and tags through <code>client.images</code>. Build admission remains conditional on <code>images.customBuilds</code>; tags do not enable builds, private-registry imports or build caching.</p>
+<p>The source JS/Python SDKs expose image builds, status, logs, deletion and tags through <code>client.images</code>. Build admission remains conditional on <code>images.customBuilds</code>; tags do not enable builds.</p>
+<h2>Cache reuse and private bases</h2>
+<p>Source build options accept <code>cacheFrom</code>, an owned ready image ID, and <code>baseImage</code>, a JSON object containing a digest-pinned <code>ghcr.io</code> or <code>docker.io</code> image reference and optional username/password. The Dockerfile still begins with <code>FROM mainbrella:base</code>. New builds export cache metadata; older images may have no reusable cache. The selected base must retain Mainbrella's shell and GNU tooling.</p>
+<p>Check <code>privateRegistriesEnabled</code> from <code>GET /images</code> before authenticated imports. Credentials are used once during trusted image preparation and are absent from customer build artifacts. Builds require an operator-configured private build repository. These additions need migration, configuration and live qualification. See the <a href="/sdk/javascript.md">JavaScript</a> and <a href="/sdk/python.md">Python</a> build options.</p>
 </article></main>
     <!-- site-footer -->
     <script type="module" src="/src/account-menu.ts"></script>
