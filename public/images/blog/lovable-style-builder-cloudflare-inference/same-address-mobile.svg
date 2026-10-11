@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="430" viewBox="0 0 440 430">
+  <title>Change the backend, keep the project address</title>
+  <defs>
+    <marker id="old" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10" fill="none" stroke="#646866" stroke-width="1.8"/></marker>
+    <marker id="current" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10" fill="none" stroke="#236078" stroke-width="1.8"/></marker>
+    <g id="machine"><rect width="66" height="79" rx="3" fill="#fffdf7" stroke="currentColor" stroke-width="2"/><path d="M12 17H54M12 33H54M12 49H54" stroke="currentColor" stroke-width="2"/><circle cx="49" cy="65" r="3" fill="currentColor"/></g>
+  </defs>
+  <rect width="440" height="430" rx="4" fill="#f7f4ec"/>
+  <g font-family="system-ui, sans-serif" fill="#263238" text-anchor="middle">
+    <text x="220" y="36" font-size="24" font-weight="600">One address. A new backend.</text>
+    <rect x="48" y="67" width="344" height="83" rx="4" fill="#fffdf7" stroke="#236078" stroke-width="2"/>
+    <path d="M48 89H392" stroke="#236078" stroke-width="1.5"/>
+    <text x="220" y="125" font-size="26" fill="#236078">p-…mainbrella.dev</text>
+    <text x="220" y="183" font-size="23">Same visitor bookmark</text>
+    <path d="M220 196V213Q220 224 207 224H110V288" stroke="#646866" stroke-width="2.5" stroke-dasharray="7 6" fill="none" marker-end="url(#old)"/>
+    <path d="M220 196V213Q220 224 233 224H330V288" stroke="#236078" stroke-width="3" fill="none" marker-end="url(#current)"/>
+    <text x="110" y="262" font-size="24" fill="#646866">Previous</text><text x="330" y="262" font-size="24" fill="#236078">Current</text>
+    <use href="#machine" x="77" y="300" color="#646866"/><use href="#machine" x="297" y="300" color="#236078"/>
+    <text x="110" y="412" font-size="23">A :3000</text><text x="330" y="412" font-size="23">B :8080</text>
+  </g>
+</svg>

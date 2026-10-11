@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="630" viewBox="0 0 440 630">
+  <title>Inference, execution, and retained code</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" fill="none" stroke="#35444e" stroke-width="1.8"/></marker>
+  </defs>
+  <rect width="440" height="630" rx="4" fill="#f7f4ec"/>
+  <g font-family="system-ui, sans-serif" fill="#263238" text-anchor="middle">
+    <text x="220" y="36" font-size="25" font-weight="600">Cloudflare Workers AI</text>
+    <g transform="translate(170 52)"><rect x="15" y="12" width="70" height="58" rx="3" fill="#ede6f5" stroke="#67517c" stroke-width="2"/><rect x="30" y="25" width="40" height="32" fill="#f7f4ec" stroke="#67517c" stroke-width="2"/><path d="M29 3V12M43 3V12M57 3V12M71 3V12M29 70V79M43 70V79M57 70V79M71 70V79M6 24H15M6 39H15M6 54H15M85 24H94M85 39H94M85 54H94" stroke="#67517c" stroke-width="2"/></g>
+    <path d="M220 143V196" stroke="#35444e" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <text x="297" y="174" font-size="23">Inference</text>
+    <rect x="50" y="210" width="340" height="101" rx="4" fill="#fffdf7" stroke="#35444e" stroke-width="2"/>
+    <text x="220" y="249" font-size="25" font-weight="600">Mainbrella build workflow</text>
+    <text x="220" y="284" font-size="23">Validates and executes tools</text>
+    <path d="M155 317V366H110V436" fill="none" stroke="#35444e" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <path d="M285 317V366H330V436" fill="none" stroke="#35444e" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <text x="110" y="403" font-size="23">Save / read</text><text x="330" y="403" font-size="23">Execute</text>
+    <g transform="translate(60 451)"><path d="M0 14V74C0 93 100 93 100 74V14" fill="#e0eef2" stroke="#236078" stroke-width="2"/><ellipse cx="50" cy="14" rx="50" ry="14" fill="#f7f4ec" stroke="#236078" stroke-width="2"/><path d="M0 56C0 74 100 74 100 56" fill="none" stroke="#236078" stroke-width="2"/></g>
+    <g transform="translate(297 451)"><rect width="66" height="79" rx="3" fill="#f2e7dc" stroke="#91512f" stroke-width="2"/><path d="M12 17H54M12 33H54M12 49H54" stroke="#91512f" stroke-width="2"/><circle cx="49" cy="65" r="3" fill="#91512f"/></g>
+    <text x="110" y="569" font-size="24" font-weight="600">R2 + D1</text><text x="330" y="569" font-size="24" font-weight="600">Linux guest</text>
+    <text x="110" y="603" font-size="22">Source + Git history</text><text x="330" y="603" font-size="22">tsc · Vite · Git</text>
+  </g>
+</svg>
