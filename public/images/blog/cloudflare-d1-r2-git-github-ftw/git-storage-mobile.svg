@@ -30,8 +30,8 @@
     <rect x="27" y="139" width="307" height="74" rx="5" fill="#fffdf7" stroke="#c9c8bd" stroke-width="1.3"/>
     <text x="39" y="158" font-size="14" font-weight="600">manifest A</text>
     <text x="39" y="176" font-size="13" fill="#275f85">initial bundle · A</text>
-    <text x="39" y="194" font-size="13" fill="#53616a">previousBundleKey: —</text>
-    <text x="39" y="209" font-size="13" fill="#53616a">prerequisiteCommitId: —</text>
+    <text x="39" y="194" font-size="13" fill="#53616a">previousBundleKey: null</text>
+    <text x="39" y="209" font-size="13" fill="#53616a">prerequisiteCommitId: null</text>
   </g>
   <g>
     <rect x="27" y="226" width="307" height="74" rx="5" fill="#fffdf7" stroke="#c9c8bd" stroke-width="1.3"/>

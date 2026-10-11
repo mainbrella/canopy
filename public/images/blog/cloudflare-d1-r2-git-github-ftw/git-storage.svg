@@ -27,8 +27,8 @@
     <rect x="25" y="157" width="226" height="119" rx="5" fill="#fffdf7" stroke="#c9c8bd" stroke-width="1.5"/>
     <text x="39" y="180" font-size="16" font-weight="600">manifest A</text>
     <text x="39" y="203" font-size="14" fill="#275f85">initial bundle · A</text>
-    <text x="39" y="229" font-size="14" fill="#53616a">previousBundleKey: —</text>
-    <text x="39" y="252" font-size="14" fill="#53616a">prerequisiteCommitId: —</text>
+    <text x="39" y="229" font-size="14" fill="#53616a">previousBundleKey: null</text>
+    <text x="39" y="252" font-size="14" fill="#53616a">prerequisiteCommitId: null</text>
   </g>
   <g>
     <rect x="279" y="157" width="226" height="119" rx="5" fill="#fffdf7" stroke="#c9c8bd" stroke-width="1.5"/>
