@@ -134,6 +134,7 @@
           <div class="domain-search"><input id="domain-keyword" type="search" required maxlength="100" placeholder="Your name or example.com" autocomplete="off" autocapitalize="none" spellcheck="false" /><button id="domain-search-submit" class="button button-small" type="submit">Search</button></div>
           <p id="domain-connection" class="dashboard-status"></p>
         </form>
+        <p class="dashboard-status">You can buy a domain from <a href="https://www.name.com/" target="_blank" rel="noopener">Name.com</a>, <a href="https://www.godaddy.com/" target="_blank" rel="noopener">GoDaddy</a>, or any registrar, then connect it under Custom domains. For convenience, buy here through Name.com and we’ll set up DNS for your project automatically.</p>
         <div id="domain-results" aria-live="polite"></div>
         <details id="domain-owned-details" class="domain-owned-details"><summary>Your domains</summary><p id="domain-empty" class="dashboard-status">You haven't purchased any domains.</p><div id="domain-owned"></div></details>
       </section>
@@ -141,7 +142,7 @@
         <h3 id="domain-review-name" tabindex="-1"></h3>
         <form id="domain-review-form">
           <label for="domain-years">Registration term</label><select id="domain-years"><option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option><option value="8">8 years</option><option value="9">9 years</option><option value="10">10 years</option></select>
-          <p id="domain-price"></p><p id="domain-renewal" class="dashboard-status"></p>
+          <p id="domain-price"></p><p class="dashboard-status">The price includes a small markup to help cover payment processing and domain setup and management costs. Domain sales aren’t a profit center for MainBrella.</p><p id="domain-renewal" class="dashboard-status"></p>
           <label class="domain-checkbox"><input id="domain-auto-renew" type="checkbox" checked /> Auto-renew annually using my saved card</label>
           <div class="container-actions dialog-step-actions"><button id="domain-review-back" class="dashboard-retry" type="button">Back to search</button><button id="domain-review-next" class="button button-small" type="submit">Registration details</button></div>
         </form>
