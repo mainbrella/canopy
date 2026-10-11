@@ -6,6 +6,7 @@ export interface DomainOrder {
 export interface RegisteredDomain { domainName: string; projectId: string | null; expireDate: string; autoRenew: boolean; renewalCents: number; error: string | null }
 export const domainMessages: Record<string, string> = {
   registrar_unavailable: 'Could not reach the domain registrar. Try again.', billing_unavailable: 'Domain checkout is unavailable. Try again later.',
+  registrar_not_found: 'The registrar could not verify this domain. Try again later.', invalid_registrar_price: 'The registrar returned an invalid price. Try again later.',
   domain_unavailable: 'This domain is no longer available. Search for another name.', domain_unsupported: 'This name or registration term is not supported.',
   domain_claims_unsupported: 'This domain requires a trademark review and cannot be purchased here yet.',
   domain_connection_unavailable: 'Automatic domain setup is unavailable for this project.',
