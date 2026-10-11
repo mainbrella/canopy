@@ -1,5 +1,5 @@
 /* Carry the homepage's navy surfaces and blue accent through every section. */
-.home-build-page { --paper: #0c131a; --surface: #101922; --muted: #a6b5c7; --line: #253544; --blue: #3fb5ff; --button-blue: #087ef0; background: var(--paper); }
+.home-build-page { --paper: #0c131a; --surface: #101922; --muted: #a6b5c7; --line: #253544; background: var(--paper); }
 .home-build-page .button { border-radius: 8px; }
 .home-build-page .button:hover { background: #096fd3; }
 .home-build-page > .site-header,

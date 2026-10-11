@@ -18,7 +18,7 @@ const CHECKOUT_APPEARANCE: Appearance = {
   inputs: "spaced",
   labels: "above",
   variables: {
-    colorPrimary: "#ffad70",
+    colorPrimary: "#3fb5ff",
     colorBackground: "#111315",
     colorText: "#e7e9ec",
     colorDanger: "#ef9a88",
@@ -27,7 +27,7 @@ const CHECKOUT_APPEARANCE: Appearance = {
     fontSizeBase: "16px",
     spacingUnit: "4px",
     borderRadius: "4px",
-    focusBoxShadow: "0 0 0 2px rgba(255, 173, 112, 0.32)",
+    focusBoxShadow: "0 0 0 2px rgba(63, 181, 255, 0.32)",
     accessibleColorOnColorPrimary: "#111315",
   },
   rules: {
@@ -50,8 +50,8 @@ const CHECKOUT_APPEARANCE: Appearance = {
       boxShadow: "none",
     },
     ".Tab--selected": {
-      borderColor: "#ffad70",
-      boxShadow: "0 0 0 1px rgba(255, 173, 112, 0.22)",
+      borderColor: "#3fb5ff",
+      boxShadow: "0 0 0 1px rgba(63, 181, 255, 0.22)",
     },
     ".TabLabel": { color: "#e7e9ec" },
     ".Error": { color: "#ef9a88" },

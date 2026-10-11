@@ -4,8 +4,8 @@
   --surface: #141920;
   --ink: #f2f4f7;
   --muted: #a4adb8;
-  --blue: #80aaff;
-  --button-blue: #155bd8;
+  --blue: #3fb5ff;
+  --button-blue: #087ef0;
   --line: #2b323b;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: var(--ink);
@@ -31,7 +31,7 @@ p, h1, h2, h3 { margin: 0; }
 .site-header nav a, .footer-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
 .site-header nav a:hover, .footer-links a:hover, .text-link:hover { color: var(--blue); }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 16px; min-height: 48px; padding: 12px 20px; border-radius: 6px; background: var(--button-blue); color: #fff; font-size: 15px; font-weight: 600; transition: background 180ms ease; }
-.button:hover, .site-header nav .button:hover { background: #104fbe; color: #fff; }
+.button:hover, .site-header nav .button:hover { background: #096fd3; color: #fff; }
 .button-small { min-height: 44px; padding: 8px 16px; font-size: 14px; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: center; gap: 64px; padding-top: 64px; padding-bottom: 64px; }
 h1 { font-size: clamp(44px, 5vw, 64px); line-height: 1.08; font-weight: 700; letter-spacing: -.045em; }
@@ -191,8 +191,6 @@ h3 { font-size: 18px; line-height: 1.4; letter-spacing: -.015em; }
 .agent-setup-links p { color: var(--muted); }
 .agent-setup button { border: 0; cursor: pointer; font-family: inherit; }
 .agent-setup button:disabled { opacity: .65; cursor: wait; }
-.sandbox-home { --blue: #ffad70; --button-blue: #ad4400; }
-.sandbox-home .button:hover { background: #913900; }
 .sandbox-home h1 { font-size: clamp(40px, 4.1vw, 56px); letter-spacing: -.025em; }
 .sandbox-hero { background: #10151b; }
 .sandbox-hero .hero { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 48px; padding-top: 56px; padding-bottom: 56px; }

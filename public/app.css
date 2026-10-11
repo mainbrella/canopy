@@ -62,7 +62,7 @@
 .machine-options > p { grid-column: 1 / -1; min-height: 120px; align-content: center; }
 .machine-option { position: relative; display: grid; grid-template-columns: 1fr 16px; align-items: center; gap: 4px 8px; min-width: 0; padding: 12px; border: 1px solid var(--control-border); border-radius: 6px; background: var(--paper); cursor: pointer; transition: border-color 160ms ease, background 160ms ease; }
 .machine-option:hover { border-color: var(--muted); }
-.machine-option:has(input:checked) { border-color: var(--blue); background: #ffad7008; }
+.machine-option:has(input:checked) { border-color: var(--blue); background: #3fb5ff08; }
 .machine-option:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 3px; }
 .machine-picker:disabled .machine-option { opacity: .6; cursor: not-allowed; }
 .machine-option input { grid-column: 2; grid-row: 1; width: 16px; height: 16px; margin: 0; accent-color: var(--blue); cursor: inherit; }
@@ -337,7 +337,7 @@
 /* Resource tabs keep each dashboard list and its search together. */
 .dashboard-body .resource-tabs { display: flex; gap: 16px; min-width: 0; }
 .resource-tabs [role="tab"] { min-height: 44px; padding: 8px 0; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; }
-.resource-tabs [role="tab"][aria-selected="true"] { border-bottom-color: var(--orange, #c65b13); color: var(--ink); }
+.resource-tabs [role="tab"][aria-selected="true"] { border-bottom-color: var(--blue); color: var(--ink); }
 .resource-tabs [role="tab"]:hover { color: var(--ink); }
 .resource-tabs [role="tab"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
 .dashboard-body #saved-workspaces { padding-top: 4px; }
