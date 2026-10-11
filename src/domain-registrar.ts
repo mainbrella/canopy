@@ -18,6 +18,7 @@ export const domainMessages: Record<string, string> = {
   renewal_payment_failed: 'Automatic renewal needs attention. Check the pending order or renew with another card.',
   managed_dns_record: 'MainBrella manages this record while your project is connected.', domain_locked: 'Turn off the transfer lock before requesting a transfer code.',
   order_review_required: 'This order needs support review. Do not place another order for this domain.', payment_mismatch: 'Payment could not be verified. Contact support with your order ID.',
+  refund_failed: 'The refund needs support review. Contact support with your order ID.',
   not_found: 'This domain or order is not available in your account.',
 };
 const states = ['quoted','checkout','charging','paid','fulfilling','registered','connecting','complete','refunding','refunded','expired','review'];
