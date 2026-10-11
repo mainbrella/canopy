@@ -30,6 +30,11 @@
 .home-build-offer strong { color: #c7d4e3; font-weight: 500; }
 .home-build-offer a { color: #6bc1ff; text-decoration: underline; text-underline-offset: 3px; }
 .home-build-error { margin-top: 12px; color: #ffb8b8; text-align: left; font-size: 14px; }
+.build-hero-inner .agent-copy-cta { margin-top: 12px; color: var(--blue); font-size: 13px; letter-spacing: .06em; }
+.build-hero-inner .agent-copy-cta:hover { color: #8bd3ff; }
+.build-hero-inner .agent-copy-cta:disabled { opacity: .65; cursor: wait; }
+.build-hero-inner .agent-copy-status { color: var(--muted); font-size: 13px; }
+.build-hero-inner .agent-copy-status:empty { min-height: 0; margin-top: 0; }
 .home-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .home-foundation { max-width: 1312px; padding-top: 24px; padding-bottom: 32px; border-top: 1px solid #1e2c38; }
 .home-foundation-heading { text-align: center; }
