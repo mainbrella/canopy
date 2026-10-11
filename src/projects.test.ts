@@ -397,7 +397,7 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(gitCell.children[0].children[0].textContent, 'owner/repo');
   assert.equal(gitCell.children[0].href, 'https://github.com/owner/repo');
   assert.equal(codeLink(f).textContent, 'Code');
-  assert.equal(codeLink(f).href, 'https://github.com/owner/repo');
+  assert.equal(codeLink(f).href, 'https://github.com/owner/repo/tree/main');
   assert.equal(codeLink(f).target, '_blank');
   assert.equal(codeLink(f).rel, 'noopener');
   assert.equal(gitCell.children[0].children[1].textContent, 'GitHub · main');
@@ -409,11 +409,12 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(f.node('#github-submit').textContent, 'Install GitHub app');
 });
 
-test('editing a GitHub project makes retained Mainbrella storage charges clear', async t => {
+test('GitHub Code links follow branch paths and editing clarifies retained storage charges', async t => {
   const f = await fixture(t, (url, options) => {
-    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [{ ...originalProject, github_repo: 'owner/repo', github_branch: 'release' }] });
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [{ ...originalProject, github_repo: 'owner/repo', github_branch: 'feature/spinner' }] });
     return defaultResponse(url, options);
   });
+  assert.equal(codeLink(f).href, 'https://github.com/owner/repo/tree/feature/spinner');
   await editButton(f, 0).fire('click');
   assert.equal(f.node('#project-git-option').hidden, true);
   assert.match(f.node('#project-git-note').textContent, /GitHub.*Mainbrella.*storage charges/);

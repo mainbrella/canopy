@@ -292,7 +292,8 @@ function render() {
       const code = document.createElement('a');
       code.className = 'project-code-link';
       if (project.github_repo) {
-        code.href = `https://github.com/${encodeURIComponent(project.github_repo.split('/')[0])}/${encodeURIComponent(project.github_repo.split('/')[1] ?? '')}`;
+        const branchPath = (project.github_branch || 'main').split('/').map(encodeURIComponent).join('/');
+        code.href = `https://github.com/${encodeURIComponent(project.github_repo.split('/')[0])}/${encodeURIComponent(project.github_repo.split('/')[1] ?? '')}/tree/${branchPath}`;
         code.target = '_blank';
         code.rel = 'noopener';
       } else {
