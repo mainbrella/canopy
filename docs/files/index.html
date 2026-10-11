@@ -50,6 +50,9 @@ const bytes = new Uint8Array(await download.arrayBuffer());</code></pre>
 <h2>Limits and persistence</h2>
 <p>Uploads and downloads are each limited to 1 MiB. Operations are bounded by 30 seconds and the hard container deadline, share the four-command pool, and renew idle activity. For larger files, use authorized SSH access.</p>
 <p>A lost write response may hide a completed upload; read to reconcile before retrying. Save a workspace or export needed files before stopping; ordinary stop discards unsaved changes.</p>
+<h2 id="streaming">Larger transfers and directories</h2>
+<p>The source API adds <code>GET /containers/files/transfer</code> and <code>PUT /containers/files/transfer</code> for files up to 64 MiB. Both take the exact <code>id</code>, <code>createdAt</code> and absolute <code>path</code>; uploads also declare <code>size</code>. Uploads replace the destination atomically only after the full body arrives. Requests have a five-minute deadline and use shared execution capacity.</p>
+<p>The source SDKs add streaming and directory helpers. Directory operations consist of individual file transfers, with progress and failures at file boundaries; they are not filesystem snapshots. Check <code>files.streamingTransfers</code> and use the <a href="/sdk/javascript.md">JavaScript</a> or <a href="/sdk/python.md">Python reference</a> for current method names, limits and release status.</p>
 </article></main>
     <!-- site-footer -->
     <script type="module" src="/src/account-menu.ts"></script>

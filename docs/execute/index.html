@@ -64,6 +64,9 @@ await terminal.stdin.write(new TextEncoder().encode('exit\n'));
 await terminal.wait();</code></pre>
 <p>PTY dimensions are 1–1000. Terminal output combines stdout and stderr, including line endings and possible input echo. Closing PTY input may hang up the terminal; send application-appropriate bytes or an explicit exit command. Disconnecting output only detaches. Input and resize require the exact live paid generation; cancellation and retained results remain available during billing outages. See the <a href="/sdk/javascript.md">JavaScript</a> and <a href="/sdk/python.md">Python</a> references.</p>
 <p>A runtime restart interrupts unfinished managed jobs and stops their matching container generation to revoke orphan processes. This can interrupt other work in that generation; use a dedicated generation when that matters. Commands are never replayed automatically. See the <a href="/API.md#managed-execution-and-streaming">full contract</a>.</p>
+<h2 id="code-contexts">Stateful Python contexts</h2>
+<p>The source API adds <code>/containers/code-contexts</code> for Python variables that survive successive executions within one running generation. Use an image containing <code>python3</code>, check <code>codeInterpreter.supported</code>, and create a context through the source SDK’s <code>sandbox.code.create({language: 'python'})</code>. Its <code>run()</code> returns stdout, stderr, structured errors and MIME results; <code>close()</code> releases the process.</p>
+<p>Contexts share execution capacity, expire within 15 minutes and are lost on runtime restart, timeout or stop. They do not provide RAM-preserving pause/resume. HTML results are untrusted content and need sanitization before display. See the <a href="/sdk/javascript.md">JavaScript</a> and <a href="/sdk/python.md">Python SDK references</a> for examples and release status.</p>
 </article></main>
     <!-- site-footer -->
     <script type="module" src="/src/account-menu.ts"></script>

@@ -18,10 +18,21 @@
 
       <p>Use Mainbrella skill instructions with a coding agent, or connect your application’s tool calls to the HTTP API. Your agent runs locally or in your application; lightweight commands run in Mainbrella’s containers.</p>
       <p class="legal-updated">Recipes reviewed against linked documentation: <time datetime="2026-10-05">October 5, 2026</time>. Validate your own setup with the checks below.</p>
-      <nav class="recipe-links" aria-label="Integration recipes"><a href="#codex">Codex</a><a href="#claude-code">Claude Code</a><a href="#openai-agents">OpenAI Agents SDK</a><a href="#http">Your own agent</a></nav>
+      <nav class="recipe-links" aria-label="Integration recipes"><a href="#mcp">MCP</a><a href="#codex">Codex</a><a href="#claude-code">Claude Code</a><a href="#openai-agents">OpenAI Agents SDK</a><a href="#http">Your own agent</a></nav>
       <h2>Before you begin</h2>
       <p>Get active access, create a named key at <a href="/api-keys/">API Keys</a>, and supply <code>MAINBRELLA_API_KEY</code> through your environment loader or secret manager. Keep it out of prompts and source control. The supplied doctor and verification scripts require Node 22+.</p>
-      <h2 id="codex">Codex</h2>
+      <h2 id="mcp">MCP server</h2>
+<p>The source JavaScript SDK now includes a stdio MCP server for MCP-compatible agents and IDEs. It exposes container discovery, commands, text files, workspace save, stop/resume and filesystem forks. These additions require a source checkout until a new SDK version is published.</p>
+<pre class="docs-code"><code>{
+  "mcpServers": {
+    "mainbrella": {
+      "command": "node",
+      "args": ["/absolute/path/to/backend/sdk/javascript/mcp.mjs"]
+    }
+  }
+}</code></pre>
+<p>Supply <code>MAINBRELLA_API_KEY</code> through your client's environment settings. The server requires Node 22+. Start with the capabilities and list tools; creation consumes normal account allowance. Mutations use the exact generation, and lifecycle tools require an explicit idempotency key. See the <a href="/references/mcp-agent-integration.md">MCP contract</a> and <a href="/sdk/javascript.md">SDK setup</a>.</p>
+<h2 id="codex">Codex</h2>
       <p>Download and inspect the <a href="/skills/mainbrella-containers-0.1.0.tar.gz">Mainbrella skill archive (0.1.0)</a>. Extract its folder into your project’s <code>.agents/skills/</code> directory; it includes the API contract and indexed references. Invoke <code>$mainbrella-containers</code> and give Codex a concrete task:</p>
       <pre class="docs-code"><code>$mainbrella-containers
 Integrate Mainbrella with this project's existing command tools.

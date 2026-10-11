@@ -22,7 +22,7 @@ try {
   execFileSync(process.execPath, [join(backend, 'scripts/build-agent-reference.mjs'), '--out', bundle], { stdio: 'inherit' });
   const manifest = JSON.parse(await readFile(join(bundle, 'manifest.json'), 'utf8'));
   for (const [name, hash] of Object.entries(manifest.files)) {
-    const source = name === 'llms-full.txt' ? join(bundle, name) : name.startsWith('references/')
+    const source = ['llms-full.txt', 'llms.txt'].includes(name) ? join(bundle, name) : name.startsWith('references/')
       ? join(bundle, 'mainbrella-containers', name) : join(backend, name.replace(/^sdk\/(javascript|python)\.md$/, 'sdk/$1/README.md'));
     const target = join(root, (['API.md', 'SKILL.md'].includes(name) || name.startsWith('scripts/')) ? name : `public/${name}`);
     const bytes = await readFile(source);
