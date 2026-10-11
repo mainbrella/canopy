@@ -1,4 +1,4 @@
-import { API_ORIGIN } from './auth.ts';
+import { marketingEmailErrorMessage, sendMarketingEmail } from './marketing-email.ts';
 
 interface EmailElements {
   form: HTMLFormElement;
@@ -11,16 +11,6 @@ interface EmailElements {
   status: HTMLElement;
   error: HTMLElement;
 }
-
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_request: 'Check the sender and recipient addresses, subject, and message. The sender can be an email address or Name <address>.',
-  request_too_large: 'The email is too large. Shorten the message and try again.',
-  email_rate_limited: 'The email sending limit has been reached. Try again later.',
-  email_send_failed: 'Could not send the email. Check the sender address and try again.',
-  email_sending_unavailable: 'Email sending is temporarily unavailable. Try again later.',
-  admin_unavailable: 'Could not verify your admin session. Try again later.',
-};
-const UNCONFIRMED_MESSAGE = 'Could not confirm whether the email was sent. Check before trying again to avoid sending it twice.';
 
 export function createEmailView(elements: EmailElements, canAccess: () => boolean, onAuthFailure: (status: 401 | 403) => void) {
   let active = false;
@@ -65,26 +55,12 @@ export function createEmailView(elements: EmailElements, canAccess: () => boolea
     setSending(true);
     elements.status.textContent = 'Sending…';
     try {
-      const response = await fetch(`${API_ORIGIN}/api/send-marketing-email`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { accept: 'application/json', 'content-type': 'application/json' },
-        body: JSON.stringify(input),
-      });
+      const authStatus = await sendMarketingEmail(input);
       if (id !== requestID) return;
-      if (response.status === 401 || response.status === 403) {
+      if (authStatus !== null) {
         elements.status.textContent = '';
-        onAuthFailure(response.status);
+        onAuthFailure(authStatus);
         return;
-      }
-      const result: unknown = await response.json().catch(() => null);
-      if (id !== requestID) return;
-      if (response.status !== 202 || typeof result !== 'object' || result === null
-        || !('ok' in result) || result.ok !== true
-        || !('messageId' in result) || typeof result.messageId !== 'string' || !result.messageId.trim()) {
-        const code = typeof result === 'object' && result !== null && 'error' in result && typeof result.error === 'string'
-          ? result.error : '';
-        throw new Error(ERROR_MESSAGES[code] || UNCONFIRMED_MESSAGE);
       }
       elements.to.value = '';
       elements.subj.value = '';
@@ -93,8 +69,7 @@ export function createEmailView(elements: EmailElements, canAccess: () => boolea
     } catch (cause) {
       if (id !== requestID) return;
       elements.status.textContent = '';
-      elements.error.textContent = cause instanceof Error && Object.values(ERROR_MESSAGES).includes(cause.message)
-        ? cause.message : UNCONFIRMED_MESSAGE;
+      elements.error.textContent = marketingEmailErrorMessage(cause);
       elements.error.hidden = false;
     } finally {
       if (id === requestID) setSending(false);

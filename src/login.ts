@@ -95,6 +95,13 @@ const email = createEmailView({
 }, () => isAdmin() && !signingOut, handleAdminAuthFailure);
 const emailAll = createEmailAllView({
   page: emailAllPage,
+  form: requiredElement<HTMLFormElement>('.email-all-send-form'),
+  fields: requiredElement<HTMLFieldSetElement>('.email-all-fields'),
+  from: requiredElement<HTMLInputElement>('#email-all-from'),
+  subj: requiredElement<HTMLInputElement>('#email-all-subj'),
+  message: requiredElement<HTMLTextAreaElement>('#email-all-message'),
+  submit: requiredElement<HTMLButtonElement>('.email-all-send-submit'),
+  sendStatus: requiredElement<HTMLElement>('.email-all-send-status'),
   status: emailAllStatus,
   error: emailAllError,
   list: requiredElement<HTMLUListElement>('.email-all-list'),

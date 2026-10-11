@@ -152,6 +152,21 @@
             <h1 id="email-all-title" tabindex="-1">Email All</h1>
             <button class="email-all-refresh" type="button">Refresh</button>
           </div>
+          <form class="email-all-send-form">
+            <fieldset class="email-fields email-all-fields">
+              <label for="email-all-from">From
+                <input id="email-all-from" name="from" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="512" value="Andrew Arrow &lt;andrew@mainbrella.com&gt;" placeholder="Name &lt;name@mainbrella.com&gt;" required />
+              </label>
+              <label for="email-all-subj">Subject
+                <input id="email-all-subj" name="subj" type="text" maxlength="998" value="testing" required />
+              </label>
+              <label for="email-all-message">Message
+                <textarea id="email-all-message" name="message" rows="10" maxlength="100000" required>the quick brown fox jumps over the lazy brella.</textarea>
+              </label>
+              <button class="primary email-all-send-submit" type="submit" disabled>Send emails</button>
+            </fieldset>
+            <p class="email-all-send-status email-status" role="status"></p>
+          </form>
           <p class="email-all-status" role="status" aria-live="polite">Loading marketing users…</p>
           <div class="email-all-error users-error" role="alert" hidden></div>
           <ul class="email-all-list" aria-label="Marketing users" hidden></ul>

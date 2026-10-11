@@ -1,4 +1,5 @@
 import { API_ORIGIN } from './auth.ts';
+import { marketingEmailErrorMessage, sendMarketingEmail } from './marketing-email.ts';
 
 interface MarketingUser {
   id: string;
@@ -9,6 +10,13 @@ interface MarketingUser {
 
 interface EmailAllElements {
   page: HTMLElement;
+  form: HTMLFormElement;
+  fields: HTMLFieldSetElement;
+  from: HTMLInputElement;
+  subj: HTMLInputElement;
+  message: HTMLTextAreaElement;
+  submit: HTMLButtonElement;
+  sendStatus: HTMLElement;
   status: HTMLElement;
   error: HTMLElement;
   list: HTMLUListElement;
@@ -38,28 +46,51 @@ export function createEmailAllView(
 ) {
   let active = false;
   let requestID = 0;
+  let sendRequestID = 0;
+  let loading = false;
+  let sending = false;
 
-  function clear() {
-    requestID++;
-    elements.refresh.disabled = false;
-    elements.page.setAttribute('aria-busy', 'false');
-    elements.list.replaceChildren();
-    elements.list.hidden = true;
-    elements.status.textContent = '';
+  function updateControls() {
+    elements.refresh.disabled = loading || sending;
+    elements.fields.disabled = sending;
+    for (const checkbox of elements.list.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
+      checkbox.disabled = sending || !checkbox.value;
+    }
+    elements.submit.disabled = loading || sending || !elements.list.querySelector('input:checked:not(:disabled)');
+    elements.submit.textContent = sending ? 'Sending…' : 'Send emails';
+    elements.form.setAttribute('aria-busy', String(sending));
+    elements.page.setAttribute('aria-busy', String(loading || sending));
+  }
+
+  function clearSendFeedback() {
+    elements.sendStatus.textContent = '';
     elements.error.textContent = '';
     elements.error.hidden = true;
   }
 
-  async function load() {
-    if (!active || !canAccess()) return;
-    const id = ++requestID;
-    elements.refresh.disabled = true;
-    elements.page.setAttribute('aria-busy', 'true');
-    elements.status.textContent = 'Loading marketing users…';
-    elements.error.textContent = '';
-    elements.error.hidden = true;
+  function clear() {
+    requestID++;
+    sendRequestID++;
+    loading = false;
+    sending = false;
+    elements.form.reset();
+    for (const field of [elements.from, elements.subj, elements.message]) field.setCustomValidity('');
     elements.list.replaceChildren();
     elements.list.hidden = true;
+    elements.status.textContent = '';
+    clearSendFeedback();
+    updateControls();
+  }
+
+  async function load() {
+    if (!active || !canAccess() || sending) return;
+    const id = ++requestID;
+    loading = true;
+    elements.status.textContent = 'Loading marketing users…';
+    clearSendFeedback();
+    elements.list.replaceChildren();
+    elements.list.hidden = true;
+    updateControls();
     try {
       const response = await fetch(`${API_ORIGIN}/api/get-marketing-users?offset=0&limit=25`, {
         credentials: 'include', headers: { accept: 'application/json' },
@@ -80,8 +111,9 @@ export function createEmailAllView(
         const label = document.createElement('label');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.checked = true;
-        checkbox.value = user.id;
+        checkbox.value = user.email?.trim() || '';
+        checkbox.disabled = !checkbox.value;
+        checkbox.checked = !checkbox.disabled;
         const address = document.createElement('span');
         address.className = 'email-all-address';
         address.textContent = user.email || `${user.name || 'Unnamed user'} · no email address`;
@@ -101,20 +133,92 @@ export function createEmailAllView(
       elements.error.hidden = false;
     } finally {
       if (id === requestID) {
-        elements.refresh.disabled = false;
-        elements.page.setAttribute('aria-busy', 'false');
+        loading = false;
+        updateControls();
       }
     }
   }
 
+  elements.form.addEventListener('input', (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.setCustomValidity('');
+    clearSendFeedback();
+  });
+  elements.list.addEventListener('change', () => {
+    clearSendFeedback();
+    updateControls();
+  });
+  elements.form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!active || !canAccess() || loading || sending) return;
+    for (const field of [elements.from, elements.subj, elements.message]) {
+      field.setCustomValidity(field.value.trim() ? '' : 'Enter a value for this field.');
+    }
+    if (!elements.form.reportValidity()) return;
+    const recipients = Array.from(elements.list.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked:not(:disabled)'));
+    if (!recipients.length) return;
+    const input = {
+      from: elements.from.value.trim(),
+      subj: elements.subj.value.trim(),
+      message: elements.message.value,
+    };
+    const id = ++sendRequestID;
+    let accepted = 0;
+    let failed = 0;
+    let firstError = '';
+    clearSendFeedback();
+    sending = true;
+    updateControls();
+    try {
+      for (const [index, recipient] of recipients.entries()) {
+        if (id !== sendRequestID) return;
+        if (!canAccess()) break;
+        elements.sendStatus.textContent = `Sending ${index + 1} of ${recipients.length} emails…`;
+        try {
+          const authStatus = await sendMarketingEmail({ ...input, to: recipient.value });
+          if (id !== sendRequestID) return;
+          if (authStatus !== null) {
+            elements.sendStatus.textContent = '';
+            onAuthFailure(authStatus);
+            return;
+          }
+          accepted++;
+          recipient.checked = false;
+        } catch (cause) {
+          if (id !== sendRequestID) return;
+          failed++;
+          if (!firstError) firstError = `${recipient.value}: ${marketingEmailErrorMessage(cause)}`;
+        }
+      }
+      elements.sendStatus.textContent = `${accepted} of ${recipients.length} emails accepted for sending.`;
+      if (failed) {
+        elements.error.textContent = `${failed} email${failed === 1 ? '' : 's'} could not be confirmed. ${firstError}`;
+        elements.error.hidden = false;
+      }
+      if (accepted === recipients.length) {
+        elements.subj.value = '';
+        elements.message.value = '';
+      }
+    } finally {
+      if (id === sendRequestID) {
+        sending = false;
+        updateControls();
+      }
+    }
+  });
   elements.refresh.addEventListener('click', () => void load());
 
   return {
     setActive(value: boolean) {
       if (active === value) return;
       active = value;
-      if (active) void load();
-      else requestID++;
+      if (active) {
+        if (!elements.list.childElementCount && !sending) void load();
+      } else {
+        requestID++;
+        loading = false;
+        updateControls();
+      }
     },
     clear,
   };

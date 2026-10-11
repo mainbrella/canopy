@@ -58,7 +58,12 @@ development simulates sending.
 
 Email All loads the first 25 eligible marketing users from
 `GET /api/get-marketing-users` and displays them with checked checkboxes. The
-endpoint excludes users who opted out; this view does not send messages.
+endpoint excludes users who opted out. From, Subject, and Message work like
+Email; Send emails sends a separate `POST /api/send-marketing-email` for each
+checked address, one at a time. Users without an email address cannot be selected.
+Accepted recipients are unchecked, and any failures preserve the draft and
+remaining selections. Sending stops if the admin session expires or access is
+lost. Navigation preserves the draft and selections; Refresh reloads recipients.
 
 Google sign-in also requires the admin origin (`https://raindrop.mainbrella.com`,
 or `http://localhost:5174` for development) in the existing Google OAuth client's
