@@ -30,9 +30,9 @@
 .home-build-offer strong { color: #c7d4e3; font-weight: 500; }
 .home-build-offer a { color: #6bc1ff; text-decoration: underline; text-underline-offset: 3px; }
 .home-build-error { margin-top: 12px; color: #ffb8b8; text-align: left; font-size: 14px; }
-.build-hero-inner .agent-copy-cta { margin-top: 12px; color: var(--blue); font-size: 13px; letter-spacing: .06em; }
-.build-hero-inner .agent-copy-cta:hover { color: #8bd3ff; }
-.build-hero-inner .agent-copy-cta:disabled { opacity: .65; cursor: wait; }
+.home-build-page .agent-copy-cta { margin-top: 12px; color: var(--blue); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; letter-spacing: .06em; }
+.home-build-page .agent-copy-cta:hover { color: #8bd3ff; }
+.home-build-page .agent-copy-cta:disabled { opacity: .65; cursor: wait; }
 .build-hero-inner .agent-copy-status { color: var(--muted); font-size: 13px; }
 .build-hero-inner .agent-copy-status:empty { min-height: 0; margin-top: 0; }
 .home-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -97,13 +97,12 @@
 .home-workflow .agent-setup .section-heading p { max-width: 38ch; margin-top: 8px; font-size: 15px; }
 .home-workflow .agent-instructions { min-width: 0; max-width: none; border-bottom: 1px solid var(--line); }
 .home-workflow .agent-instructions > summary { padding-top: 0; min-height: 44px; }
-.home-workflow #copy-agent-setup { margin: 4px 0 20px; }
+.home-workflow .agent-setup .agent-copy-status { margin-top: 4px; font-size: 13px; }
+.home-workflow .agent-setup .agent-copy-status:empty { min-height: 0; margin-top: 0; }
 .home-workflow #agent-instructions { padding-bottom: 24px; }
 .home-workflow .agent-instructions p { font-size: 14px; }
 .home-workflow .agent-setup-links { gap: 4px 24px; margin-top: 8px; }
 .home-workflow .agent-setup-links .text-link { font-size: 14px; }
-.home-workflow .agent-setup-links [role="status"]:empty { display: none; }
-.home-workflow .agent-setup-links [role="status"] { flex-basis: 100%; font-size: 13px; }
 .home-workflow .agent-setup .recipe-links { gap: 4px 24px; margin-top: 0; }
 
 .home-section-intro > .home-compute-rate { margin-top: 24px; color: var(--blue); font-size: 48px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
@@ -118,6 +117,8 @@
 .home-compute-limits dt { color: var(--muted); font-size: 13px; }
 .home-compute-limits dd { margin: 4px 0 0; font-size: 20px; font-weight: 500; line-height: 1.5; letter-spacing: -.01em; }
 .home-compute-limits dd span { display: block; color: var(--muted); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+.home-production-note { margin-top: 16px; color: var(--muted); font-size: 14px; }
+.home-production-note strong { color: var(--ink); font-weight: 500; }
 .home-pricing .home-limits-link { margin-top: 16px; font-size: 14px; }
 .home-pricing .purchase-questions { margin-top: 20px; border-top: 1px solid var(--line); }
 .home-pricing .purchase-questions p { padding-bottom: 20px; font-size: 14px; }
