@@ -3,44 +3,77 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="How runtime selection and asynchronous image builds prepare Mainbrella workspaces without promising filesystem persistence." />
-    <meta name="theme-color" content="#0d1014" />
+    <meta name="description" content="Move repeated setup into a Mainbrella custom image, wait for publication before launching, and keep the report after its machine stops." />
+    <meta name="theme-color" content="#181a1b" />
     <link rel="canonical" href="https://mainbrella.com/blog/custom-images/" />
-    <meta property="og:title" content="A ready image is a starting point, not a saved workspace · Mainbrella" />
-    <meta property="og:description" content="How runtime selection and asynchronous image builds prepare Mainbrella workspaces without promising filesystem persistence." />
+    <meta property="og:title" content="Stop reinstalling the tools before every task · Mainbrella" />
+    <meta property="og:description" content="Build the reporting tools into an image, launch only when it is ready, and give the output somewhere to live." />
     <meta property="og:url" content="https://mainbrella.com/blog/custom-images/" />
     <meta property="og:type" content="article" />
     <link rel="icon" href="/images/favicon.png" type="image/png" />
     <link rel="stylesheet" href="/mainbrella.css" />
-    <title>A ready image is a starting point, not a saved workspace · Mainbrella</title>
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/custom-images/article.css" />
+    <title>Stop reinstalling the tools before every task · Mainbrella</title>
   </head>
-  <body class="info-body">
+  <body class="info-body brella-article-page">
     <a class="skip-link" href="#main">Skip to content</a>
     <!-- site-header -->
-    <main id="main" class="legal-content wrap">
-<article>
-<a class="article-back" href="/blog/">← Engineering blog</a>
-<h1>A ready image is a starting point, not a saved workspace</h1>
-<p class="article-meta"><time datetime="2026-10-05">October 5, 2026</time> · Mainbrella Engineering</p>
+    <main id="main" class="legal-content wrap inside-brella images-article">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>Stop reinstalling the tools before every task</h1>
+        <p class="article-meta"><time datetime="2026-10-05">October 5, 2026</time> · Mainbrella Engineering</p>
 
-<p>Installing the same tools at the start of every task uses part of a short container session. A custom image can move that setup into a build. It gives future machines a prepared starting environment; it does not save the files or processes from an existing machine.</p>
-<h2>Ask what is available</h2>
-<p><code>GET /containers</code> returns the deployed <code>imageCatalog</code>. Select a returned ID such as <code>node</code> or <code>python</code> when creating a container. A runtime name appearing in documentation does not establish that its image has been published in a particular deployment.</p>
-<p>For custom builds, start with <code>GET /images</code>. It returns <code>buildsEnabled</code>, account limits, usage, and owned images. An integration should use that response to decide whether it can submit a new build rather than showing a build action that the deployment cannot fulfill.</p>
-<h2>Build, then launch</h2>
-<p>The current build contract accepts a multipart name, text Dockerfile, and optional compressed context. The Dockerfile must begin with <code>FROM mainbrella:base</code>, after optional comments, and use one build stage. It is limited to 16 KiB; the optional <code>.tar.gz</code> context is limited to 512 KiB.</p>
-<pre class="docs-code"><code>FROM mainbrella:base
-RUN mkdir -p /workspace
-WORKDIR /workspace</code></pre>
-<p>This minimal example creates a working directory. A useful image adds the tools required by the workload while retaining <code>/bin/sh</code> and GNU coreutils, which the execution and file endpoints depend on.</p>
-<p><code>POST /images</code> returns 202 and an image record. The build can progress through queued, building, publishing, and ready, or end in failed. Read the owned image’s status and logs. An accepted build request is not yet a launchable image.</p>
-<p>Once the status is <code>ready</code>, send its <code>imageId</code> when creating the container, instead of a <code>catalogId</code>. The two selectors are mutually exclusive. The current default allowance is ten builds per UTC month and three saved images, with a 300-second build deadline; the API’s returned limits govern the account.</p>
-<h2>Keep results outside the image lifecycle</h2>
-<p>A custom image does not change the machine’s CPU, memory, disk, or plan deadlines. Files written by a running task still disappear after stop. Deleting an owned image leaves its already-running containers in place, and an active build cannot be deleted.</p>
-<p>Keep the environment definition and durable task results separately. The image describes what a new workspace starts with. The files exported by the agent describe what the task produced.</p>
-<p>Request details: <a href="/docs/images/">Images</a> and <a href="/API.md">API reference</a>. The <a href="/docs/agent-setup/">agent setup workflow</a> selects available runtimes and verifies command execution and binary file transfer before cleanup.</p>
+        <p>A reporting agent starts a fresh machine, installs <code>jq</code> to inspect JSON, then finally gets to the data. The next job repeats the installation. In a short sandbox session, that’s a lousy place to spend time: the inputs change, but the tools don’t.</p>
+        <p>Mainbrella’s custom images move that setup into a build, so later machines can start with the tools installed. Each machine still gets its own filesystem changes. The image can prepare tomorrow’s reporting job; today’s report needs somewhere else to live.</p>
 
-</article>
+        <h2 id="catalog">Check whether the tools are already there</h2>
+        <p>Start with authenticated <code>GET /containers</code>. Its <code>imageCatalog</code> lists the runtime images available in that deployment. If a returned <code>node</code> or <code>python</code> image supplies what the job needs, use its ID as <code>catalogId</code> when creating the container. Maintaining a custom build for tools already in the catalog is extra work for no benefit.</p>
+        <p>If something is missing, read <code>GET /images</code> for <code>buildsEnabled</code>, limits, usage, and your owned images. Custom builds depend on deployment configuration. A working catalog doesn’t establish that the build service is enabled; check before submitting a recipe.</p>
+
+        <h2 id="recipe">Put the repeatable setup in the recipe</h2>
+        <p>For a job that repeatedly needs <code>jq</code>, the Dockerfile can be this small:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Illustrative Dockerfile adding jq to the Mainbrella base"><code><span class="code-keyword">FROM</span> mainbrella:base
+<span class="code-keyword">RUN</span> apt-get update \
+    &amp;&amp; apt-get install -y --no-install-recommends jq \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+<span class="code-keyword">WORKDIR</span> /workspace</code></pre>
+        <p>This adds a tool to our base environment. Keeping <code>apt-get update</code> and installation in the same step follows <a href="https://docs.docker.com/build/building/best-practices/#apt-get">Docker’s guidance</a> for avoiding stale package indexes. It’s an illustrative recipe, not a recorded hosted build. It also leaves the package version unpinned, so rebuilding later can select a newer <code>jq</code>.</p>
+        <p>Launching a ready image reuses the built files. To use a changed Dockerfile, submit another build and select its new image for future machines.</p>
+        <p>Keep the recipe in source control. Put shared tools and stable dependencies there, then supply each job’s input when it runs. Baking customer data or an account credential into an image would give every machine launched from it the same bytes.</p>
+        <p>The <a href="/docs/images/">build contract</a> accepts a multipart <code>name</code>, text <code>dockerfile</code>, and optional <code>.tar.gz</code> context. The first instruction must be <code>FROM mainbrella:base</code>, after optional comments, with one build stage. Dockerfiles are limited to 16 KiB and compressed contexts to 512 KiB. Retain <code>/bin/sh</code> and GNU coreutils for command and file operations, plus bash and tmux for terminal compatibility.</p>
+
+        <h2 id="publication">Accepted, built, and ready are different moments</h2>
+        <p><code>POST /images</code> returns HTTP 202 with an image record. Save its <code>id</code> and inspect <code>GET /images/{id}</code>. The successful path is <code>queued → building → publishing → ready</code>; failures end in <code>failed</code>, with output at <code>GET /images/{id}/logs</code>.</p>
+        <p>After Docker finishes, the <a href="https://github.com/mainbrella/backend/blob/72184e8d68752c3761ab34272069e5bdf352936c/scripts/publish-image-build.mjs">publisher</a> uploads the image, records its content digest, and deploys the runtime’s image map before reporting <code>ready</code>. A successful Docker build alone hasn’t made the image available to launch.</p>
+        <p>We also separate the jobs: the Dockerfile’s commands execute in a disposable build job, while registry and API callback credentials go to the publication job. That job loads and publishes the artifact without executing it. A customer recipe shouldn’t need our publishing credentials to install a package.</p>
+        <p>The <a href="https://github.com/mainbrella/backend/blob/72184e8d68752c3761ab34272069e5bdf352936c/.github/workflows/custom-image.yml">workflow</a> gives <code>docker build</code> 300 seconds. Queueing, compatibility checks, and publication add time; five minutes isn’t a request-to-ready promise. Current account defaults are ten builds per UTC month and three saved images. Use the API’s returned limits.</p>
+        <p>Only after <code>ready</code>, create a container with <code>{"imageId":"&lt;the saved id&gt;"}</code>. Omit <code>catalogId</code>; the two selectors are mutually exclusive. The image changes installed software, while the selected size and lifecycle still govern resources and deadlines.</p>
+
+        <h2 id="output">The next machine gets the tools, not the report</h2>
+        <p>Check <code>jq --version</code> on the new machine, then upload <code>/workspace/input.json</code> containing <code>[12,17,13]</code>. This tiny reporting command has an answer you can check without a model:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Produce a CSV from the sample JSON input inside the running container"><code>jq -r '["total"], [add] | @csv' \
+    /workspace/input.json &gt; /workspace/report.csv</code></pre>
+        <p>Download the file through the <a href="/docs/files/">file API</a>; it should contain a <code>total</code> header and the value <code>42</code>. The <a href="/docs/agent-setup/">agent setup workflow</a> exercises binary transfer too. Check that loop before asking an agent to process valuable input.</p>
+        <p>Starting another machine from the same image gives it <code>jq</code>, but no copy of that CSV. Writes in a running container don’t update its source image. The two launch paths below start with the same tools; only the first job produces and exports a report.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/custom-images/image-and-output-mobile.svg" width="350" height="550" />
+            <img src="/images/blog/custom-images/image-and-output.svg" width="784" height="400" alt="One prepared image containing jq launches two separate machines. Job A writes report.csv and exports a copy outside the machine before stop. Job B starts with jq but no report.csv. Neither job writes back to the image." loading="lazy" decoding="async" />
+          </picture>
+        </figure>
+        <table class="image-lifetimes">
+          <thead><tr><th scope="col">What you keep</th><th scope="col">What it carries forward</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Custom image</th><td>Tools and files included at build time.</td></tr>
+            <tr><th scope="row">Saved workspace</th><td>An explicitly captured filesystem, restored into a fresh machine. No running processes or RAM.</td></tr>
+            <tr><th scope="row">Exported report</th><td>The task’s output, stored outside the machine.</td></tr>
+          </tbody>
+        </table>
+        <p><a href="/API.md#saved-workspaces-and-portable-export">Saved workspaces</a> have their own quotas and retention. Deleting an image leaves already-running containers in place; active builds cannot be deleted. Neither operation exports the report.</p>
+        <p>For the real reporting job, export the CSV and check its rows before stopping that exact container generation. Individual HTTP file transfers are limited to 1 MiB, so larger reports need a planned export route. Keep the Dockerfile with the reporting code and the completed report with the data it explains.</p>
+      </article>
     </main>
     <!-- site-footer -->
     <script type="module" src="/src/account-menu.ts"></script>
