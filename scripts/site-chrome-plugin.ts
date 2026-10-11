@@ -54,7 +54,7 @@ const cookieDialog = `    <dialog class="cookie-consent" id="cookie-consent" ari
 
 function appChrome(path: string) {
   const pages: [string, string][] = [
-    ['Overview', '/dashboard/'], ['Build', '/dashboard/?view=build'], ['Ad Hoc', '/dashboard/?view=ad-hoc'],
+    ['Overview', '/dashboard/'], ['Build', '/build/'], ['Ad Hoc', '/dashboard/?view=ad-hoc'],
     ['Production', '/dashboard/?view=production'], ['Projects', '/projects/'],
   ];
   return `<header class="site-header app-header wrap">
@@ -67,7 +67,7 @@ function appChrome(path: string) {
 }
 
 // Render shared chrome into HTML so navigation works without JavaScript.
-export function siteChromePlugin(): Plugin {
+export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: boolean } = {}): Plugin {
   return {
     name: 'site-chrome',
     transformIndexHtml: {
@@ -89,6 +89,8 @@ export function siteChromePlugin(): Plugin {
         if (!html.includes('id="cookie-consent"')) {
           html = html.replace('</body>', `${cookieDialog}  </body>`);
         }
+        // A separate static deployment bundles its own copy of shared images.
+        if (bundleAssets) html = html.replaceAll('"/images/logo.png"', '"/public/images/logo.png"');
         return html.replace('</body>', '<script type="module" src="/src/acquisition.ts"></script>\n  </body>');
       },
     },

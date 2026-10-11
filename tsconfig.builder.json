@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/builder.ts", "src/browser.d.ts", "vite.builder.config.ts"]
+}

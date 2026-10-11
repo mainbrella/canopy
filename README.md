@@ -2,16 +2,43 @@
 
 ```sh
 npm ci
-npm run dev       # Vite development server
+npm run dev       # One Vite development server for the site and /build/
 npm test          # Browser client and tool tests (Node 22.15+)
 npm run type-check # Strict TypeScript checks, including browser tests
-npm run build     # Type-check, then build the static site into dist/
+npm run build     # Type-check and build both independent static deployments
+npm run build:site # Build the site and dashboard into dist/
+npm run build:builder # Build only the builder into dist-builder/
 npm run preview   # Preview the built site with Wrangler
-npm run deploy    # Build, then deploy dist/ with Wrangler
+npm run preview:builder # Preview the built builder at localhost:8788/build/
+npm run deploy    # Deploy builder first, then the site (full release)
+npm run deploy:site # Build and deploy only the site and dashboard
+npm run deploy:builder # Build and deploy only the builder
 npm run deploy:redirect # Deploy the www.mainbrella.com redirect
 npm run doctor    # Read-only agent setup diagnostics (MAINBRELLA_API_KEY)
 npm run verify:agent # Create, execute hello over HTTP, and clean up; consumes one start
 ```
+
+The website uses Workers Static Assets with no custom server-side script. The
+site (`mainbrella-web`, `wrangler.jsonc`) and builder (`mainbrella-builder`,
+`wrangler.builder.jsonc`) have independent builds, static asset collections, and
+deployment histories. The builder owns `mainbrella.com/build/*`; the site's
+`/build` redirect canonicalizes the bare path and preserves its query string.
+Both use the existing API and session on the same browser origin.
+
+For the first rollout, use `npm run deploy`: it deploys the builder before the
+site starts linking to it. Afterward, use `npm run deploy:builder` for builder
+changes or `npm run deploy:site` for site changes. Shared auth, CSS, navigation,
+and API-client changes require rebuilding every affected deployment. GitHub CI
+selects build targets from changed paths and conservatively checks both for
+shared or unrecognized browser source changes; CI does not publish releases.
+
+Builder JS, CSS, images, and lazy syntax grammars live under `/build/assets/`.
+Shared source is bundled separately into each app, so a builder release never
+depends on the site's generated chunk names. Build checks verify that every
+manifest dependency exists and belongs to its deployment. Gzip size reporting is
+disabled to avoid compressing every chunk just to print build statistics.
+`npm run dev` serves both apps together, including sign-in and billing links;
+the Wrangler previews inspect each deployment separately.
 
 `www.mainbrella.com` uses a separate Worker configured in
 `wrangler.redirect.jsonc`. It returns a permanent 301 redirect to
@@ -48,8 +75,10 @@ links to the dashboard. The authenticated dashboard reads `/billing/balance` and
 shows prepaid funding alongside workloads. Failed status requests
 show an error with retry rather than reporting a zero balance.
 
-The **Build** tab at `/dashboard/?view=build` connects to the session-authenticated
-`/build` API. Describe a frontend app and press Enter (Shift+Enter adds a line).
+**Build** at `/build/` connects to the session-authenticated
+`/build` API. Existing `/dashboard/?view=build` bookmarks redirect to `/build/`,
+preserving app IDs, other query parameters, and fragments. Describe a frontend
+app and press Enter (Shift+Enter adds a line).
 The full-screen workspace opens with two skippable questions about app type and
 visual style. Questions do not start a sandbox; their answers are included in the
 initial build prompt and shown in the saved build brief. Unsubmitted answers survive

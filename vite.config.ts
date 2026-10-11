@@ -81,7 +81,7 @@ export default defineConfig({
             return;
           }
           const match = request.url?.match(/^\/([^?]*[^/?])(\?.*)?$/);
-          const routes = ['pricing', 'balance', 'about', 'privacy', 'terms', 'login', 'profile', 'dashboard', 'projects', 'api-keys', 'run', ...publicPages];
+          const routes = ['pricing', 'balance', 'about', 'privacy', 'terms', 'login', 'profile', 'dashboard', 'build', 'projects', 'api-keys', 'run', ...publicPages];
           if (!match || !routes.includes(match[1])) {
             next();
             return;
@@ -97,6 +97,8 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    reportCompressedSize: false,
+    manifest: true,
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),

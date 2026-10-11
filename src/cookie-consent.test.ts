@@ -6,6 +6,7 @@ import { runInNewContext } from 'node:vm';
 import { createRequire, registerHooks } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import config from '../vite.config.ts';
+import builderConfig from '../vite.builder.config.ts';
 import { siteChromePlugin } from '../scripts/site-chrome-plugin.ts';
 
 const preferences = await readFile(new URL('./cookie-preferences.ts', import.meta.url), 'utf8');
@@ -53,11 +54,16 @@ test('every page entry includes one working consent dialog before tracking can l
   const pluginContext = {} as ThisParameterType<typeof hook.handler>;
   const inputs = config.build?.rollupOptions?.input as Record<string, string>;
   assert.ok(Object.keys(inputs).length > 0);
-  for (const filename of Object.values(inputs)) {
+  for (const filename of [...Object.values(inputs), builderConfig.build?.rollupOptions?.input as string]) {
     const path = '/' + filename.slice(new URL('../', import.meta.url).pathname.length);
     const html: unknown = await hook.handler.call(pluginContext, await readFile(filename, 'utf8'), { path, filename });
     assert.equal(typeof html, 'string');
     if (typeof html !== 'string') throw new Error('Expected rendered HTML');
+    // Public opt-out confirmations intentionally omit consent and tracking.
+    if (path === '/unsubscribe/index.html') {
+      assert.doesNotMatch(html, /id="cookie-consent"|src="\/src\/acquisition\.ts"/, path);
+      continue;
+    }
     assert.equal((html.match(/id="cookie-consent"/g) || []).length, 1, path);
     assert.match(html, /src="\/src\/acquisition\.ts"/, path);
     assert.match(html, /data-consent="accepted"/, path);

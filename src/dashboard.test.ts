@@ -38,19 +38,19 @@ async function fixture(t: TestContext, extra: Record<string, any> = {}) {
   const nodes = new Map<string, Element>();
   const node = (selector: string) => { if (!nodes.has(selector)) nodes.set(selector, new Element()); return nodes.get(selector)!; };
   const events = new Map<string, (event: any) => void>(); const published: any[] = [];
-  const redirects: string[] = []; const calls: string[] = []; let reloads = 0;
+  const redirects: string[] = []; const calls: string[] = []; let reloads = 0; let sessionReads = 0;
   let failure = Boolean(extra.failure);
   const property = (name: string, value: any) => {
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
     Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
     t.after(() => { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else Reflect.deleteProperty(globalThis, name); });
   };
-  const location = { search: extra.search || '', pathname: '/dashboard/', hash: '', replace: (path: string) => redirects.push(path), reload: () => { reloads++; } };
+  const location = { search: extra.search || '', pathname: extra.builder ? '/build/' : '/dashboard/', hash: extra.hash || '', replace: (path: string) => redirects.push(path), reload: () => { reloads++; } };
   property('location', location);
   property('document', { querySelector: node, querySelectorAll: () => [] });
   property('window', { location, addEventListener: (type: string, handler: (event: any) => void) => events.set(type, handler),
     dispatchEvent(event: any) { published.push(event); events.get(event.type)?.(event); } });
-  shared.dashboardSession = async () => extra.signedOut ? null : { user: { id: 'owner' } };
+  shared.dashboardSession = async () => { sessionReads++; return extra.signedOut ? null : { user: { id: 'owner' } }; };
   shared.dashboardLoads = 0; shared.dashboardDisposals = 0;
   shared.dashboardBuildLoads = []; shared.dashboardBuildDisposals = 0;
   property('fetch', async (url: string, options: RequestInit) => {
@@ -58,8 +58,8 @@ async function fixture(t: TestContext, extra: Record<string, any> = {}) {
     if (extra.gate) await extra.gate;
     return failure ? Response.json({ error: 'billing_unavailable' }, { status: 503 }) : Response.json({ balance: balance(extra.balanceCents ?? 2000) });
   });
-  await import(`./dashboard.ts?test=${++sequence}`); await tick();
-  return { node, calls, published, redirects, events, reloads: () => reloads, setFailure(value: boolean) { failure = value; } };
+  await import(`./${extra.builder ? 'builder' : 'dashboard'}.ts?test=${++sequence}`); await tick();
+  return { node, calls, published, redirects, events, sessionReads: () => sessionReads, reloads: () => reloads, setFailure(value: boolean) { failure = value; } };
 }
 
 test('dashboard reads prepaid balance and links billing while workloads load independently', async t => {
@@ -122,12 +122,9 @@ test('new container ledger data supersedes an earlier funding snapshot', async t
   assert.equal(f.node('#subscription-level').textContent, 'Prepaid balance $34.56');
 });
 
-test('Build loads account drafts without loading infrastructure views', async t => {
-  const f = await fixture(t, { search: '?view=build' });
-  assert.equal(f.node('#dashboard-title').textContent, 'Build');
-  assert.equal(f.node('#dashboard-build').hidden, false);
-  assert.equal(f.node('#dashboard-resources').hidden, true);
-  assert.equal(f.node('#dashboard-overview').hidden, true);
+test('standalone Build loads account drafts without loading infrastructure views', async t => {
+  const f = await fixture(t, { builder: true, search: '?app=saved-app' });
+  assert.deepEqual(f.calls, ['/billing/balance']);
   assert.equal(shared.dashboardLoads, 0);
   assert.deepEqual(shared.dashboardBuildLoads, ['owner']);
   f.events.get('auth-change')?.({ detail: { user: null } });
@@ -136,7 +133,43 @@ test('Build loads account drafts without loading infrastructure views', async t 
 });
 
 test('Build stays behind session authentication', async t => {
-  const f = await fixture(t, { search: '?view=build', signedOut: true });
+  const f = await fixture(t, { builder: true, search: '?app=saved-app', hash: '#code', signedOut: true });
   assert.deepEqual(shared.dashboardBuildLoads, []);
-  assert.equal(f.redirects[0], '/login/?returnTo=%2Fdashboard%2F%3Fview%3Dbuild');
+  assert.equal(f.redirects[0], '/login/?returnTo=%2Fbuild%2F%3Fapp%3Dsaved-app%23code');
+  assert.deepEqual(f.calls, []);
+});
+
+test('legacy builder links redirect with the app and fragment before loading any account data', async t => {
+  const f = await fixture(t, { search: '?app=saved-app&view=build&utm_source=bookmark', hash: '#code' });
+  assert.deepEqual(f.redirects, ['/build/?app=saved-app&utm_source=bookmark#code']);
+  assert.equal(f.sessionReads(), 0);
+  assert.equal(shared.dashboardLoads, 0);
+  assert.deepEqual(shared.dashboardBuildLoads, []);
+  assert.deepEqual(f.calls, []);
+});
+
+test('legacy builder links migrate before sign-in so login returns to the standalone app', async t => {
+  const f = await fixture(t, { search: '?view=build', signedOut: true });
+  assert.deepEqual(f.redirects, ['/build/']);
+  assert.equal(f.sessionReads(), 0);
+});
+
+test('account switch in Build disposes drafts and ignores the previous balance response', async t => {
+  let release!: () => void;
+  const f = await fixture(t, { builder: true, gate: new Promise<void>(resolve => { release = resolve; }) });
+  f.events.get('auth-change')?.({ detail: { user: { id: 'other' } } });
+  release(); await tick();
+  assert.equal(f.reloads(), 1);
+  assert.equal(shared.dashboardBuildDisposals, 1);
+  assert.equal(f.node('#dashboard-content').hidden, true);
+  assert.equal(f.published.some(event => event.type === 'billing-balance-change'), false);
+});
+
+test('Build remains usable during a billing outage and can retry the balance', async t => {
+  const f = await fixture(t, { builder: true, failure: true });
+  assert.deepEqual(shared.dashboardBuildLoads, ['owner']);
+  assert.equal(f.node('#dashboard-content').hidden, false);
+  assert.equal(f.node('#subscription-level').textContent, 'Unavailable');
+  f.setFailure(false); await f.node('#dashboard-retry').click();
+  assert.equal(f.node('#subscription-level').textContent, 'Prepaid balance $20.00');
 });

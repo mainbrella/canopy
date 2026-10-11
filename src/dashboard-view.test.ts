@@ -1,13 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dashboardView, containerLifecycle, monthlyCost, productionCost } from './dashboard-view.ts';
+import { legacyBuildURL } from './build-route.ts';
 
-test('dashboard links select Build and workload modes and unknown views show the overview', () => {
+test('dashboard links select workload modes and unknown views show the overview', () => {
   assert.equal(dashboardView(''), 'overview');
   assert.equal(dashboardView('?view=production'), 'production');
   assert.equal(dashboardView('?view=ad-hoc'), 'ad-hoc');
-  assert.equal(dashboardView('?view=build'), 'build');
+  assert.equal(dashboardView('?view=build'), 'overview');
   assert.equal(dashboardView('?view=unknown'), 'overview');
+});
+
+test('builder migration preserves workspace identifiers, other query values, and fragments', () => {
+  assert.equal(legacyBuildURL('?view=build'), '/build/');
+  assert.equal(legacyBuildURL('?app=app%2Fone&view=build&ref=feature%2Fa', '#history'), '/build/?app=app%2Fone&ref=feature%2Fa#history');
+  assert.equal(legacyBuildURL('?view=build&view=build&app=x'), '/build/?app=x');
+  assert.equal(legacyBuildURL(''), null);
+  assert.equal(legacyBuildURL('?view=production'), null);
 });
 
 test('production estimates use allocated size, count only production and preserve legacy defaults', () => {
