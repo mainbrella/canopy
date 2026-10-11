@@ -85,10 +85,10 @@ function controls() {
   for (const button of githubActions.values()) button.disabled = busy || disposed;
   githubRepo.disabled = githubBranch.disabled = busy || disposed || githubLoading || !githubAuthorized;
   githubSubmit.disabled = busy || disposed || githubLoading || githubAuthorized && !githubRepo.value;
-  githubCancel.disabled = busy || disposed;
+  githubCancel.disabled = busy && !githubLoading || disposed;
   githubManage.disabled = githubMore.disabled = busy || disposed || githubLoading;
   form.setAttribute('aria-busy', String(busy));
-  githubForm.setAttribute('aria-busy', String(busy));
+  githubForm.setAttribute('aria-busy', String(busy || githubLoading));
 }
 
 function renderPreview(projectId: string) {
@@ -340,7 +340,9 @@ async function loadGithubRepositories(generation = githubGeneration, preferredRe
       ?? (githubRepositories.length === 1 ? githubRepositories[0] : null);
     githubRepo.value = selected?.fullName ?? '';
     githubBranch.value = selected?.fullName === preferredRepo ? preferredBranch : selected?.defaultBranch ?? 'main';
-    githubStatus.textContent = githubRepositories.length ? '' : 'No writable repositories are available. Update repository access in GitHub, then return here.';
+    githubStatus.textContent = githubRepositories.length ? '' : githubCursor
+      ? 'No writable repositories on this page. Load more repositories to continue.'
+      : 'No writable repositories are available. Update repository access in GitHub, then return here.';
   } catch (cause) {
     if (disposed || generation !== githubGeneration) return;
     const code = cause instanceof Error ? cause.message : 'github_unavailable';
@@ -561,7 +563,7 @@ dialog.addEventListener('close', () => {
   if (refreshOnClose && !disposed) { refreshOnClose = false; load(); }
 });
 githubCancel.addEventListener('click', () => githubDialog.close());
-githubDialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+githubDialog.addEventListener('cancel', event => { if (busy && !githubLoading) event.preventDefault(); });
 githubDialog.addEventListener('close', () => { githubGeneration++; githubLoading = false; controls(); });
 githubRepo.addEventListener('change', () => {
   githubBranch.value = githubRepositories.find(repo => repo.fullName === githubRepo.value)?.defaultBranch ?? 'main';
@@ -607,19 +609,19 @@ githubForm.addEventListener('submit', async event => {
   controls();
   githubError.hidden = true;
   try {
-      githubStatus.textContent = 'Linking repository… This can take up to two minutes.';
-      const result = await githubRequest(`/projects/github?id=${encodeURIComponent(githubProject.id)}`, 'PUT', { repo, branch }, 120_000);
-      if (disposed) return;
-      const index = projects.findIndex(item => item.id === githubProject?.id);
-      if (index < 0) throw new Error('project_missing');
-      projects[index] = { ...projects[index], git_version_id: null, github_repo: result.github?.repo ?? repo, github_branch: result.github?.branch ?? branch, github_commit_id: result.github?.commitId ?? null };
-      githubDialog.close();
-      render();
-      status.textContent = 'GitHub repository linked.';
-      try {
-        const refreshed = await request();
-        if (Array.isArray(refreshed.projects) && !disposed) { projects = refreshed.projects; render(); status.textContent = 'GitHub repository linked.'; }
-      } catch { /* Keep the successful link shown while the project list refreshes later. */ }
+    githubStatus.textContent = 'Linking repository… This can take up to two minutes.';
+    const result = await githubRequest(`/projects/github?id=${encodeURIComponent(githubProject.id)}`, 'PUT', { repo, branch }, 120_000);
+    if (disposed) return;
+    const index = projects.findIndex(item => item.id === githubProject?.id);
+    if (index < 0) throw new Error('project_missing');
+    projects[index] = { ...projects[index], git_version_id: null, github_repo: result.github?.repo ?? repo, github_branch: result.github?.branch ?? branch, github_commit_id: result.github?.commitId ?? null };
+    githubDialog.close();
+    render();
+    status.textContent = 'GitHub repository linked.';
+    try {
+      const refreshed = await request();
+      if (Array.isArray(refreshed.projects) && !disposed) { projects = refreshed.projects; render(); status.textContent = 'GitHub repository linked.'; }
+    } catch { /* Keep the successful link shown while the project list refreshes later. */ }
   } catch (cause) {
     if (disposed) return;
     if (githubAuthorized && cause instanceof Error && cause.message === 'github_connection_required') {

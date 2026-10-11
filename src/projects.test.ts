@@ -42,10 +42,12 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   const calls: { url: string; options: RequestInit }[] = [];
   const created: Element[] = [];
   const redirects: string[] = [];
+  const history: string[] = [];
   const window = {
     localStorage: { getItem: () => 'accepted', setItem() {} },
     sessionStorage: { getItem: () => 'accepted', setItem() {} },
     location: { hostname: 'localhost', pathname: '/projects/', search, hash: '', replace: (url: string) => redirects.push(url) },
+    history: { replaceState: (_state: unknown, _title: string, url: string) => history.push(url) },
     addEventListener() {}, dispatchEvent() {},
   };
   const property = (key: string, value: unknown) => {
@@ -63,13 +65,14 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   await import(`./projects.ts?test=${++sequence}`);
   const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); };
   await flush();
-  return { node: (selector: string) => node(selector), calls, redirects, flush, created };
+  return { node: (selector: string) => node(selector), calls, redirects, history, flush, created };
 }
 
 function defaultResponse(url: string, options: RequestInit) {
   if (new URL(url).pathname === '/auth/me') return Response.json({ user: { id: 'account' } });
   if (new URL(url).pathname === '/projects/endpoint') return Response.json({ endpoint: { projectId: new URL(url).searchParams.get('id'), url: 'https://p-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.mainbrella.dev/', target: null, backendStatus: 'unlinked' }, domains: [], hosting: { supported: true, customDomains: true, apexIps: [] } });
-  if (new URL(url).pathname === '/github/build/connect') return Response.json({ url: 'https://github.com/login/oauth/authorize?client_id=app' });
+  if (new URL(url).pathname === '/github/build/connect') return Response.json({ url: 'https://github.com/apps/mainbrella-build/installations/new?state=install' });
+  if (new URL(url).pathname === '/github/build/repositories') return Response.json({ repositories: [{ id: 1, fullName: 'owner/repo', defaultBranch: 'main', private: true }], nextCursor: null });
   if (new URL(url).pathname === '/projects/github') return Response.json({ github: { repo: 'owner/repo', branch: 'main', commitId: 'a'.repeat(40), url: 'https://github.com/owner/repo' } });
   if (options.method === 'GET') return Response.json({ projects: [originalProject, secondProject] });
   if (options.method === 'PATCH') {
@@ -316,24 +319,28 @@ test('projects with Git code and no Builder link still expose a standalone Code 
   assert.equal(f.calls.some(call => new URL(call.url).pathname.startsWith('/build/')), false);
 });
 
-test('Git cells offer GitHub linking and authorize with a validated GitHub destination', async t => {
-  const f = await fixture(t);
+test('GitHub installation starts without a repository URL or branch', async t => {
+  const f = await fixture(t, (url, options) => new URL(url).pathname === '/github/build/repositories'
+    ? Response.json({ error: 'github_connection_required' }, { status: 400 }) : defaultResponse(url, options));
   const cell = f.node('#project-list').children[0].children[3];
   const connect = cell.children.find(child => child.textContent === 'Connect GitHub')!;
   await connect.fire('click');
   assert.equal(f.node('#github-dialog').open, true);
   assert.equal(f.node('#github-branch').value, 'main');
-  f.node('#github-repo').value = 'https://github.com/acme/site.git';
+  assert.equal(f.node('#github-picker').hidden, true);
+  assert.equal(f.node('#github-submit').textContent, 'Install GitHub app');
+  assert.equal(f.node('#github-error').hidden, true);
   await f.node('#github-form').fire('submit');
   const call = f.calls.find(item => new URL(item.url).pathname === '/github/build/connect')!;
   const body = JSON.parse(String(call.options.body));
-  assert.equal(body.repo, 'acme/site');
-  assert.equal(body.branch, 'main');
+  assert.equal(body.repo, undefined);
+  assert.equal(body.branch, undefined);
   assert.equal(body.projectId, 'project-1');
   const returnTo = new URL(body.returnTo, 'https://mainbrella.com');
   assert.equal(returnTo.pathname, '/projects/');
-  assert.equal(returnTo.searchParams.get('githubRepo'), 'acme/site');
-  assert.match(f.redirects[0], /^https:\/\/github\.com\//);
+  assert.equal(returnTo.searchParams.get('githubProject'), 'project-1');
+  assert.equal(returnTo.searchParams.has('githubRepo'), false);
+  assert.match(f.redirects[0], /^https:\/\/github\.com\/apps\/mainbrella-build\/installations\/new/);
 });
 
 test('OAuth return requires an explicit final link and refreshes the row after success', async t => {
@@ -347,11 +354,13 @@ test('OAuth return requires an explicit final link and refreshes the row after s
       return Response.json({ github: { repo: input.repo, branch: input.branch, commitId: 'a'.repeat(40), url: `https://github.com/${input.repo}` } });
     }
     return defaultResponse(url, options);
-  }, '?githubProject=project-1&github=connected&githubRepo=owner%2Frepo&githubBranch=main');
+  }, '?githubProject=project-1&github=connected');
   await f.flush();
   assert.equal(f.node('#github-dialog').open, true);
   assert.equal(f.node('#github-repo').value, 'owner/repo');
   assert.equal(f.node('#github-submit').textContent, 'Link repository');
+  assert.equal(f.node('#github-picker').hidden, false);
+  assert.deepEqual(f.history, ['/projects/']);
   assert.equal(f.calls.some(call => new URL(call.url).pathname === '/projects/github'), false);
   await f.node('#github-form').fire('submit');
   const link = f.calls.find(call => new URL(call.url).pathname === '/projects/github')!;
@@ -366,9 +375,8 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(linkedProject.git_version_id, null);
   assert.ok(f.calls.filter(call => new URL(call.url).pathname === '/projects' && call.options.method === 'GET').length >= 2);
   await gitCell.children[3].fire('click');
-  assert.equal(f.node('#github-repo').readOnly, true);
-  assert.equal(f.node('#github-branch').readOnly, true);
-  assert.equal(f.node('#github-note').hidden, true);
+  assert.equal(f.node('#github-picker').hidden, true);
+  assert.equal(f.node('#github-submit').textContent, 'Install GitHub app');
 });
 
 test('editing a GitHub project keeps hosted Git off', async t => {
@@ -393,9 +401,79 @@ test('expired GitHub access can be reauthorized without losing the repository dr
   await f.node('#github-form').fire('submit');
   assert.equal(f.node('#github-repo').value, 'owner/repo');
   assert.equal(f.node('#github-branch').value, 'feature/sync');
-  assert.equal(f.node('#github-submit').textContent, 'Authorize GitHub');
+  assert.equal(f.node('#github-submit').textContent, 'Install GitHub app');
   assert.match(f.node('#github-status').textContent, /access expired/i);
   await f.node('#github-form').fire('submit');
   const authorization = f.calls.filter(call => new URL(call.url).pathname === '/github/build/connect').at(-1)!;
   assert.equal(JSON.parse(String(authorization.options.body)).reauthorize, true);
+});
+
+test('connected users pick authorized repositories and their default branch without reinstalling', async t => {
+  const f = await fixture(t, (url, options) => new URL(url).pathname === '/github/build/repositories'
+    ? Response.json({ repositories: [
+      { id: 1, fullName: 'personal/site', defaultBranch: 'main', private: true },
+      { id: 2, fullName: 'organization/website', defaultBranch: 'master', private: false },
+    ], nextCursor: null }) : defaultResponse(url, options));
+  await f.node('#project-list').children[0].children[3].children.find(child => child.textContent === 'Connect GitHub')!.fire('click');
+  assert.equal(f.node('#github-repo').value, '');
+  assert.equal(f.node('#github-submit').disabled, true);
+  f.node('#github-repo').value = 'organization/website';
+  await f.node('#github-repo').fire('change');
+  assert.equal(f.node('#github-branch').value, 'master');
+  assert.equal(f.node('#github-submit').disabled, false);
+  assert.equal(f.calls.some(call => new URL(call.url).pathname === '/github/build/connect'), false);
+  await f.node('#github-manage').fire('click');
+  assert.equal(f.redirects.length, 1);
+  assert.equal(JSON.parse(String(f.calls.at(-1)!.options.body)).repo, undefined);
+});
+
+test('repository pagination preserves selection and a custom migration branch', async t => {
+  const f = await fixture(t, (url, options) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/github/build/repositories') return parsed.searchParams.has('cursor')
+      ? Response.json({ repositories: [{ id: 2, fullName: 'org/site', defaultBranch: 'master', private: false }], nextCursor: null })
+      : Response.json({ repositories: [{ id: 1, fullName: 'owner/repo', defaultBranch: 'main', private: true }], nextCursor: '1:0:2' });
+    return defaultResponse(url, options);
+  }, '?githubProject=project-1&github=connected');
+  assert.equal(f.node('#github-more').hidden, false);
+  f.node('#github-branch').value = 'builder/migration';
+  await f.node('#github-more').fire('click');
+  assert.equal(f.node('#github-repo').children.length, 3);
+  assert.equal(f.node('#github-repo').value, 'owner/repo');
+  assert.equal(f.node('#github-branch').value, 'builder/migration');
+  assert.equal(f.node('#github-more').hidden, true);
+});
+
+test('empty repository access offers installation management and cannot link', async t => {
+  const f = await fixture(t, (url, options) => new URL(url).pathname === '/github/build/repositories'
+    ? Response.json({ repositories: [], nextCursor: null }) : defaultResponse(url, options), '?githubProject=project-1&github=connected');
+  assert.equal(f.node('#github-submit').disabled, true);
+  assert.equal(f.node('#github-manage').hidden, false);
+  assert.match(f.node('#github-status').textContent, /No writable repositories/);
+  await f.node('#github-manage').fire('click');
+  assert.match(f.redirects[0], /github.com\/apps\/mainbrella-build\/installations\/new/);
+});
+
+test('closing the picker ignores a pending private repository response', async t => {
+  let resolve!: (response: Response) => void;
+  const pending = new Promise<Response>(done => { resolve = done; });
+  const f = await fixture(t, (url, options) => new URL(url).pathname === '/github/build/repositories' ? pending : defaultResponse(url, options));
+  const opening = f.node('#project-list').children[0].children[3].children.find(child => child.textContent === 'Connect GitHub')!.fire('click');
+  assert.equal(f.node('#github-cancel').disabled, false);
+  await f.node('#github-cancel').fire('click');
+  resolve(Response.json({ repositories: [{ id: 1, fullName: 'private/secret', defaultBranch: 'main' }], nextCursor: null }));
+  await opening;
+  assert.equal(f.node('#github-dialog').open, false);
+  assert.equal(f.node('#github-repo').children.length, 0);
+});
+
+test('reconnect return verifies write access before reporting success', async t => {
+  const f = await fixture(t, (url, options) => {
+    if (new URL(url).pathname === '/projects' && options.method === 'GET') return Response.json({ projects: [{ ...originalProject, github_repo: 'owner/repo', github_branch: 'main' }] });
+    if (new URL(url).pathname === '/projects/github') return Response.json({ error: 'github_write_access_required' }, { status: 403 });
+    return defaultResponse(url, options);
+  }, '?githubProject=project-1&github=connected');
+  assert.equal(f.node('#github-dialog').open, true);
+  assert.match(f.node('#github-error').textContent, /write access/);
+  assert.notEqual(f.node('#projects-status').textContent, 'GitHub access updated.');
 });

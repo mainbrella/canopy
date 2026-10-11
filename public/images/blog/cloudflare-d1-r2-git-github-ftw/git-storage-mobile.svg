@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="520" viewBox="0 0 350 520" role="img" aria-labelledby="title desc">
+<title id="title">Git history stored as linked R2 bundles with a D1 head</title>
+<desc id="desc">Native Git in a temporary Linux container advances A to B to C. R2 stores an initial A bundle, then B and C increments that omit A and B respectively. Manifests link the previous bundle and prerequisite commit. Each D1 version record points to its manifest and the current head is C. Immutable R2 objects upload before D1 publishes the head.</desc>
+<defs>
+  <marker id="marr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#52616a"/></marker>
+  <marker id="mblue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#275f85"/></marker>
+</defs>
+<rect width="350" height="520" fill="#f7f4ec"/>
+<g font-family="Helvetica,Arial,sans-serif" fill="#263238">
+  <text x="16" y="24" font-size="14" font-weight="600">Git history, saved in R2</text>
+  <text x="16" y="43" font-size="9.5" fill="#53616a" letter-spacing=".5">TEMPORARY LINUX · NATIVE GIT</text>
+  <path d="M91 67H161M189 67H259" stroke="#52616a" stroke-width="1.5" marker-end="url(#marr)"/>
+  <circle cx="78" cy="67" r="13" fill="#e4eff4" stroke="#275f85"/><text x="78" y="71" text-anchor="middle" font-size="11" font-weight="600" fill="#275f85">A</text>
+  <circle cx="176" cy="67" r="13" fill="#e4eff4" stroke="#275f85"/><text x="176" y="71" text-anchor="middle" font-size="11" font-weight="600" fill="#275f85">B</text>
+  <circle cx="274" cy="67" r="13" fill="#e4eff4" stroke="#275f85"/><text x="274" y="71" text-anchor="middle" font-size="11" font-weight="600" fill="#275f85">C</text>
+
+  <text x="16" y="101" font-size="11" font-weight="600" fill="#275f85">R2 · immutable bundles</text>
+  <path d="M25 117V328" stroke="#9ba7ac" stroke-width="1.2"/>
+  <g>
+    <circle cx="25" cy="143" r="4" fill="#275f85"/>
+    <rect x="36" y="115" width="298" height="60" rx="5" fill="#fffdf7" stroke="#c9c8bd"/>
+    <text x="47" y="132" font-size="11.5" font-weight="600">manifest A</text>
+    <text x="47" y="147" font-size="9.5" fill="#53616a">previous — · prerequisite —</text>
+    <text x="47" y="163" font-size="9.5" fill="#275f85">initial A · 1 MiB parts · SHA-256 keys</text>
+    <rect x="252" y="122" width="70" height="19" rx="9" fill="#e4efe7"/>
+    <text x="287" y="135" text-anchor="middle" font-size="9" font-weight="600" fill="#2a6948">D1 A → M_A</text>
+  </g>
+  <g>
+    <circle cx="25" cy="220" r="4" fill="#275f85"/>
+    <rect x="36" y="184" width="298" height="72" rx="5" fill="#fffdf7" stroke="#c9c8bd"/>
+    <text x="47" y="202" font-size="11.5" font-weight="600">manifest B</text>
+    <text x="47" y="217" font-size="9.5" fill="#53616a">previousBundleKey A · prerequisiteCommitId A</text>
+    <text x="47" y="234" font-size="9.5" fill="#275f85">increment B omits A · 1 MiB · SHA-256 keys</text>
+    <rect x="252" y="190" width="70" height="19" rx="9" fill="#e4efe7"/>
+    <text x="287" y="203" text-anchor="middle" font-size="9" font-weight="600" fill="#2a6948">D1 B → M_B</text>
+  </g>
+  <g>
+    <circle cx="25" cy="297" r="4" fill="#275f85"/>
+    <rect x="36" y="265" width="298" height="72" rx="5" fill="#fffdf7" stroke="#c9c8bd"/>
+    <text x="47" y="283" font-size="11.5" font-weight="600">manifest C</text>
+    <text x="47" y="298" font-size="9.5" fill="#53616a">previousBundleKey B · prerequisiteCommitId B</text>
+    <text x="47" y="315" font-size="9.5" fill="#275f85">increment C omits B · 1 MiB · SHA-256 keys</text>
+    <rect x="252" y="271" width="70" height="19" rx="9" fill="#e4efe7"/>
+    <text x="287" y="284" text-anchor="middle" font-size="9" font-weight="600" fill="#2a6948">D1 C → M_C</text>
+    <rect x="240" y="306" width="82" height="20" rx="10" fill="#2a6948"/>
+    <text x="281" y="320" text-anchor="middle" font-size="9" font-weight="600" fill="#fffdf7">head = C</text>
+  </g>
+
+  <path d="M16 354H334" stroke="#c9c8bd"/>
+  <text x="16" y="377" font-size="10.5" font-weight="600" fill="#275f85">Worker uploads immutable R2 parts + manifests</text>
+  <path d="M25 401H194" stroke="#275f85" stroke-width="1.6" marker-end="url(#mblue)"/>
+  <path d="M211 389V430" stroke="#9b3933" stroke-width="2"/>
+  <text x="211" y="444" text-anchor="middle" font-size="9" fill="#9b3933">publish boundary</text>
+  <rect x="224" y="386" width="110" height="42" rx="5" fill="#e4efe7" stroke="#9bb6a0"/>
+  <text x="279" y="403" text-anchor="middle" font-size="9.5" font-weight="600" fill="#2a6948">then D1 writes</text>
+  <text x="279" y="417" text-anchor="middle" font-size="9.5" fill="#2a6948">version + head</text>
+</g>
+</svg>

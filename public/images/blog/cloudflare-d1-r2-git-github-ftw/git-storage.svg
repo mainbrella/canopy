@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="784" height="420" viewBox="0 0 784 420" role="img" aria-labelledby="title desc">
+<title id="title">Git history stored as linked R2 bundles with a D1 head</title>
+<desc id="desc">Native Git in a temporary Linux container advances A to B to C. R2 stores an initial A bundle and increments B and C that omit the preceding commit. Each manifest links the previous bundle and prerequisite commit; D1 version records point to their matching manifests, and the current head is C. Immutable R2 parts and manifests upload before D1 publishes the version and head.</desc>
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#52616a"/></marker>
+  <marker id="arrBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#275f85"/></marker>
+</defs>
+<rect width="784" height="420" fill="#f7f4ec"/>
+<g font-family="Helvetica,Arial,sans-serif" fill="#263238">
+  <text x="22" y="28" font-size="17" font-weight="600">Git history becomes a linked bundle chain</text>
+  <text x="22" y="50" font-size="10.5" fill="#53616a" letter-spacing=".7">TEMPORARY LINUX CONTAINER · NATIVE GIT</text>
+  <path d="M194 74H378M412 74H596" stroke="#52616a" stroke-width="1.8" marker-end="url(#arr)"/>
+  <circle cx="178" cy="74" r="15" fill="#e4eff4" stroke="#275f85" stroke-width="1.5"/><text x="178" y="79" text-anchor="middle" font-size="13" font-weight="600" fill="#275f85">A</text>
+  <circle cx="396" cy="74" r="15" fill="#e4eff4" stroke="#275f85" stroke-width="1.5"/><text x="396" y="79" text-anchor="middle" font-size="13" font-weight="600" fill="#275f85">B</text>
+  <circle cx="614" cy="74" r="15" fill="#e4eff4" stroke="#275f85" stroke-width="1.5"/><text x="614" y="79" text-anchor="middle" font-size="13" font-weight="600" fill="#275f85">C</text>
+  <text x="643" y="78" font-size="11" fill="#53616a">saved commits</text>
+
+  <text x="22" y="112" font-size="12" font-weight="600" fill="#275f85">R2 · immutable bundles</text>
+  <path d="M307 143H337" stroke="#52616a" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path d="M551 143H581" stroke="#52616a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <g>
+    <rect x="22" y="124" width="285" height="61" rx="5" fill="#fffdf7" stroke="#c9c8bd"/>
+    <text x="34" y="143" font-size="12" font-weight="600">manifest A</text>
+    <text x="34" y="160" font-size="10.5" fill="#53616a">previous: — · prerequisite: —</text>
+    <text x="34" y="177" font-size="10.5" fill="#53616a">initial bundle · commit A</text>
+    <rect x="22" y="191" width="285" height="39" rx="4" fill="#e4eff4"/>
+    <text x="34" y="207" font-size="10.5" fill="#275f85">1 MiB parts · key = SHA-256</text>
+    <text x="34" y="222" font-size="10.5" fill="#275f85">of each part</text>
+  </g>
+  <g>
+    <rect x="337" y="124" width="214" height="61" rx="5" fill="#fffdf7" stroke="#c9c8bd"/>
+    <text x="349" y="143" font-size="12" font-weight="600">manifest B</text>
+    <text x="349" y="160" font-size="10" fill="#53616a">prev A · prerequisite A</text>
+    <text x="349" y="177" font-size="10.5" fill="#53616a">increment · B omits A</text>
+    <rect x="337" y="191" width="214" height="39" rx="4" fill="#e4eff4"/>
+    <text x="349" y="207" font-size="10.5" fill="#275f85">1 MiB parts · SHA-256 keys</text>
+    <text x="349" y="222" font-size="10.5" fill="#275f85">per part</text>
+  </g>
+  <g>
+    <rect x="581" y="124" width="181" height="61" rx="5" fill="#fffdf7" stroke="#c9c8bd"/>
+    <text x="593" y="143" font-size="12" font-weight="600">manifest C</text>
+    <text x="593" y="160" font-size="10" fill="#53616a">prev B · prerequisite B</text>
+    <text x="593" y="177" font-size="10.5" fill="#53616a">increment · C omits B</text>
+    <rect x="581" y="191" width="181" height="39" rx="4" fill="#e4eff4"/>
+    <text x="593" y="207" font-size="10.5" fill="#275f85">1 MiB parts</text>
+    <text x="593" y="222" font-size="10.5" fill="#275f85">SHA-256 keys</text>
+  </g>
+  <path d="M178 90V124M396 90V124M614 90V124" stroke="#9ba7ac" stroke-width="1.2" stroke-dasharray="3 4"/>
+
+  <text x="22" y="256" font-size="12" font-weight="600" fill="#2a6948">D1 · version records</text>
+  <path d="M178 230V267M444 230V267M671 230V267" stroke="#2a6948" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#arr)"/>
+  <rect x="22" y="273" width="224" height="38" rx="5" fill="#e4efe7" stroke="#9bb6a0"/>
+  <text x="34" y="297" font-size="11.5" fill="#2a6948">version A → manifest A</text>
+  <rect x="280" y="273" width="224" height="38" rx="5" fill="#e4efe7" stroke="#9bb6a0"/>
+  <text x="292" y="297" font-size="11.5" fill="#2a6948">version B → manifest B</text>
+  <rect x="538" y="273" width="224" height="38" rx="5" fill="#d8e8dc" stroke="#2a6948" stroke-width="1.5"/>
+  <text x="550" y="297" font-size="11.5" font-weight="600" fill="#2a6948">version C → manifest C</text>
+  <text x="538" y="336" font-size="10.5" font-weight="600" fill="#2a6948">current head: C</text>
+
+  <path d="M22 352H762" stroke="#c9c8bd" stroke-width="1"/>
+  <text x="22" y="375" font-size="11.5" font-weight="600" fill="#275f85">Worker uploads immutable R2 parts + manifests</text>
+  <path d="M394 371H476" stroke="#275f85" stroke-width="1.7" marker-end="url(#arrBlue)"/>
+  <path d="M506 356V402" stroke="#9b3933" stroke-width="2"/>
+  <text x="491" y="415" text-anchor="middle" font-size="9.5" fill="#9b3933">publish boundary</text>
+  <text x="524" y="375" font-size="11.5" font-weight="600" fill="#2a6948">then D1 writes version + head</text>
+</g>
+</svg>
