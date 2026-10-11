@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A machine can start, a command can run, or a disk can be saved without the caller receiving an answer. How Mainbrella handles the retry." />
+    <meta name="description" content="A lost reply can leave a machine running, a command finished, or a disk saved. How Mainbrella recovers the result without blindly doing the work twice." />
     <meta name="theme-color" content="#181a1b" />
     <link rel="canonical" href="https://mainbrella.com/blog/inside-our-brella/" />
     <meta property="og:title" content="When the machine boots but the reply disappears · Mainbrella" />
-    <meta property="og:description" content="A machine can start, a command can run, or a disk can be saved without the caller receiving an answer. How Mainbrella handles the retry." />
+    <meta property="og:description" content="A lost reply can leave a machine running, a command finished, or a disk saved. How Mainbrella recovers the result without blindly doing the work twice." />
     <meta property="og:url" content="https://mainbrella.com/blog/inside-our-brella/" />
     <meta property="og:type" content="article" />
     <meta property="og:image" content="https://mainbrella.com/images/blog/inside-our-brella/lost-reply.webp" />
@@ -26,38 +26,36 @@
         <h1>When the machine boots but the reply disappears</h1>
         <p class="article-meta"><time datetime="2026-10-07">October 7, 2026</time> · Mainbrella Engineering</p>
 
-        <p>You ask Mainbrella to start a Linux machine. It boots, but the reply never reaches you. Do you retry, and risk starting a second machine?</p>
-        <p>We save a receipt before booting so a retry can find the first attempt. As we run commands and save disks, the harder question is what that receipt proves: that we tried, or that we have a result we can recover.</p>
+        <p>A create request times out. Your client has no answer, but the Linux machine may already be running. Retry with a new request and you could end up paying for two machines. Give up and you could abandon the one doing your work. Neither is a great recovery strategy.</p>
+        <p>Mainbrella saves a creation receipt before it asks the machine to boot. A retry can find that first attempt. The same idea helps us recover commands and saved disks, although a receipt can’t recover an answer the server never managed to record.</p>
 
         <figure class="article-figure figure-narrow">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/inside-our-brella/lost-reply-mobile.webp" width="1086" height="1448" />
             <img src="/images/blog/inside-our-brella/lost-reply.webp" width="1774" height="887" alt="A puzzled engineer asks, ‘Did it start?’ An awake server asks, ‘Did you get my reply?’ Between them, the reply falls through a broken connection." decoding="async" />
           </picture>
-          <figcaption>The caller is still waiting for an answer. The machine has already done the work.</figcaption>
         </figure>
 
-        <p>Let’s follow a Python job that reads data from another container and writes <code>metrics.csv</code>. We’ll call its script <code>analysis.py</code> and its machine slot <code>c17</code>. Those are examples; the machinery below comes from our <a href="https://github.com/mainbrella/backend">open-source backend</a>.</p>
+        <p>Consider a Python job that reads data from another container and writes <code>metrics.csv</code>. We’ll call the script <code>analysis.py</code> and its slot <code>c17</code>. This example follows our <a href="https://github.com/mainbrella/backend">backend</a> at <a href="https://github.com/mainbrella/backend/commit/6e5bef3">the October 7, 2026 revision</a>. The <a href="/API.md">API reference</a> and <a href="/SKILL.md">agent workflow</a> cover the request formats.</p>
 
         <h2 id="admission">Reserve the slot before booting</h2>
-        <p>Suppose two requests arrive and the account has one slot left. If both read “one available,” boot a machine, and update the counter afterward, both can win. We’ve already spent the money by the time we notice.</p>
-        <p>Each account gets a Cloudflare Durable Object, a coordinator with persistent storage. It decides which requests get a slot, a monthly start, and compute allowance. Each slot has a separate runtime controller that looks after its machine.</p>
-        <p>The coordinator handles those decisions one at a time. It saves the reservation before asking the runtime to boot, so the next request sees the slot as taken. The queue in <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account-core.js">container-account-core.js</a> is explicit: even if a decision pauses at an <code>await</code>, the next one waits its turn.</p>
-        <p>We release that lock as soon as the reservation is saved. Holding it until Linux was ready would make every machine wait for the previous one to boot. The decisions need an order; the boots can overlap.</p>
+        <p>Before that job can run, its account has to get a slot. Suppose two requests arrive with one slot left. If both read “one available,” boot, and update the counter afterward, both win. Discovering the conflict after you’ve started paying for it is too late.</p>
+        <p>Each account has a Cloudflare Durable Object, a coordinator with persistent storage. It reserves slots, monthly starts, and compute allowance. A separate runtime controller manages each slot’s machine.</p>
+        <p>The coordinator admits requests one at a time and saves each reservation before asking the runtime to boot. The next request therefore sees an occupied slot. The queue in <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account-core.js">container-account-core.js</a> keeps that order even when a decision pauses at an <code>await</code>.</p>
+        <p>We release the lock once the reservation is saved. Holding it until Linux was ready would force every machine to wait for the previous boot, which would be a miserable way to start a batch. The diagram shows overlapping boots after ordered reservations; these intervals aren’t measured startup times.</p>
 
         <figure class="article-figure">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/inside-our-brella/admission-mobile.svg" width="440" height="640" />
             <img src="/images/blog/inside-our-brella/admission.svg" width="920" height="420" alt="The account commits three reservations in order. Each commit starts a separate runtime’s boot, so the boot intervals overlap." decoding="async" />
           </picture>
-          <figcaption>Each machine waits for its reservation, then boots independently. The intervals show ordering, not measured startup times.</figcaption>
         </figure>
 
-        <p>One <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account.test.mjs">test</a> makes this visible. It sends six requests to a Builder account with five slots, then holds all readiness checks behind a gate. Five machines start booting before we open the gate. The sixth request gets a conflict, and the account records five starts. Both the exclusion and the parallelism matter.</p>
-        <p>Authentication tells us which account to coordinate. An API key or login session establishes ownership; a caller-supplied <code>x-mainbrella-user</code> header doesn’t. The <a href="https://github.com/mainbrella/backend/blob/main/worker/app/container-auth.ts">auth adapter</a> and <a href="https://github.com/mainbrella/backend/blob/main/worker/lib/container-service.ts">internal request builder</a> enforce that before coordination starts.</p>
+        <p>The <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account.test.mjs">admission test</a> deliberately holds readiness checks open while six requests compete for a Builder account’s five slots. Five machines begin booting; the sixth gets a conflict. Nothing has to finish booting for the coordinator to know the account is full.</p>
+        <p>The coordinator gets its account identity from an API key or login session. A caller can’t choose someone else’s account by supplying an <code>x-mainbrella-user</code> header. The <a href="https://github.com/mainbrella/backend/blob/main/worker/app/container-auth.ts">auth adapter</a> establishes ownership before the <a href="https://github.com/mainbrella/backend/blob/main/worker/lib/container-service.ts">internal request builder</a> forwards the request.</p>
 
         <h2 id="receipt">Write the receipt first</h2>
-        <p>Our client sends an <code>Idempotency-Key</code> with <code>POST /containers</code>. Think of it as a receipt number for one attempt: repeating that number asks about the same machine. Changing the image, size, or other recorded configuration while keeping the key gets a conflict.</p>
+        <p>The client includes an <code>Idempotency-Key</code> with <code>POST /containers</code> and saves it before sending the request. Reusing that key asks about the same attempt. Reusing it with a different image, size, or other recorded configuration gets a conflict. A fresh key asks for a fresh start, even if the rest of the request looks identical.</p>
 
         <div class="retry-examples" role="group" aria-label="Two ways to retry a lost creation reply">
           <div class="example example-failure">
@@ -78,36 +76,35 @@
           </div>
         </div>
 
-        <p>That only works if we save the receipt before asking the machine to boot. The account prepares the slot reservation and a receipt containing its reservation number and configuration fingerprint, then commits them together. The essential write in <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account-core.js">container-account-core.js</a> is:</p>
+        <p>The account prepares the slot reservation and a receipt containing the reservation number and configuration fingerprint. It commits them together before dispatching the boot. In <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account-core.js">container-account-core.js</a>, that write is:</p>
         <pre class="docs-code"><code><span class="code-keyword">await</span> this.ctx.storage.put({
   [KEY]: state,
   [CREATION_PREFIX + idempotencyKey]:
     creation,
 });</code></pre>
-        <p>The reservation and receipt land in one atomic write. Otherwise we could charge for a slot without leaving the retry anything to find, or issue a receipt for a slot we never reserved. Booting comes afterward.</p>
-        <p>Now drop the reply. A retry with the same key finds that receipt instead of reserving another start. It may report <code>starting</code> during the ninety-second pending window. After that, the coordinator checks the runtime. If the machine is running, it returns that machine. It never sends a second boot for the uncertain attempt.</p>
-        <p>Receipts last twenty-four hours. If the machine has stopped or its slot has been reused, the retained key returns <code>creation_no_longer_running</code>. To ask for a replacement, use a new key. Save the original key and request before sending them; a receipt you’ve lost is hard to look up.</p>
-        <p>“Running” has a modest definition here. The <a href="https://github.com/mainbrella/backend/blob/main/containers/user-container-core.js">runtime</a> boots the selected image with <code>sleep infinity</code>, then gives <code>uname -a</code> sixty seconds to succeed. That proves the guest can execute a command. Our Python job still needs its dependencies and its own checks.</p>
+        <p>The write is atomic. Saving only the reservation could charge for a slot the retry can’t find; saving only the receipt could point to a slot we never reserved. Once both are stored, booting can begin.</p>
+        <p>If the reply disappears now, a retry with the same key finds the saved receipt. It may report <code>starting</code> during the ninety-second pending window. After that, the coordinator checks the runtime and returns the machine if it’s running. It won’t send another boot just because the first answer is missing.</p>
+        <p>Receipts last twenty-four hours. A retained key returns <code>creation_no_longer_running</code> if the machine stopped or its slot was reused. Use a new key when you want a replacement. Keep the original key and request together so a timeout doesn’t leave you guessing which attempt to recover.</p>
+        <p>“Running” means the guest can execute a command. The <a href="https://github.com/mainbrella/backend/blob/main/containers/user-container-core.js">runtime</a> boots the chosen image with <code>sleep infinity</code> and gives <code>uname -a</code> sixty seconds to succeed. Our Python job still has to install its dependencies and pass its own checks.</p>
 
         <h2 id="fence">An old request meets a new machine</h2>
-        <p>What if the boot request itself is delayed? We cancel its reservation, release <code>c17</code>, and use the slot for a new machine. Then the old request arrives. It has the right slot name and the wrong lifetime.</p>
-        <p>We number each admitted start. The runtime remembers the newest start it accepted and the newest cancellation. A boot whose number is no newer than either gets rejected. Cancellation saves its number even if there’s no guest to destroy, so a late boot can’t bring canceled work back.</p>
+        <p>Now suppose the boot request itself is delayed. Its reservation is canceled, <code>c17</code> is released, and a replacement takes the slot. Then the old boot arrives. The slot name is valid, but the request has no business starting anything there.</p>
+        <p>We give each admitted start a number. The runtime remembers the newest start it accepted and the newest cancellation, rejecting boots whose numbers are no newer than either. It records a cancellation even when there’s no guest to destroy. Otherwise a canceled boot could arrive late and bring the machine back.</p>
 
         <figure class="article-figure">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/inside-our-brella/reservation-fence-mobile.svg" width="440" height="690" />
             <img src="/images/blog/inside-our-brella/reservation-fence.svg" width="920" height="560" alt="Boot 41 is delayed. Cancel 41 arrives, then boot 42 starts the replacement. When boot 41 finally arrives, the runtime rejects it. A late cancel 41 also leaves machine 42 running." decoding="async" />
           </picture>
-          <figcaption>The dashed boot request arrives late. Its reservation number tells the runtime it belongs to an earlier attempt.</figcaption>
         </figure>
 
-        <p>Cleanup needs the same care. A delayed “stop 41” must leave machine 42 alone. The <a href="https://github.com/mainbrella/backend/blob/main/containers/user-container-core.js">runtime’s DELETE path</a> records the cancellation but won’t destroy a newer guest. Likewise, the account won’t let an old successful boot reply clear the replacement’s pending reservation.</p>
-        <p>Public commands and file requests use <code>{ id, createdAt }</code> to identify the running machine. The slot ID can be reused; that pair identifies a particular lifetime. We compute <code>createdAt</code> as <code>max(now, previousCreatedAt + 1)</code>, so two creations in one millisecond—or a clock moving backward—still get different identities.</p>
-        <p>Keep both values when the machine starts. “Clean up c17” is ambiguous after reuse. Our tests stop and reuse a slot before releasing its old boot request, without even advancing the clock. A successful hello-world launch wouldn’t catch that.</p>
+        <p>The same check protects cleanup. A late “stop 41” must leave machine 42 running. The <a href="https://github.com/mainbrella/backend/blob/main/containers/user-container-core.js">runtime’s DELETE path</a> records that cancellation without destroying a newer guest. The account also refuses to let an old successful boot reply clear the replacement’s pending reservation.</p>
+        <p>Public commands and file requests carry <code>{ id, createdAt }</code>. The ID names a reusable slot; the timestamp identifies this particular machine in it. We calculate <code>createdAt</code> as <code>max(now, previousCreatedAt + 1)</code>, which keeps identities distinct even if two starts happen in one millisecond or the clock moves backward.</p>
+        <p>Keep both values. “Clean up c17” is a dangerous instruction once c17 has another occupant. Our regression test reuses the slot before releasing its old boot request, without advancing the clock. A hello-world launch tells you nothing about that failure.</p>
 
         <h2 id="budget">Reserve compute, too</h2>
-        <p>A free slot doesn’t mean unlimited runtime. If several machines can each spend the account’s remaining compute allowance, a counter checked only at launch will let them spend it several times. We reserve their runtime up front.</p>
-        <p>The size weights in <a href="https://github.com/mainbrella/backend/blob/main/containers/plan-policy.js">plan-policy.js</a> are one compute unit for Lite, ten for Medium, and twenty-eight for XL. Here’s what happens when a Medium machine stops early:</p>
+        <p>A reserved slot also needs reserved runtime. Otherwise five machines could each see the same remaining allowance and all spend it. The account reserves compute before booting, then settles usage when the machine stops.</p>
+        <p>The weights in <a href="https://github.com/mainbrella/backend/blob/main/containers/plan-policy.js">plan-policy.js</a> are one compute unit for Lite, ten for Medium, and twenty-eight for XL. Reserve a Medium for an hour and stop it after five minutes, and most of the reservation comes back. The table uses compute-unit-hours, rounded to three decimals.</p>
 
         <figure class="compute-example">
           <table>
@@ -118,23 +115,22 @@
               <tr class="compute-return"><th scope="row">Returned after a confirmed stop</th><td>9.167</td></tr>
             </tbody>
           </table>
-          <figcaption>Values in compute-unit-hours, rounded to three decimals. The reservation prevents another machine from spending the same allowance.</figcaption>
         </figure>
 
-        <p>If we can’t contact the machine, its reservation stays put: it may still be spending that allowance. An admitted launch that fails still uses a monthly start; settling its runtime is a separate calculation.</p>
-        <p>Internally we track compute-unit-milliseconds. A machine’s hard deadline is the earliest of:</p>
+        <p>If we can’t reach the machine, we keep its reservation because it may still be running. An admitted launch also consumes a monthly start even if it fails; settling runtime doesn’t refund the start.</p>
+        <p>We track runtime in compute-unit-milliseconds. The hard deadline is whichever comes first:</p>
         <ul class="deadline-list">
           <li>The end of its plan’s session limit.</li>
           <li>Paid access expiration.</li>
           <li>The next UTC month boundary.</li>
           <li>The time its reserved compute runs out.</li>
         </ul>
-        <p>The runtime also has an idle deadline. Actual work can push that deadline back, up to the hard deadline; status polling can’t. A Durable Object alarm stops expired machines after the client has gone away. A plan change can shorten an existing lease, but can’t extend its original hard deadline.</p>
-        <p>You should still be able to stop a machine when the billing lookup is down. DELETE checks ownership without requiring a fresh billing resolution, and cleanup can use a saved entitlement while it remains valid. We also keep the newest entitlement observation, with an unpaid result winning a tie. A delayed paid result mustn’t undo a revocation.</p>
+        <p>An idle deadline can stop the machine sooner. Doing work pushes that deadline back, up to the hard deadline; polling status doesn’t. A Durable Object alarm enforces expiration after the client disappears. A plan change may shorten an existing lease, but it can’t extend the original hard deadline.</p>
+        <p>A broken billing lookup shouldn’t prevent you from stopping a machine. DELETE checks ownership without requiring a fresh billing resolution, and cleanup can use a saved entitlement while it’s valid. For other checks, we retain the newest entitlement observation and let an unpaid result win a tie. A late paid result mustn’t undo a revocation.</p>
 
-        <h2 id="execution">Close the tab. Keep the job.</h2>
-        <p>Now we can run <code>analysis.py</code>. A foreground command gets at most sixty seconds. For longer work, or work whose result we’ll need after a disconnect, we create a managed execution. It gets its own idempotency key; the request also carries the machine’s exact <code>{ id, createdAt }</code> pair.</p>
-        <p>The body of our <code>POST /containers/executions</code> request is small:</p>
+        <h2 id="execution">Run the job through a disconnect</h2>
+        <p>With the machine running, we can launch <code>analysis.py</code>. Foreground commands have a sixty-second limit. For a longer analysis, or a result we’ll need after a disconnect, we create a managed execution with its own idempotency key and the machine’s exact <code>{ id, createdAt }</code> pair.</p>
+        <p>Here’s the body for a two-minute <code>POST /containers/executions</code> request:</p>
         <pre class="docs-code"><code>{
   <span class="code-string">"argv"</span>: [
     <span class="code-string">"python3"</span>,
@@ -162,61 +158,59 @@ const response = await fetch(`${apiOrigin}/containers/executions?${query}`, {
 if (!response.ok) throw new Error(`Execution HTTP ${response.status}`);
 const execution = await response.json(); // Save execution.id.</code></pre>
         </details>
-        <p><code>argv</code> passes literal arguments without assembling shell text. In <a href="https://github.com/mainbrella/backend/blob/main/containers/executions.js">executions.js</a>, we save the execution record before starting the process, so a retry can find the same job. Closing the creation request or output stream doesn’t kill it. Explicit cancellation does.</p>
-        <p>We save output events with increasing sequence numbers. On reconnect, the client sends its last processed sequence as <code>cursor</code> and reads what it missed. Streams last thirty seconds, so reconnecting is expected. The job itself can run for up to fifteen minutes, limited further by its requested timeout and the machine’s remaining lease.</p>
+        <p><code>argv</code> passes literal arguments without building a shell command. We save the execution record in <a href="https://github.com/mainbrella/backend/blob/main/containers/executions.js">executions.js</a> before starting the process, so a retry can recover the same job. Losing the creation response or closing the output stream leaves it running. Cancellation is explicit.</p>
+        <p>Output events get increasing sequence numbers. The client reconnects with its last processed sequence as <code>cursor</code> and reads what it missed. Streams last thirty seconds, so reconnecting is normal. The job can run for up to fifteen minutes, subject to its requested timeout and the machine’s remaining lease. The diagram follows a job through one such disconnect.</p>
 
         <figure class="article-figure figure-narrow">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/inside-our-brella/execution-stream-mobile.svg" width="440" height="490" />
             <img src="/images/blog/inside-our-brella/execution-stream.svg" width="800" height="330" alt="A job continues running while its first output connection closes. Events are saved during the gap. A new connection resumes after the last processed event using its cursor." decoding="async" />
           </picture>
-          <figcaption>The connection has a shorter life than the job. A cursor lets the next connection read the output it missed. Sequence shown schematically.</figcaption>
         </figure>
-        <p>There are limits worth knowing before running an analysis: thirty-two retained execution records per runtime, a one-hour retention period from admission, and four concurrent operations shared with foreground commands and file transfers. Output is capped at one MiB and a finite event count. Reaching the output limit stops the job and marks it truncated. Check the terminal status, exit code, timeout, and truncation before treating its output as a result.</p>
-        <p>A restarted runtime controller is a different problem from a disconnected viewer. The records survive, but the process handles don’t. Recovery marks unfinished jobs <code>interrupted</code> and destroys their guest if it’s still the current generation. We don’t leave untracked work running or silently rerun the command.</p>
-        <p>That can cost our Python job an unsaved CSV. It’s still preferable to automatically replaying a command that sends invoices. The caller needs to decide whether the work is safe to repeat.</p>
+        <p>The runtime retains up to thirty-two executions for one hour from admission. Jobs share a four-operation concurrency limit with foreground commands and file transfers. Output is capped at one MiB and a finite event count; hitting the limit stops the job and marks it truncated. Check the final status, exit code, timeout, and truncation flag before accepting the result. A CSV cut off halfway through a row is still a failed analysis.</p>
+        <p>A runtime controller restart is harder to recover from. The records survive, but the process handles don’t. Recovery marks unfinished jobs <code>interrupted</code> and destroys their guest if it’s still the current generation. We won’t leave a process running without a way to track it, and we won’t quietly run it again.</p>
+        <p>That decision can lose an unsaved CSV. Automatically replaying a command that sends invoices can do a lot more damage. The caller has to decide whether the job is safe to repeat.</p>
 
         <h2 id="private-request">A service name belongs to a network</h2>
-        <p>Our job reads <code>http://data.internal/shards/west</code>. We register its generation in a private service network, alongside a machine serving as <code>data</code> on port 8080. The caller doesn’t need a listening port of its own.</p>
-        <p>Which account’s <code>data</code>? Which network? The Python request doesn’t choose. The outbound interceptor in <a href="https://github.com/mainbrella/backend/blob/main/containers/private-services-runtime.js">private-services-runtime.js</a> removes reserved identity headers and supplies the account, slot, and generation from the runtime’s configuration. A guest can’t switch customers by inventing a header.</p>
-        <p>The <a href="https://github.com/mainbrella/backend/blob/main/containers/private-services.js">service registry</a> finds the network containing that source generation and resolves <code>data</code> there. The name can be reused in other accounts and networks. Before opening port 8080, the destination checks that it’s still the registered generation.</p>
-        <p>It checks again before releasing the response. The account also rechecks the caller and both memberships. Our data service could have been detached or replaced while answering; we don’t want a request authorized under the old arrangement to deliver bytes under the new one. That’s why we buffer the bounded response.</p>
-        <p>There’s a catch: refusing the response can’t undo a change the application already made. Reading an immutable shard is straightforward. A payment or task-queue service needs its own operation IDs to reconcile a retry.</p>
-        <p class="article-emphasis">Rejecting a response doesn’t undo the work that produced it.</p>
-        <p>This is private HTTP routing, with one-MiB bodies and a ten-second timeout. It doesn’t carry WebSockets or arbitrary TCP: a PostgreSQL client won’t work just because its hostname ends in <code>.internal</code>. Check deployment enablement and <code>GET /capabilities</code> before depending on it.</p>
+        <p>Our Python job reads <code>http://data.internal/shards/west</code>. To make that work, we register its generation in a private service network alongside a machine named <code>data</code>, serving on port 8080. The caller needs membership but no listening port of its own.</p>
+        <p>The runtime determines which account and network the request belongs to. Its <a href="https://github.com/mainbrella/backend/blob/main/containers/private-services-runtime.js">outbound interceptor</a> removes reserved identity headers and supplies the account, slot, and generation from trusted configuration. Guest code can’t switch customers by inventing a header.</p>
+        <p>The <a href="https://github.com/mainbrella/backend/blob/main/containers/private-services.js">service registry</a> resolves <code>data</code> in the source generation’s network. Other accounts and networks can reuse that name. Before opening port 8080, the destination checks that it’s still the generation registered for the service.</p>
+        <p>Membership can change while the data service is answering. We buffer the bounded response and check again before releasing it; the account also rechecks the caller and both memberships. If the service was detached or replaced during the request, the old authorization doesn’t get to carry the response through.</p>
+        <p>Refusing that response can’t undo what the application already did. Reading an immutable shard is easy to retry. A payment or task-queue request needs an application operation ID, because the service may have committed its change before routing refused the reply.</p>
+
+        <p>This routing supports HTTP with one-MiB bodies and a ten-second timeout. It doesn’t carry WebSockets or arbitrary TCP, so adding <code>.internal</code> to a PostgreSQL hostname won’t make it work. Check deployment enablement and <code>GET /capabilities</code> before using it.</p>
 
         <h2 id="files">Take the CSV with you</h2>
-        <p>The job writes <code>/workspace/metrics.csv</code>. While the guest is running, we download it through a generation-bound file request. That endpoint transfers raw bytes, up to one MiB, so we don’t have to squeeze the CSV through a possibly truncated stdout stream.</p>
-        <p>Uploads in <a href="https://github.com/mainbrella/backend/blob/main/containers/files.js">files.js</a> go to a temporary file in the target’s existing parent directory, then rename over the target. A reader sees the old file or the new file rather than half an upload. Paths are positional arguments, never interpolated into shell code. Writes reject symlink targets; reads can follow links inside the owned guest.</p>
-        <p>We still have to check that the CSV contains the right rows and came from the right inputs. The transfer can’t tell us that. Copy useful output out before destroying the machine. To keep the environment as well, save a workspace.</p>
+        <p>Once the job writes <code>/workspace/metrics.csv</code>, we can download it with a file request carrying the machine’s generation. That endpoint transfers raw bytes up to one MiB. There’s no reason to force a file through stdout and then hope it wasn’t truncated.</p>
+        <p>Uploads in <a href="https://github.com/mainbrella/backend/blob/main/containers/files.js">files.js</a> write a temporary file in the target’s existing parent directory, then rename it over the target. Readers see the old file or the completed new one. Paths are positional arguments rather than interpolated shell text. Writes reject symlink targets; reads can follow links inside the owned guest.</p>
+        <p>Check the CSV’s rows against its inputs, then copy it out before destroying the machine. If we want to preserve the environment too, we need a saved workspace.</p>
 
-        <h2 id="snapshot">A saved disk needs a saved address</h2>
-        <p>“Save the disk and stop the machine” sounds like one operation. It involves three parties: the account, the runtime, and the provider doing the capture. None can atomically commit the other two.</p>
-        <p>The account first reserves save capacity and records the operation. The runtime saves a receipt for that operation, then calls <code>snapshotContainer()</code>. When capture returns, it writes the provider’s handle—the address we need to restore the disk—into that receipt. The account copies the handle into its workspace record. Only then can <code>stop: true</code> destroy the source.</p>
-        <p>There are two very different places to lose the answer. If the runtime saved the handle but its reply to the account disappeared, a retry reads the receipt and recovers the same capture. If capture was accepted but the runtime controller restarted before saving the handle, the receipt says we tried, with no address to restore from.</p>
+        <h2 id="snapshot">Recovering a saved disk</h2>
+        <p>Saving the disk and stopping the machine involves the account coordinator, the runtime, and the provider performing the capture. There’s no transaction that commits all three at once.</p>
+        <p>The account reserves save capacity and records the operation. The runtime saves its own receipt, calls <code>snapshotContainer()</code>, and writes the returned provider handle into the receipt. That handle is the address needed to restore the disk. Once the account has copied it into the workspace record, <code>stop: true</code> can destroy the source.</p>
+        <p>If the runtime saves the handle and then loses its reply to the account, a retry recovers the capture from the receipt. But if the provider accepted the capture and the runtime restarted before saving the handle, we have no address to restore from. We know we tried to save the disk. We can’t claim we have a recoverable workspace.</p>
 
         <figure class="article-figure figure-narrow">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/inside-our-brella/snapshot-receipt-mobile.svg" width="440" height="740" />
             <img src="/images/blog/inside-our-brella/snapshot-receipt.svg" width="920" height="590" alt="Both snapshot attempts have a saved receipt. With a saved provider address, a retry finishes the save. With the address missing, recovery remains unresolved, capture isn’t repeated, and the save path keeps the source intact." decoding="async" />
           </picture>
-          <figcaption>The receipt on the right proves we attempted a save. It doesn’t tell us where the saved disk is.</figcaption>
         </figure>
 
-        <p><a href="https://github.com/mainbrella/backend/blob/main/containers/workspaces.js">workspaces.js</a> refuses to repeat that unresolved capture and returns <code>workspace_save_unavailable</code>. The save path leaves the source intact, still subject to its lease. Trying a new key is a new capture, not recovery of the missing answer.</p>
-        <p>The quotas reflect that uncertainty. We reserve the source size’s full disk capacity before capture. Deleting a workspace frees its live workspace quota, but doesn’t refund the historical capture budget. The provider may already have done the work; an ambiguous failure can’t be a way to buy unlimited retries.</p>
-        <p>Restoring a ready workspace goes through normal admission and uses a new start. It gets a fresh generation, keeps the saved size and internet policy, and requires a matching image digest. If the image is incompatible or the provider’s restore fails, we return an error. Substituting an empty machine would make a successful response fairly useless.</p>
-        <p>A workspace saves the filesystem. It doesn’t save RAM, running processes, previews, or private-service memberships. Our script needs progress in files, and a restored service needs to start and register again. The application also has to quiet its writers before capture. We can faithfully save a disk whose files disagree with each other.</p>
+        <p>In that unresolved case, <a href="https://github.com/mainbrella/backend/blob/main/containers/workspaces.js">workspaces.js</a> returns <code>workspace_save_unavailable</code> and refuses to repeat the capture. The save path leaves the source intact, although its lease still applies. A new key requests a new capture; it doesn’t recover the missing one.</p>
+        <p>We reserve the source size’s full disk capacity before capture. Deleting a workspace frees its live workspace quota but doesn’t refund the historical capture budget. The provider may already have performed the capture even when we can’t recover its answer, so treating every ambiguous failure as free would allow unlimited retries.</p>
+        <p>Restoring a ready workspace consumes a new start and gets a fresh generation. It keeps the saved size and internet policy, and requires a matching image digest. An incompatible image or failed provider restore produces an error. Returning an empty machine as a successful restore would be a nasty surprise.</p>
+        <p>The workspace contains filesystem state. RAM, running processes, previews, and private-service memberships have to be rebuilt. Our script needs progress saved in files; a restored service needs to start and register again. Quiet the writers before capture too. Saving every byte faithfully doesn’t make half-finished application writes consistent.</p>
 
         <h2 id="try-it">Try the awkward cases</h2>
-        <p>The lifecycle tests let you make these failures happen on demand. From a backend checkout, run:</p>
+        <p>You can reproduce the awkward timing with the lifecycle tests. They use simulated provider state, so you can hold back a reply without trying to break a live connection. From a backend checkout, run:</p>
         <pre class="docs-code" tabindex="0" role="region" aria-label="Lifecycle test command"><code>node --test containers/container-account.test.mjs \
   containers/user-container.test.mjs \
   containers/workspaces.test.mjs \
   containers/private-services.test.mjs</code></pre>
-        <p>Start with <code>stopping and reusing a slot fences old delayed dispatches even in the same millisecond</code>. It holds a request back until its slot has a new occupant. Then compare <code>lost snapshot response reconciles receipt without recapture</code> with <code>uncertain capture cannot be repeated</code> in the <a href="https://github.com/mainbrella/backend/blob/main/containers/workspaces.test.mjs">workspace tests</a>. In one case we can retrieve the answer; in the other we have to admit we don’t have it.</p>
-        <p class="source-note">Source review: backend commit <a href="https://github.com/mainbrella/backend/commit/6e5bef3">6e5bef3</a>, October 7, 2026. Lifecycle tests use simulated provider state; diagrams show ordering, not production traces or latency measurements. The opening illustration was generated with AI. Request shapes and capabilities are in <a href="/API.md">API.md</a> and the <a href="/SKILL.md">agent workflow</a>.</p>
-        <p class="source-note">Object names in the implementation: <code>account:&lt;userId&gt;</code> for the coordinator and <code>user:&lt;userId&gt;:slot:17</code> for <code>c17</code>. The legacy first slot is <code>user:&lt;userId&gt;</code>, with public ID <code>small</code>. That ID doesn’t choose the machine’s size.</p>
+        <p>Start with <code>stopping and reusing a slot fences old delayed dispatches even in the same millisecond</code>. It releases a delayed request after the slot has a new occupant. Then compare <code>lost snapshot response reconciles receipt without recapture</code> with <code>uncertain capture cannot be repeated</code> in the <a href="https://github.com/mainbrella/backend/blob/main/containers/workspaces.test.mjs">workspace tests</a>. The first has a saved answer to recover. The second has to leave the source running and admit it doesn’t know.</p>
+
+
       </article>
     </main>
     <!-- site-footer -->

@@ -1,6 +1,6 @@
 {
   "route": "/blog/virtual-companies-producing-reports/",
-  "status": "Editorial draft in requested completed-project voice; reporting application not yet implemented. Not deployed.",
+  "status": "Article distinguishes verified provisioning and save/stop results from the reporting application design, which is not yet implemented.",
   "verifiedInfrastructureFacts": [
     "15 networks with 32 running container generations each were verified during provisioning.",
     "A local /24 Docker bridge exhausted 253 usable addresses; 253 task proxies were moved to an overflow bridge and command execution rechecked.",
