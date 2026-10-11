@@ -2,6 +2,7 @@ import { defineConfig, transformWithEsbuild } from "vite";
 import { fileURLToPath } from "node:url";
 import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { agentDocsPlugin } from "./scripts/agent-docs-plugin.ts";
+import { blogPaginationPlugin } from "./scripts/blog-pagination-plugin.ts";
 import { siteChromePlugin } from "./scripts/site-chrome-plugin.ts";
 
 const publicPages = ['docs', 'docs/containers', 'docs/execute', 'docs/files', 'docs/images',
@@ -26,6 +27,7 @@ export default defineConfig({
   publicDir: "public",
   plugins: [
     siteChromePlugin(),
+    blogPaginationPlugin(),
     agentDocsPlugin(),
     {
       name: 'homepage-script',

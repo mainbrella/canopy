@@ -282,9 +282,9 @@ A signable DPA requires business readiness and legal review outside this web tas
 
 ## P2 public pages
 
-`/blog/` contains five engineering articles on account reservations and Cloudflare
-compute, startup measurement, idempotency and generations, browser/SSH access,
-and custom images. Articles describe the existing web API documentation and
+`/blog/` lists six articles per page in newest-first order. Keep the complete
+article list in `blog/index.html`; the build generates `/blog/page/2/` and later
+archives from it. Articles describe the existing web API documentation and
 client code; publication dates do not establish feature release or benchmark dates.
 Keep article claims aligned with the linked guides when contracts change. Add new
 articles to the blog index, `vite.config.ts`, and `public/sitemap.xml`.

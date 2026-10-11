@@ -592,6 +592,9 @@ button:disabled { opacity: .65; cursor: wait; }
 .article-list h2 { margin-top: 0; }
 .article-list time, .article-meta { color: var(--muted); font-size: 14px; }
 .article-list p { margin-top: 8px; }
+.blog-pagination { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 14px; }
+.blog-pagination a { display: inline-flex; align-items: center; min-height: 44px; color: var(--blue); text-decoration: underline; text-underline-offset: 4px; }
+.blog-pagination span { color: var(--muted); }
 .article-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; font-size: 14px; }
 .comparison-content { max-width: 1152px; }
 .comparison-content > p { max-width: 78ch; }
