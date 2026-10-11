@@ -45,8 +45,10 @@ const storageError = document.querySelector<HTMLElement>('#project-storage-error
 const storageStatus = document.querySelector<HTMLElement>('#project-storage-status')!;
 const abort = new AbortController();
 const previewClient = createProjectHostingClient({ onUnauthenticated: () => goToLogin(), signal: abort.signal });
-const hosting = createProjectHosting({ onUnauthenticated: () => goToLogin(), onClose: refreshPreview });
+const hosting = createProjectHosting({ onUnauthenticated: () => goToLogin(), onClose: id => { refreshPreview(id); restoreProjectFocus(id); } });
 let projects: Project[] = [];
+let manageButtons = new Map<string, HTMLButtonElement>();
+let openActions: { toggle: HTMLButtonElement; panel: HTMLElement; wrapper: HTMLElement } | null = null;
 let editButtons = new Map<string, HTMLButtonElement>();
 let endpointButtons = new Map<string, HTMLButtonElement>();
 let gitButtons = new Map<string, HTMLButtonElement>();
@@ -75,6 +77,7 @@ const builderURL = (id: string) => `/build/?${new URLSearchParams({ app: id })}`
 
 function goToLogin() {
   disposed = true;
+  closeActions();
   abort.abort();
   hosting.dispose();
   dialog.close();
@@ -91,6 +94,7 @@ function controls() {
   newProject.disabled = busy || disposed || !authenticated;
   retry.disabled = busy || disposed;
   name.disabled = domain.disabled = git.disabled = create.disabled = cancel.disabled = busy || disposed;
+  for (const button of manageButtons.values()) button.disabled = busy || disposed;
   for (const button of editButtons.values()) button.disabled = busy || disposed;
   for (const button of endpointButtons.values()) button.disabled = busy || disposed;
   for (const button of gitButtons.values()) button.disabled = busy || disposed;
@@ -113,6 +117,7 @@ function renderPreview(projectId: string) {
   const cell = previewCells.get(projectId);
   if (!cell) return;
   cell.replaceChildren();
+  cell.removeAttribute('data-unset');
   const preview = previews.get(projectId) ?? { kind: 'loading' as const };
   if (preview.kind === 'loading') {
     cell.textContent = 'Loading…';
@@ -132,6 +137,7 @@ function renderPreview(projectId: string) {
   }
   if (!preview.url) {
     cell.textContent = preview.configured ? 'Unavailable' : 'Not set';
+    if (!preview.configured) cell.setAttribute('data-unset', 'true');
     return;
   }
   if (preview.available) {
@@ -182,8 +188,49 @@ function refreshPreview(projectId: string) {
   });
 }
 
+function restoreProjectFocus(id?: string) {
+  if (!disposed && id) manageButtons.get(id)?.focus();
+}
+
+function closeActions(restoreFocus = false) {
+  if (!openActions) return;
+  const { toggle, panel } = openActions;
+  openActions = null;
+  panel.hidden = true;
+  toggle.setAttribute('aria-expanded', 'false');
+  if (restoreFocus) toggle.focus();
+}
+
+function positionActions() {
+  if (!openActions) return;
+  const { toggle, panel } = openActions;
+  const bounds = toggle.getBoundingClientRect();
+  const gap = 8;
+  const viewportHeight = window.innerHeight;
+  panel.style.maxHeight = `${viewportHeight - gap * 2}px`;
+  panel.style.left = `${Math.max(gap, Math.min(bounds.right - panel.offsetWidth, window.innerWidth - panel.offsetWidth - gap))}px`;
+  const below = bounds.bottom + 4;
+  const top = below + panel.offsetHeight <= viewportHeight - gap ? below : bounds.top - panel.offsetHeight - 4;
+  panel.style.top = `${Math.max(gap, Math.min(top, viewportHeight - panel.offsetHeight - gap))}px`;
+}
+
+// A disclosure with native links and buttons keeps Tab navigation familiar.
+document.addEventListener('click', event => {
+  if (openActions && !openActions.wrapper.contains(event.target as Node)) closeActions();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && openActions) { event.preventDefault(); closeActions(true); }
+});
+window.addEventListener('resize', positionActions);
+window.addEventListener('scroll', event => {
+  if (openActions && !openActions.panel.contains(event.target as Node)) closeActions(true);
+}, true);
+
 function render() {
+  const focusedProjectId = [...manageButtons].find(([, button]) => button === document.activeElement)?.[0];
+  closeActions();
   list.replaceChildren();
+  manageButtons = new Map();
   editButtons = new Map();
   endpointButtons = new Map();
   gitButtons = new Map();
@@ -191,6 +238,7 @@ function render() {
   storageActions = new Map();
   previewCells = new Map();
   for (const project of projects) {
+    const hasCode = Boolean(project.build_app_id || project.git_version_id || project.github_repo);
     const row = document.createElement('tr');
     row.className = 'project-table-row';
     const title = document.createElement('td');
@@ -205,109 +253,186 @@ function render() {
     const projectDomain = document.createElement('td');
     projectDomain.className = 'project-domain';
     projectDomain.textContent = project.domain || '—';
+    if (!project.domain) projectDomain.setAttribute('data-empty', 'true');
     const previewCell = document.createElement('td');
     previewCell.className = 'project-preview';
     previewCells.set(project.id, previewCell);
-    const gitCell = document.createElement('td');
-    gitCell.className = 'project-git';
+    const sourceCell = document.createElement('td');
+    sourceCell.className = 'project-source';
     if (project.github_repo) {
       const repo = document.createElement('a');
+      repo.className = 'project-repository';
       repo.href = `https://github.com/${encodeURIComponent(project.github_repo.split('/')[0])}/${encodeURIComponent(project.github_repo.split('/')[1] ?? '')}`;
       repo.target = '_blank';
       repo.rel = 'noopener';
-      repo.textContent = project.github_repo;
-      repo.setAttribute('aria-label', `Open ${project.github_repo} on GitHub`);
-      const state = document.createElement('span');
-      state.className = 'project-github-state';
+      repo.title = project.github_repo;
+      repo.setAttribute('aria-label', `Open ${project.github_repo} on GitHub, branch ${project.github_branch || 'main'}`);
+      const repoName = document.createElement('span');
+      repoName.className = 'project-repository-name';
+      repoName.textContent = project.github_repo;
+      const branch = document.createElement('span');
+      branch.className = 'project-source-note';
+      branch.textContent = `GitHub · ${project.github_branch || 'main'}`;
+      repo.append(repoName, branch);
+      sourceCell.append(repo);
+      if (project.github_storage === 'deleting') {
+        const pending = document.createElement('span');
+        pending.className = 'project-source-note';
+        pending.textContent = 'Storage cleanup pending';
+        sourceCell.append(pending);
+      }
+    } else {
+      sourceCell.textContent = hasCode ? 'Mainbrella Git' : 'Git not enabled';
+      if (!hasCode) sourceCell.classList.add('project-source-empty');
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'container-actions';
+    if (hasCode) {
+      const code = document.createElement('a');
+      code.className = 'project-code-link';
+      code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
+      code.textContent = 'Code';
+      code.setAttribute('aria-label', `Browse source code for ${project.name}`);
+      actions.append(code);
+    }
+    const wrapper = document.createElement('div');
+    wrapper.className = 'project-action-menu';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dashboard-retry project-manage';
+    toggle.textContent = 'Manage';
+    const chevron = document.createElement('span');
+    chevron.textContent = '⌄';
+    chevron.setAttribute('aria-hidden', 'true');
+    toggle.append(chevron);
+    toggle.setAttribute('aria-label', `Manage ${project.name}`);
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', `project-actions-${project.id}`);
+    manageButtons.set(project.id, toggle);
+    const panel = document.createElement('div');
+    panel.id = `project-actions-${project.id}`;
+    panel.className = 'project-menu-panel';
+    panel.hidden = true;
+    panel.setAttribute('role', 'group');
+    panel.setAttribute('aria-label', `Actions for ${project.name}`);
+    toggle.addEventListener('click', () => {
+      if (busy || disposed) return;
+      if (openActions?.toggle === toggle) { closeActions(); return; }
+      closeActions();
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      openActions = { toggle, panel, wrapper };
+      positionActions();
+    });
+    toggle.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' && !toggle.disabled) {
+        event.preventDefault();
+        if (openActions?.toggle !== toggle) toggle.click();
+        panel.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+      }
+    });
+    panel.addEventListener('keydown', event => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const items = [...panel.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+      const index = items.findIndex(item => item === document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      event.preventDefault();
+      items[next]?.focus();
+    });
+    wrapper.addEventListener('focusout', event => {
+      if (openActions?.toggle === toggle && !wrapper.contains(event.relatedTarget as Node | null)) closeActions();
+    });
+    function menuButton(label: string, action: () => unknown) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'project-menu-action';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        if (busy || disposed || button.disabled) return;
+        // Return focus to the visible trigger before opening a dialog.
+        closeActions(true);
+        return action();
+      });
+      return button;
+    }
+    const edit = menuButton('Edit details', () => openProjectDialog(project));
+    editButtons.set(project.id, edit);
+    const endpoint = menuButton('Hosting & domains', () => hosting.open(project));
+    endpointButtons.set(project.id, endpoint);
+    panel.append(edit, endpoint);
+    const sourceHeading = document.createElement('p');
+    sourceHeading.className = 'project-menu-heading';
+    sourceHeading.textContent = 'Source';
+    panel.append(sourceHeading);
+    if (project.github_repo) {
+      const state = document.createElement('p');
+      state.className = 'project-menu-detail';
       const commit = project.github_commit_id ? ` · ${project.github_commit_id.slice(0, 7)}` : '';
-      state.textContent = `GitHub · connected · ${project.github_branch || 'main'}${commit}`;
-      const stored = document.createElement('span');
+      state.textContent = `${project.github_branch || 'main'}${commit}`;
+      const reconnect = menuButton('Reconnect GitHub access', () => openGitHubDialog(project, true));
+      githubActions.set(project.id, reconnect);
+      panel.append(state, reconnect);
+      const stored = document.createElement('p');
       stored.className = 'project-storage-state';
       stored.textContent = project.github_storage === 'github' ? 'Mainbrella copy · deleted'
         : project.github_storage === 'deleting' ? 'Mainbrella copy · deleting…'
         : 'Mainbrella copy · stored';
-      const storageNote = document.createElement('span');
+      const storageNote = document.createElement('p');
       storageNote.className = 'project-storage-note';
       storageNote.textContent = project.github_storage === 'github' ? 'Builder reads from GitHub. Future builds may store new files.'
         : project.github_storage === 'deleting' ? 'Storage charges stop once cleanup finishes.'
-        : 'Commits go to GitHub. Stored files still incur Mainbrella storage charges.';
-      const code = document.createElement('a');
-      code.className = 'dashboard-retry';
-      code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
-      code.textContent = 'Code';
-      code.setAttribute('aria-label', `Browse source code for ${project.name}`);
-      const reconnect = document.createElement('button');
-      reconnect.type = 'button';
-      reconnect.className = 'dashboard-retry';
-      reconnect.textContent = 'Reconnect access';
-      reconnect.setAttribute('aria-label', `Reconnect GitHub access for ${project.name}`);
-      reconnect.addEventListener('click', () => openGitHubDialog(project, true));
-      githubActions.set(project.id, reconnect);
-      gitCell.append(repo, code, state, reconnect, stored, storageNote);
+        : 'Stored files still incur Mainbrella storage charges.';
+      panel.append(stored, storageNote);
       if (project.github_storage !== 'github') {
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'dashboard-retry button-danger project-storage-delete';
-        remove.textContent = project.github_storage === 'deleting' ? 'Deleting copy…' : 'Delete Mainbrella copy';
-        remove.setAttribute('aria-label', `Delete the Mainbrella copy of ${project.name}`);
-        if (!project.github_commit_id) remove.title = 'Push code to GitHub before deleting the Mainbrella copy.';
-        remove.addEventListener('click', () => openStorageDialog(project));
+        const remove = menuButton(project.github_storage === 'deleting' ? 'Deleting copy…' : 'Delete Mainbrella copy', () => openStorageDialog(project));
+        remove.classList.add('button-danger');
+        if (!project.github_commit_id) {
+          const note = document.createElement('p');
+          note.className = 'project-storage-note';
+          note.textContent = 'Push code to GitHub before deleting this copy.';
+          panel.append(note);
+          remove.title = note.textContent;
+        }
         storageActions.set(project.id, remove);
-        gitCell.append(remove);
+        panel.append(remove);
       }
-    } else if (project.build_app_id || project.git_version_id) {
-      const code = document.createElement('a');
-      code.className = 'dashboard-retry';
-      code.href = `/projects/code/?${new URLSearchParams({ project: project.id })}`;
-      code.textContent = 'Code';
-      code.setAttribute('aria-label', `Browse source code for ${project.name}`);
-      const connect = githubButton(project);
-      gitCell.append(code, connect);
     } else {
-      const enableGit = document.createElement('button');
-      enableGit.type = 'button';
-      enableGit.className = 'dashboard-retry';
-      enableGit.textContent = 'Enable Git';
-      enableGit.setAttribute('aria-label', `Enable Git for ${project.name}`);
-      enableGit.addEventListener('click', () => {
-        if (busy || disposed) return;
-        openProjectDialog(project); git.checked = true; git.focus();
-      });
-      gitButtons.set(project.id, enableGit);
-      const connect = githubButton(project);
-      gitCell.append(enableGit, connect);
+      if (!hasCode) {
+        const enableGit = menuButton('Enable Git history', () => {
+          openProjectDialog(project); git.checked = true; git.focus();
+        });
+        gitButtons.set(project.id, enableGit);
+        panel.append(enableGit);
+      }
+      const connect = menuButton('Connect GitHub', () => openGitHubDialog(project));
+      githubActions.set(project.id, connect);
+      panel.append(connect);
     }
-    const actions = document.createElement('div');
-    actions.className = 'container-actions';
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.className = 'dashboard-retry';
-    edit.textContent = 'Edit';
-    edit.setAttribute('aria-label', `Edit project ${project.name}`);
-    edit.disabled = busy || disposed;
-    edit.addEventListener('click', () => openProjectDialog(project));
-    editButtons.set(project.id, edit);
-    actions.append(edit);
-    const endpoint = document.createElement('button');
-    endpoint.type = 'button';
-    endpoint.className = 'dashboard-retry';
-    endpoint.textContent = 'Endpoint';
-    endpoint.setAttribute('aria-label', `Manage endpoint for ${project.name}`);
-    endpoint.disabled = busy || disposed;
-    endpoint.addEventListener('click', () => hosting.open(project));
-    endpointButtons.set(project.id, endpoint);
-    actions.append(endpoint);
+    wrapper.append(toggle, panel);
+    actions.append(wrapper);
     const actionCell = document.createElement('td');
     actionCell.className = 'project-actions';
     actionCell.append(actions);
-    row.append(title, projectDomain, previewCell, gitCell, actionCell);
+    row.append(title, projectDomain, previewCell, sourceCell, actionCell);
     list.append(row);
     if (!previews.has(project.id)) refreshPreview(project.id);
     else renderPreview(project.id);
   }
+  restoreProjectFocus(focusedProjectId);
   status.textContent = projects.length ? '' : "You haven't created any projects.";
   clearTimeout(storageRefresh);
-  if (projects.some(project => project.github_storage === 'deleting')) storageRefresh = setTimeout(() => void load(), 5000);
+  if (projects.some(project => project.github_storage === 'deleting')) scheduleStorageRefresh();
+}
+
+function scheduleStorageRefresh() {
+  storageRefresh = setTimeout(() => {
+    if (disposed) return;
+    // Keep menus and in-progress edits stable during background cleanup.
+    if (busy || openActions || dialog.open || githubDialog.open || storageDialog.open) scheduleStorageRefresh();
+    else void load();
+  }, 5000);
 }
 
 function openStorageDialog(project: Project) {
@@ -327,7 +452,7 @@ storageDialog.addEventListener('cancel', event => { if (busy) event.preventDefau
 storageDialog.addEventListener('close', () => {
   const id = deletingStorageProject?.id;
   deletingStorageProject = null;
-  if (!disposed && id) (storageActions.get(id) ?? editButtons.get(id))?.focus();
+  restoreProjectFocus(id);
 });
 storageDelete.addEventListener('click', async () => {
   const project = deletingStorageProject;
@@ -361,21 +486,9 @@ storageDelete.addEventListener('click', async () => {
     busy = false;
     storageStatus.textContent = '';
     controls();
-    if (!disposed && !storageDialog.open) (storageActions.get(project.id) ?? editButtons.get(project.id))?.focus();
+    if (!storageDialog.open) restoreProjectFocus(project.id);
   }
 });
-
-function githubButton(project: Project) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'dashboard-retry';
-  button.textContent = 'Connect GitHub';
-  button.setAttribute('aria-label', `Connect GitHub for ${project.name}`);
-  button.disabled = busy || disposed;
-  button.addEventListener('click', () => openGitHubDialog(project));
-  githubActions.set(project.id, button);
-  return button;
-}
 
 async function openGitHubDialog(project: Project, reauthorize = false, repo = '', branch = 'main') {
   if (disposed || !authenticated) return;
@@ -661,18 +774,20 @@ form.addEventListener('submit', async event => {
     busy = false;
     formStatus.textContent = '';
     controls();
-    if (restoreFocusId && !disposed) editButtons.get(restoreFocusId)?.focus();
+    restoreProjectFocus(restoreFocusId ?? undefined);
   }
 });
 
 retry.addEventListener('click', load);
 dialog.addEventListener('close', () => {
+  const id = editingProject?.id;
   resetProjectDialog();
+  if (id) restoreProjectFocus(id); else if (!disposed) newProject.focus();
   if (refreshOnClose && !disposed) { refreshOnClose = false; load(); }
 });
 githubCancel.addEventListener('click', () => githubDialog.close());
 githubDialog.addEventListener('cancel', event => { if (busy && !githubLoading) event.preventDefault(); });
-githubDialog.addEventListener('close', () => { githubGeneration++; githubLoading = false; controls(); });
+githubDialog.addEventListener('close', () => { githubGeneration++; githubLoading = false; controls(); restoreProjectFocus(githubProject?.id); });
 githubRepo.addEventListener('change', () => {
   githubBranch.value = githubRepositories.find(repo => repo.fullName === githubRepo.value)?.defaultBranch ?? 'main';
   controls();
@@ -743,6 +858,7 @@ githubForm.addEventListener('submit', async event => {
   } finally {
     busy = false;
     controls();
+    if (!githubDialog.open) restoreProjectFocus(githubProject?.id);
   }
 });
 window.addEventListener('auth-change', event => { if (event.detail?.user === null) goToLogin(); });

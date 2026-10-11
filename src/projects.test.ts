@@ -13,13 +13,21 @@ class Element {
   children: Element[] = [];
   listeners = new Map<string, (event: any) => unknown>();
   attributes = new Map<string, string>();
-  classList = { add() {}, remove() {} };
+  style: Record<string, string> = {};
+  offsetWidth = 288;
+  offsetHeight = 360;
+  classList = { add: (name: string) => { this.className = `${this.className || ''} ${name}`.trim(); }, remove() {} };
+  getBoundingClientRect() { return { top: 320, right: 1000, bottom: 364 }; }
+  contains(node: Element | null): boolean { return node === this || this.children.some(child => child.contains(node)); }
+  querySelector(selector: string): Element | null { return this.querySelectorAll(selector)[0] ?? null; }
+  querySelectorAll(selector: string): Element[] { return this.children.flatMap(child => [...(child.tagName === 'button' && !child.disabled && selector.startsWith('button') ? [child] : []), ...child.querySelectorAll(selector)]); }
   addEventListener(type: string, callback: (event: any) => unknown) { this.listeners.set(type, callback); }
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
+  removeAttribute(key: string) { this.attributes.delete(key); }
   append(...children: Element[]) { this.children.push(...children); }
   replaceChildren(...children: Element[]) { this.children = children; }
   reportValidity() { return true; }
-  focus() { if (!this.disabled) this.focused = true; }
+  focus() { if (!this.disabled) { this.focused = true; (document as any).activeElement = this; } }
   showModal() { this.open = true; }
   close() { this.open = false; void this.fire('close'); }
   async fire(type: string, event: any = { preventDefault() {} }) { return this.listeners.get(type)?.(event); }
@@ -49,6 +57,7 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
     localStorage: { getItem: () => 'accepted', setItem() {} },
     sessionStorage: { getItem: () => 'accepted', setItem() {} },
     location: { hostname: 'localhost', pathname: '/projects/', search, hash: '', replace: (url: string) => redirects.push(url) },
+    innerWidth: 1280, innerHeight: 800,
     history: { replaceState: (_state: unknown, _title: string, url: string) => history.push(url) },
     addEventListener(type: string, callback: (event: any) => unknown) { events.set(type, callback); }, dispatchEvent() {},
   };
@@ -59,7 +68,8 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   };
   property('window', window);
   property('location', window.location);
-  property('document', { querySelector: node, createElement: () => { const element = new Element(); created.push(element); return element; } });
+  const documentEvents = new Map<string, (event: any) => unknown>();
+  property('document', { querySelector: node, addEventListener: (type: string, callback: (event: any) => unknown) => documentEvents.set(type, callback), createElement: (tag: string) => { const element = new Element(); element.tagName = tag; created.push(element); return element; } });
   property('fetch', async (url: string, options: RequestInit) => {
     calls.push({ url, options });
     return respond(url, options);
@@ -67,7 +77,7 @@ async function fixture(t: TestContext, respond: (url: string, options: RequestIn
   await import(`./projects.ts?test=${++sequence}`);
   const flush = async () => { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); };
   await flush();
-  return { node: (selector: string) => node(selector), calls, redirects, history, flush, created };
+  return { node: (selector: string) => node(selector), calls, redirects, history, flush, created, documentEvents, events, window };
 }
 
 function defaultResponse(url: string, options: RequestInit) {
@@ -84,8 +94,23 @@ function defaultResponse(url: string, options: RequestInit) {
   return Response.json({ project: { id: 'project-3', ...JSON.parse(String(options.body)), created_at: '2026-01-03T00:00:00Z' } }, { status: 201 });
 }
 
-function editButton(f: Awaited<ReturnType<typeof fixture>>, index: number) {
-  return f.node('#project-list').children[index].children[4].children[0].children[0];
+type Fixture = Awaited<ReturnType<typeof fixture>>;
+function descendants(element: Element): Element[] {
+  return element.children.flatMap(child => [child, ...descendants(child)]);
+}
+function projectAction(f: Fixture, label: string, index = 0) {
+  return descendants(f.node('#project-list').children[index]).find(child => child.textContent === label && child.tagName === 'button')!;
+}
+function manageButton(f: Fixture, index = 0) { return projectAction(f, 'Manage', index); }
+function editButton(f: Fixture, index: number) { return projectAction(f, 'Edit details', index); }
+function codeLink(f: Fixture, index = 0) {
+  return descendants(f.node('#project-list').children[index]).find(child => child.textContent === 'Code')!;
+}
+function menuPanel(f: Fixture, index = 0) {
+  return descendants(f.node('#project-list').children[index]).find(child => child.className === 'project-menu-panel')!;
+}
+function menuText(f: Fixture, className: string) {
+  return descendants(menuPanel(f)).find(child => child.className === className)?.textContent;
 }
 
 test('shared dialog creates and edits projects, preserves order, and resets its mode', async t => {
@@ -115,7 +140,7 @@ test('shared dialog creates and edits projects, preserves order, and resets its 
   assert.deepEqual(JSON.parse(String(createdCall.options.body)), { name: 'Third project', domain: 'third.example' });
   assert.equal(f.node('#project-list').children[0].children[0].textContent, 'Third project');
   assert.equal(f.node('#project-list').children[0].children[1].textContent, 'third.example');
-  assert.equal(editButton(f, 0).focused, true);
+  assert.equal(manageButton(f, 0).focused, true);
 
   await editButton(f, 1).fire('click');
   assert.equal(name.value, 'First project');
@@ -133,7 +158,7 @@ test('shared dialog creates and edits projects, preserves order, and resets its 
   assert.equal(rows[1].children[0].textContent, 'Renamed project');
   assert.equal(rows[1].children[1].textContent, '—');
   assert.equal(rows[2].children[0].textContent, 'Second project');
-  assert.equal(editButton(f, 1).focused, true);
+  assert.equal(manageButton(f, 1).focused, true);
   assert.equal(title.textContent, 'New project');
   assert.equal(name.value, '');
   assert.equal(domain.value, '');
@@ -281,18 +306,18 @@ test('Builder projects link to their workspace and Git stays optional for standa
   });
   const rows = f.node('#project-list').children;
   assert.equal(rows[0].children[0].children[0].href, '/build/?app=project-1');
-  assert.equal(rows[0].children[3].children[0].textContent, 'Code');
-  assert.equal(rows[0].children[3].children[0].href, '/projects/code/?project=project-1');
+  assert.equal(codeLink(f).textContent, 'Code');
+  assert.equal(codeLink(f).href, '/projects/code/?project=project-1');
   await editButton(f, 0).fire('click');
   assert.equal(f.node('#project-git-option').hidden, true);
   await f.node('#project-cancel').fire('click');
-  await rows[1].children[3].children[0].fire('click');
+  await projectAction(f, 'Enable Git history', 1).fire('click');
   assert.equal(f.node('#project-git-option').hidden, false);
   assert.equal(f.node('#project-git').checked, true);
   await f.node('#project-form').fire('submit');
   const update = f.calls.find(call => call.options.method === 'PATCH')!;
   assert.deepEqual(JSON.parse(String(update.options.body)), { name: 'Second project', domain: null, git: true });
-  assert.equal(f.node('#project-list').children[1].children[3].children[0].textContent, 'Code');
+  assert.equal(codeLink(f, 1).textContent, 'Code');
   await f.node('#project-new').fire('click');
   assert.equal(f.node('#project-git').checked, false);
   f.node('#project-name').value = 'Optional Git';
@@ -312,7 +337,7 @@ test('projects with Git code and no Builder link still expose a standalone Code 
   const row = f.node('#project-list').children[0];
   assert.equal(row.children[0].textContent, originalProject.name);
   assert.equal(row.children[0].children.length, 0);
-  const code = row.children[3].children[0];
+  const code = codeLink(f);
   assert.equal(code.textContent, 'Code');
   assert.equal(code.href, '/projects/code/?project=project-1');
   assert.equal(code.attributes.get('aria-label'), 'Browse source code for First project');
@@ -324,8 +349,7 @@ test('projects with Git code and no Builder link still expose a standalone Code 
 test('GitHub installation starts without a repository URL or branch', async t => {
   const f = await fixture(t, (url, options) => new URL(url).pathname === '/github/build/repositories'
     ? Response.json({ error: 'github_connection_required' }, { status: 400 }) : defaultResponse(url, options));
-  const cell = f.node('#project-list').children[0].children[3];
-  const connect = cell.children.find(child => child.textContent === 'Connect GitHub')!;
+  const connect = projectAction(f, 'Connect GitHub');
   await connect.fire('click');
   assert.equal(f.node('#github-dialog').open, true);
   assert.equal(f.node('#github-branch').value, 'main');
@@ -369,14 +393,14 @@ test('OAuth return requires an explicit final link and refreshes the row after s
   assert.equal(link.options.method, 'PUT');
   assert.deepEqual(JSON.parse(String(link.options.body)), { repo: 'owner/repo', branch: 'main' });
   const gitCell = f.node('#project-list').children[0].children[3];
-  assert.equal(gitCell.children[0].textContent, 'owner/repo');
+  assert.equal(gitCell.children[0].children[0].textContent, 'owner/repo');
   assert.equal(gitCell.children[0].href, 'https://github.com/owner/repo');
-  assert.equal(gitCell.children[1].textContent, 'Code');
-  assert.match(gitCell.children[2].textContent, /^GitHub · connected · main/);
-  assert.equal(gitCell.children[3].textContent, 'Reconnect access');
+  assert.equal(codeLink(f).textContent, 'Code');
+  assert.equal(gitCell.children[0].children[1].textContent, 'GitHub · main');
+  assert.equal(projectAction(f, 'Reconnect GitHub access').textContent, 'Reconnect GitHub access');
   assert.equal(linkedProject.git_version_id, null);
   assert.ok(f.calls.filter(call => new URL(call.url).pathname === '/projects' && call.options.method === 'GET').length >= 2);
-  await gitCell.children[3].fire('click');
+  await projectAction(f, 'Reconnect GitHub access').fire('click');
   assert.equal(f.node('#github-picker').hidden, true);
   assert.equal(f.node('#github-submit').textContent, 'Install GitHub app');
 });
@@ -394,16 +418,15 @@ test('editing a GitHub project makes retained Mainbrella storage charges clear',
 
 const linkedProject = { ...originalProject, build_app_id: originalProject.id, github_repo: 'owner/repo', github_branch: 'main', github_commit_id: 'a'.repeat(40), github_storage: 'retained' };
 function storageButton(f: Awaited<ReturnType<typeof fixture>>) {
-  return f.node('#project-list').children[0].children[3].children.find(child => child.textContent === 'Delete Mainbrella copy')!;
+  return projectAction(f, 'Delete Mainbrella copy');
 }
 
 test('linked projects show both copies and require explicit confirmation to delete Mainbrella storage', async t => {
   const f = await fixture(t, (url, options) => new URL(url).pathname === '/projects' && options.method === 'GET'
     ? Response.json({ projects: [linkedProject] }) : defaultResponse(url, options));
-  const cell = f.node('#project-list').children[0].children[3];
-  assert.equal(cell.children[2].textContent, 'GitHub · connected · main · aaaaaaa');
-  assert.equal(cell.children[4].textContent, 'Mainbrella copy · stored');
-  assert.match(cell.children[5].textContent, /storage charges/);
+  assert.equal(menuText(f, 'project-menu-detail'), 'main · aaaaaaa');
+  assert.equal(menuText(f, 'project-storage-state'), 'Mainbrella copy · stored');
+  assert.match(menuText(f, 'project-storage-note')!, /storage charges/);
   assert.match(storageButton(f).className, /button-danger/);
   await storageButton(f).fire('click');
   assert.equal(f.node('#project-storage-dialog').open, true);
@@ -412,7 +435,7 @@ test('linked projects show both copies and require explicit confirmation to dele
   assert.equal(f.node('#project-storage-cancel').focused, true);
   await f.node('#project-storage-cancel').fire('click');
   assert.equal(f.calls.some(call => call.options.method === 'DELETE'), false);
-  assert.equal(storageButton(f).focused, true);
+  assert.equal(manageButton(f).focused, true);
 });
 
 test('confirmed deletion locks controls and preserves the project’s Builder and GitHub links', async t => {
@@ -439,7 +462,7 @@ test('confirmed deletion locks controls and preserves the project’s Builder an
   const row = f.node('#project-list').children[0];
   assert.equal(row.children[0].children[0].href, '/build/?app=project-1');
   assert.equal(row.children[3].children[0].href, 'https://github.com/owner/repo');
-  assert.equal(row.children[3].children[4].textContent, 'Mainbrella copy · deleted');
+  assert.equal(menuText(f, 'project-storage-state'), 'Mainbrella copy · deleted');
   assert.equal(storageButton(f), undefined);
   assert.match(f.node('#projects-status').textContent, /stays in Builder/);
 });
@@ -467,9 +490,10 @@ test('queued cleanup stays visible without claiming storage billing has stopped'
   await storageButton(f).fire('click');
   await f.node('#project-storage-delete').fire('click');
   const cell = f.node('#project-list').children[0].children[3];
-  assert.equal(cell.children[4].textContent, 'Mainbrella copy · deleting…');
-  assert.equal(cell.children[5].textContent, 'Storage charges stop once cleanup finishes.');
-  assert.equal(cell.children.find(child => child.textContent === 'Deleting copy…')!.disabled, true);
+  assert.equal(cell.children[1].textContent, 'Storage cleanup pending');
+  assert.equal(menuText(f, 'project-storage-state'), 'Mainbrella copy · deleting…');
+  assert.equal(menuText(f, 'project-storage-note'), 'Storage charges stop once cleanup finishes.');
+  assert.equal(projectAction(f, 'Deleting copy…').disabled, true);
   assert.match(f.node('#projects-status').textContent, /retry automatically/);
 });
 
@@ -497,7 +521,7 @@ test('connected users pick authorized repositories and their default branch with
       { id: 1, fullName: 'personal/site', defaultBranch: 'main', private: true },
       { id: 2, fullName: 'organization/website', defaultBranch: 'master', private: false },
     ], nextCursor: null }) : defaultResponse(url, options));
-  await f.node('#project-list').children[0].children[3].children.find(child => child.textContent === 'Connect GitHub')!.fire('click');
+  await projectAction(f, 'Connect GitHub').fire('click');
   assert.equal(f.node('#github-repo').value, '');
   assert.equal(f.node('#github-submit').disabled, true);
   f.node('#github-repo').value = 'organization/website';
@@ -541,7 +565,7 @@ test('closing the picker ignores a pending private repository response', async t
   let resolve!: (response: Response) => void;
   const pending = new Promise<Response>(done => { resolve = done; });
   const f = await fixture(t, (url, options) => new URL(url).pathname === '/github/build/repositories' ? pending : defaultResponse(url, options));
-  const opening = f.node('#project-list').children[0].children[3].children.find(child => child.textContent === 'Connect GitHub')!.fire('click');
+  const opening = projectAction(f, 'Connect GitHub').fire('click');
   assert.equal(f.node('#github-cancel').disabled, false);
   await f.node('#github-cancel').fire('click');
   resolve(Response.json({ repositories: [{ id: 1, fullName: 'private/secret', defaultBranch: 'main' }], nextCursor: null }));
@@ -559,4 +583,68 @@ test('reconnect return verifies write access before reporting success', async t 
   assert.equal(f.node('#github-dialog').open, true);
   assert.match(f.node('#github-error').textContent, /write access/);
   assert.notEqual(f.node('#projects-status').textContent, 'GitHub access updated.');
+});
+
+
+test('Manage isolates each project’s actions, closes on dismissal, and restores focus', async t => {
+  const f = await fixture(t);
+  const first = manageButton(f);
+  const second = manageButton(f, 1);
+  const firstPanel = menuPanel(f);
+  const secondPanel = menuPanel(f, 1);
+  assert.equal(firstPanel.hidden, true);
+  assert.equal(first.attributes.get('aria-expanded'), 'false');
+  assert.equal(first.attributes.get('aria-controls'), firstPanel.id);
+  assert.equal(f.calls.some(call => new URL(call.url).pathname === '/github/build/repositories'), false);
+  await first.fire('click');
+  assert.equal(firstPanel.hidden, false);
+  assert.equal(first.attributes.get('aria-expanded'), 'true');
+  assert.equal(secondPanel.hidden, true);
+  await second.fire('click');
+  assert.equal(firstPanel.hidden, true);
+  assert.equal(first.attributes.get('aria-expanded'), 'false');
+  assert.equal(secondPanel.hidden, false);
+  f.documentEvents.get('keydown')!({ key: 'Escape', preventDefault() {} });
+  assert.equal(secondPanel.hidden, true);
+  assert.equal((document as any).activeElement, second);
+  await first.fire('click');
+  f.documentEvents.get('click')!({ target: f.node('#main') });
+  assert.equal(firstPanel.hidden, true);
+  await second.fire('click');
+  await editButton(f, 1).fire('click');
+  assert.equal(secondPanel.hidden, true);
+  assert.equal(f.node('#project-name').value, 'Second project');
+  await f.node('#project-cancel').fire('click');
+  assert.equal((document as any).activeElement, second);
+});
+
+test('keyboard navigation reaches management actions and skips unavailable storage deletion', async t => {
+  const f = await fixture(t, (url, options) => new URL(url).pathname === '/projects' && options.method === 'GET'
+    ? Response.json({ projects: [{ ...linkedProject, github_commit_id: null }] }) : defaultResponse(url, options));
+  const toggle = manageButton(f);
+  const panel = menuPanel(f);
+  await toggle.fire('keydown', { key: 'ArrowDown', preventDefault() {} });
+  assert.equal(panel.hidden, false);
+  assert.equal((document as any).activeElement, editButton(f, 0));
+  await panel.fire('keydown', { key: 'ArrowDown', preventDefault() {} });
+  assert.equal((document as any).activeElement, projectAction(f, 'Hosting & domains'));
+  await panel.fire('keydown', { key: 'End', preventDefault() {} });
+  assert.equal((document as any).activeElement, projectAction(f, 'Reconnect GitHub access'));
+  assert.equal(storageButton(f).disabled, true);
+  await storageButton(f).fire('click');
+  assert.equal(f.node('#project-storage-dialog').open, undefined);
+  await panel.fire('keydown', { key: 'ArrowDown', preventDefault() {} });
+  assert.equal((document as any).activeElement, editButton(f, 0));
+});
+
+test('opening Hosting from Manage targets that project and returns focus to its visible trigger', async t => {
+  const f = await fixture(t);
+  await manageButton(f, 1).fire('click');
+  await projectAction(f, 'Hosting & domains', 1).fire('click');
+  await f.flush();
+  assert.equal(menuPanel(f, 1).hidden, true);
+  assert.equal(f.node('#endpoint-dialog').open, true);
+  assert.equal(f.node('#endpoint-title').textContent, 'Endpoint · Second project');
+  await f.node('#endpoint-close').fire('click');
+  assert.equal((document as any).activeElement, manageButton(f, 1));
 });
