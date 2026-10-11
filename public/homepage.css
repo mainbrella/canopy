@@ -1,6 +1,9 @@
-/* Keep the new visual treatment within the homepage header and first section. */
+/* Carry the homepage's navy surfaces and blue accent through every section. */
+.home-build-page { --paper: #0c131a; --surface: #101922; --muted: #a6b5c7; --line: #253544; --blue: #3fb5ff; --button-blue: #087ef0; background: var(--paper); }
+.home-build-page .button { border-radius: 8px; }
+.home-build-page .button:hover { background: #096fd3; }
 .home-build-page > .site-header,
-.build-hero { --blue: #3fb5ff; --button-blue: #087ef0; background: #0c131a; }
+.build-hero { background: var(--paper); }
 .home-build-page > .site-header { max-width: none; padding: 24px max(32px, calc((100% - 1312px) / 2)); }
 .home-build-page > .site-header .brand { gap: 14px; }
 .home-build-page > .site-header .brand img { width: 52px; height: 52px; }
@@ -50,7 +53,84 @@
 .home-build-steps h3 { font-size: 14px; font-weight: 500; line-height: 1.4; letter-spacing: 0; }
 .home-build-steps p { margin-top: 2px; color: #a2b2c5; font-size: 12px; line-height: 1.5; }
 
+/* Shared columns keep the technical content aligned with the feature strip. */
+.home-build-page main > .wrap, .home-build-page > .site-footer { max-width: 1312px; }
+.home-section { padding-top: 56px; padding-bottom: 56px; }
+.home-section + .home-section { border-top: 1px solid var(--line); }
+.home-section-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 80px; }
+.home-section h2 { font-size: 30px; line-height: 1.3; letter-spacing: -.02em; }
+.home-section-intro > p { max-width: 38ch; margin-top: 12px; color: var(--muted); font-size: 15px; }
+.home-section-intro > .text-link { margin-top: 16px; }
+.home-section a:not(.button):hover { color: #8bd3ff; }
+.home-section :is(p, code, a) { overflow-wrap: anywhere; }
+.home-section p a { color: var(--blue); text-decoration: underline; text-underline-offset: 4px; }
+.home-section .text-link { gap: 10px; }
+.home-section a > span[aria-hidden] { display: inline-block; transition: transform 180ms ease; }
+.home-section a:hover > span[aria-hidden] { transform: translateX(3px); }
+
+.home-tools { margin: 0; padding: 0; list-style: none; }
+.home-tools > li { display: flex; align-items: flex-start; gap: 20px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+.home-tools > li:first-child { padding-top: 0; }
+.home-tools .home-feature-icon { margin-top: 2px; }
+.home-tools h3 { font-size: 17px; letter-spacing: 0; }
+.home-tools h3 a { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; margin-top: -10px; }
+.home-tools h3 a span { color: var(--blue); font-weight: 400; }
+.home-tools p { max-width: 68ch; margin-top: 2px; color: var(--muted); font-size: 15px; }
+.home-section :is(.home-private-services, .purchase-questions, .agent-instructions) summary { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 16px 0; cursor: pointer; list-style: none; font-size: 15px; font-weight: 500; }
+.home-section summary::-webkit-details-marker { display: none; }
+.home-section :is(.home-private-services, .purchase-questions, .agent-instructions) summary::after { content: ''; flex-shrink: 0; width: 8px; height: 8px; margin-left: auto; margin-right: 4px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); transition: transform 180ms ease, border-color 180ms ease; }
+.home-section :is(.home-private-services, .purchase-questions, .agent-instructions) summary:hover { color: var(--blue); }
+.home-section details[open] > summary::after { transform: rotate(225deg); border-color: var(--blue); }
+.home-private-services summary span { color: var(--muted); font-size: 12px; font-weight: 400; }
+.home-private-services p { padding-bottom: 8px; color: var(--muted); font-size: 14px; }
+.home-private-services code { color: var(--ink); font-size: 13px; }
+
+/* Reuse the shared setup instructions without another full-width section. */
+.home-workflow > .agent-setup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); gap: 0 80px; max-width: none; margin-top: 32px; padding: 32px 0 0; border-top: 1px solid var(--line); }
+.home-workflow .agent-setup .section-heading { grid-row: 1 / span 3; align-items: flex-start; margin: 0; }
+.home-workflow .agent-setup h2 { font-size: 22px; }
+.home-workflow .agent-setup .section-heading p { max-width: 38ch; margin-top: 8px; font-size: 15px; }
+.home-workflow .agent-instructions { min-width: 0; max-width: none; border-bottom: 1px solid var(--line); }
+.home-workflow .agent-instructions > summary { padding-top: 0; min-height: 44px; }
+.home-workflow #copy-agent-setup { margin: 4px 0 20px; }
+.home-workflow #agent-instructions { padding-bottom: 24px; }
+.home-workflow .agent-instructions p { font-size: 14px; }
+.home-workflow .agent-setup-links { gap: 4px 24px; margin-top: 8px; }
+.home-workflow .agent-setup-links .text-link { font-size: 14px; }
+.home-workflow .agent-setup-links [role="status"]:empty { display: none; }
+.home-workflow .agent-setup-links [role="status"] { flex-basis: 100%; font-size: 13px; }
+.home-workflow .agent-setup .recipe-links { gap: 4px 24px; margin-top: 0; }
+
+.home-section-intro > .home-compute-rate { margin-top: 24px; color: var(--blue); font-size: 48px; font-weight: 600; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.home-compute-rate span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; font-weight: 400; line-height: 1.6; letter-spacing: 0; }
+.home-section-intro > .home-minimum { margin-top: 12px; color: var(--ink); font-size: 14px; }
+.home-pricing .button { gap: 12px; margin-top: 20px; }
+.home-pricing .button { background: #096fd3; }
+.home-pricing .button:hover { background: #0862bb; }
+.home-section-intro > .home-pricing-terms { max-width: 30ch; margin-top: 16px; font-size: 12px; }
+.home-compute-limits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; margin: 0; }
+.home-compute-limits > div { min-width: 0; }
+.home-compute-limits dt { color: var(--muted); font-size: 13px; }
+.home-compute-limits dd { margin: 4px 0 0; font-size: 20px; font-weight: 500; line-height: 1.5; letter-spacing: -.01em; }
+.home-compute-limits dd span { display: block; color: var(--muted); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+.home-pricing .home-limits-link { margin-top: 16px; font-size: 14px; }
+.home-pricing .purchase-questions { margin-top: 20px; border-top: 1px solid var(--line); }
+.home-pricing .purchase-questions p { padding-bottom: 20px; font-size: 14px; }
+
+.home-security-details > p { max-width: 68ch; color: var(--muted); font-size: 15px; }
+.home-security-details > p + p { margin-top: 16px; }
+.home-security-details .recipe-links { gap: 4px 24px; margin-top: 12px; }
+.home-resources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 80px; }
+.home-resources h2 { font-size: 22px; }
+.home-reading p { max-width: 48ch; margin-top: 12px; color: var(--muted); font-size: 15px; }
+.home-update p { margin-top: 12px; color: var(--muted); font-size: 13px; }
+.home-update-link { display: flex; align-items: center; gap: 12px; max-width: 48ch; min-height: 44px; padding: 8px 0; font-size: 15px; }
+.home-update-link span { flex-shrink: 0; color: var(--blue); }
+.home-build-page > .site-footer { padding-top: 32px; }
+
 @media (max-width: 1100px) {
+  .home-section-layout, .home-workflow > .agent-setup { gap: 0 40px; }
+  .home-resources { gap: 40px; }
   .home-features > li { gap: 12px; padding: 16px 12px; }
   .home-feature-icon { width: 36px; height: 36px; }
   .home-features h3 { font-size: 14px; }
@@ -61,6 +141,17 @@
   .home-build-steps p { max-width: 15ch; }
 }
 @media (max-width: 900px) {
+  .home-section { padding-top: 40px; padding-bottom: 40px; }
+  .home-section h2 { font-size: 26px; }
+  .home-section-layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .home-section-intro > p { max-width: 60ch; }
+  .home-section-intro > .text-link { margin-top: 8px; }
+  .home-workflow > .agent-setup { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .home-workflow .agent-setup .section-heading { grid-row: auto; }
+  .home-workflow .agent-setup .section-heading p { max-width: 60ch; }
+  .home-workflow .agent-setup-links { margin-top: -12px; }
+  .home-workflow .agent-setup .recipe-links { margin-top: -20px; }
+  .home-resources { gap: 32px; }
   .home-build-page > .site-header { gap: 16px; padding: 20px 32px; }
   .home-build-page > .site-header nav { width: auto; gap: 16px; }
   .home-build-page > .site-header .brand img { width: 44px; height: 44px; }
@@ -77,6 +168,27 @@
   .home-build-steps p { max-width: none; }
 }
 @media (max-width: 700px) {
+  .home-section { padding-top: 32px; padding-bottom: 32px; }
+  .home-section h2 { font-size: 24px; }
+  .home-section-layout { gap: 24px; }
+  .home-section-intro > p { font-size: 14px; }
+  .home-tools > li { gap: 16px; padding-top: 20px; padding-bottom: 20px; }
+  .home-tools .home-feature-icon { width: 36px; height: 36px; }
+  .home-tools h3 { font-size: 16px; }
+  .home-tools p { font-size: 14px; }
+  .home-private-services summary { flex-wrap: wrap; gap: 2px 12px; }
+  .home-private-services summary span { order: 1; flex-basis: 100%; }
+  .home-workflow > .agent-setup { margin-top: 24px; padding-top: 24px; gap: 16px; }
+  .home-workflow .agent-setup h2, .home-resources h2 { font-size: 21px; }
+  .home-workflow .agent-setup .section-heading p { font-size: 14px; }
+  .home-workflow .agent-setup-links { gap: 0 20px; margin-top: -8px; }
+  .home-workflow .agent-setup .recipe-links { gap: 0 20px; margin-top: -16px; }
+  .home-compute-limits { gap: 20px 24px; }
+  .home-compute-limits dd { font-size: 18px; }
+  .home-compute-limits dd span { font-size: 12px; }
+  .home-security-details > p, .home-reading p { font-size: 14px; }
+  .home-resources { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .home-update-link { font-size: 14px; }
   .home-build-page > .site-header { flex-wrap: nowrap; gap: 12px; padding: 16px 24px; }
   .home-build-page > .site-header .brand { gap: 8px; }
   .home-build-page > .site-header .brand img { width: 32px; height: 32px; }
