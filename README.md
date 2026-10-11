@@ -21,14 +21,14 @@ npm run deploy    # Build, then deploy dist/ with Wrangler
 ```
 
 Run `npm run dev` in `../backend` for local authentication, `GET /admin/users`,
-and the accounting ledger and acquisition endpoints.
+and the accounting ledger, acquisition, and email endpoints.
 The backend must have its database migrations and auth configuration in place.
 Local requests default to `http://localhost:8787`; production requests default
 to `https://api.mainbrella.com`.
 
 Override these defaults with `VITE_API_URL` and `VITE_GOOGLE_CLIENT_ID` if needed.
 The authenticated navigation includes Users at `/users`, Ledger at `/ledger`,
-and Acquisition Review at `/acquisition`. All paths can be loaded directly,
+Acquisition Review at `/acquisition`, and Email at `/email`. All paths can be loaded directly,
 including in the static production build. The ledger shows entries
 by creation time (`recorded_at` descending, then sequence descending), 100 entries
 per page, using a fixed `throughSequence` snapshot across pages; Refresh starts a
@@ -45,6 +45,15 @@ the applied filters. Expand View data for full attribution and event payloads,
 including signed paid-compute corrections. The backend must have migrations
 `021_acquisition.sql` and `022_acquisition_sources.sql` applied and
 `ACQUISITION_ENABLED=true`.
+
+Email provides From, To, Subject, and plain-text Message fields and sends
+`POST /api/send-marketing-email` with `{ from, to, subj, message }` using the admin
+session cookie. From accepts a bare address or `Name <address>` from a domain
+onboarded to Cloudflare Email Sending. The backend adds its Mainbrella header
+and footer. A successful response confirms acceptance for sending, not inbox
+delivery. Failed sends preserve the draft; successful sends keep From and clear
+the other fields. The backend needs its `MARKETING_EMAIL` binding; local Wrangler
+development simulates sending.
 
 Google sign-in also requires the admin origin (`https://raindrop.mainbrella.com`,
 or `http://localhost:5174` for development) in the existing Google OAuth client's

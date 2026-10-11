@@ -23,6 +23,7 @@
         <a href="/users" data-admin-route="users">Users</a>
         <a href="/ledger" data-admin-route="ledger">Ledger</a>
         <a href="/acquisition" data-admin-route="acquisition">Acquisition Review</a>
+        <a href="/email" data-admin-route="email">Email</a>
       </nav>
       <main id="main" tabindex="-1">
         <section class="login-content" aria-labelledby="login-title" aria-busy="true">
@@ -122,6 +123,28 @@
               <tbody class="acquisition-rows"></tbody>
             </table>
           </div>
+        </section>
+        <section class="email-content" aria-labelledby="email-title" hidden>
+          <h1 id="email-title" tabindex="-1">Email</h1>
+          <form class="email-send-form">
+            <fieldset class="email-fields">
+              <label for="email-from">From
+                <input id="email-from" name="from" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="512" placeholder="Name &lt;name@mainbrella.com&gt;" required />
+              </label>
+              <label for="email-to">To
+                <input id="email-to" name="to" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="254" required />
+              </label>
+              <label for="email-subj">Subject
+                <input id="email-subj" name="subj" type="text" maxlength="998" required />
+              </label>
+              <label for="email-message">Message
+                <textarea id="email-message" name="message" rows="10" maxlength="100000" required></textarea>
+              </label>
+              <button class="primary email-send-submit" type="submit">Send email</button>
+            </fieldset>
+            <p class="email-status" role="status"></p>
+            <div class="email-error users-error" role="alert" hidden></div>
+          </form>
         </section>
       </main>
     </div>

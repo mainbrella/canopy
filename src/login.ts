@@ -1,6 +1,7 @@
 import { createAuthClient, GOOGLE_CLIENT_ID, API_ORIGIN } from './auth.ts';
 import { createLedgerView } from './ledger.ts';
 import { createAcquisitionView } from './acquisition.ts';
+import { createEmailView } from './email.ts';
 import type { AdminUser, User } from './types.ts';
 
 const auth = createAuthClient();
@@ -48,6 +49,10 @@ const acquisitionPage = requiredElement<HTMLElement>('.acquisition-content');
 const acquisitionTitle = requiredElement<HTMLHeadingElement>('#acquisition-title');
 const acquisitionStatus = requiredElement<HTMLElement>('.acquisition-status');
 const acquisitionError = requiredElement<HTMLElement>('.acquisition-error');
+const emailPage = requiredElement<HTMLElement>('.email-content');
+const emailTitle = requiredElement<HTMLHeadingElement>('#email-title');
+const emailStatus = requiredElement<HTMLElement>('.email-status');
+const emailError = requiredElement<HTMLElement>('.email-error');
 const ADMIN_EMAIL = 'oneone@gmail.com';
 const signInPrompt = 'Continue with Google or email and password.';
 
@@ -73,9 +78,20 @@ const acquisition = createAcquisitionView({
   eventFilter: requiredElement<HTMLElement>('.acquisition-event-filter'),
 }, () => isAdmin() && !signingOut, handleAdminAuthFailure);
 
+const email = createEmailView({
+  form: requiredElement<HTMLFormElement>('.email-send-form'),
+  fields: requiredElement<HTMLFieldSetElement>('.email-fields'),
+  from: requiredElement<HTMLInputElement>('#email-from'),
+  to: requiredElement<HTMLInputElement>('#email-to'),
+  subj: requiredElement<HTMLInputElement>('#email-subj'),
+  message: requiredElement<HTMLTextAreaElement>('#email-message'),
+  submit: requiredElement<HTMLButtonElement>('.email-send-submit'),
+  status: emailStatus, error: emailError,
+}, () => isAdmin() && !signingOut, handleAdminAuthFailure);
+
 function currentAdminRoute() {
   const path = location.pathname.replace(/\/$/, '');
-  return path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
+  return path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
 }
 
 function isAdmin() {
@@ -119,6 +135,7 @@ async function showCurrentState() {
   usersRequest++;
   ledger.setActive(false);
   acquisition.setActive(false);
+  email.setActive(false);
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
   for (const link of adminNav.querySelectorAll<HTMLAnchorElement>('a[data-admin-route]')) link.removeAttribute('aria-current');
@@ -128,6 +145,7 @@ async function showCurrentState() {
   usersPage.hidden = true;
   ledgerPage.hidden = true;
   acquisitionPage.hidden = true;
+  emailPage.hidden = true;
   page.hidden = false;
   loginTitle.textContent = 'Log in';
   clearError();
@@ -150,11 +168,14 @@ async function showCurrentState() {
 function showAccessDenied() {
   ledger.setActive(false);
   acquisition.setActive(false);
+  email.setActive(false);
+  email.clear();
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
   usersPage.hidden = true;
   ledgerPage.hidden = true;
   acquisitionPage.hidden = true;
+  emailPage.hidden = true;
   usersRows.replaceChildren();
   usersTable.hidden = true;
   page.hidden = false;
@@ -179,14 +200,16 @@ function showAdminRoute() {
   usersPage.hidden = route !== 'users';
   ledgerPage.hidden = route !== 'ledger';
   acquisitionPage.hidden = route !== 'acquisition';
+  emailPage.hidden = route !== 'email';
   ledger.setActive(route === 'ledger');
   acquisition.setActive(route === 'acquisition');
+  email.setActive(route === 'email');
   if (route === 'users') {
     usersTitle.focus({ preventScroll: true });
     void loadUsers();
   } else {
     usersRequest++;
-    (route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
+    (route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
   }
 }
 
@@ -204,7 +227,7 @@ adminNav.addEventListener('click', (event) => {
   const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-admin-route]') : null;
   if (!target || target.origin !== location.origin || target.target || target.hasAttribute('download')) return;
   const route = target.dataset.adminRoute;
-  if (route !== 'users' && route !== 'ledger' && route !== 'acquisition') return;
+  if (route !== 'users' && route !== 'ledger' && route !== 'acquisition' && route !== 'email') return;
   event.preventDefault();
   const nextPath = `/${route}`;
   const currentRoute = currentAdminRoute();
@@ -370,16 +393,18 @@ signOutButton.addEventListener('click', async () => {
   usersRequest++;
   ledger.setActive(false);
   acquisition.setActive(false);
+  email.setActive(false);
   signOutButton.disabled = true;
   page.setAttribute('aria-busy', 'true');
   const currentStatus = page.hidden ? usersStatus : status;
-  const currentPageStatus = !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
+  const currentPageStatus = !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
   currentPageStatus.textContent = 'Signing out…';
   clearError();
   let restoreAdminRoute = false;
   let signOutError: unknown;
   try {
     await auth.signOut();
+    email.clear();
     user = null;
     await showCurrentState();
     emailInput.focus();
@@ -406,12 +431,13 @@ googleRetry.addEventListener('click', () => {
 
 window.addEventListener('auth-change', (event) => {
   if (event.detail?.user !== null || !user || signingOut) return;
+  email.clear();
   user = null;
   showCurrentState();
 });
 
 function showError(cause: unknown) {
-  const target = page.hidden ? (!acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
+  const target = page.hidden ? (!emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
   target.textContent = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
   target.hidden = false;
 }
@@ -425,6 +451,8 @@ function clearError() {
   ledgerError.hidden = true;
   acquisitionError.textContent = '';
   acquisitionError.hidden = true;
+  emailError.textContent = '';
+  emailError.hidden = true;
 }
 
 function loadGoogleIdentityScript() {
