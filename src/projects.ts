@@ -359,7 +359,11 @@ async function loadGithubRepositories(generation = githubGeneration, preferredRe
       githubError.hidden = false;
     }
   } finally {
-    if (generation === githubGeneration) { githubLoading = false; controls(); }
+    if (generation === githubGeneration) {
+      githubLoading = false;
+      controls();
+      if (githubDialog.open && !busy) (githubAuthorized ? githubRepo : githubSubmit).focus();
+    }
   }
 }
 
@@ -473,7 +477,11 @@ async function load() {
     status.textContent = '';
     error.textContent = 'Could not load your projects. Check your connection and try again.';
     error.hidden = retry.hidden = false;
-  } finally { busy = false; controls(); }
+  } finally {
+    busy = false;
+    controls();
+    if (githubDialog.open && !githubLoading) (githubAuthorized ? githubRepo : githubSubmit).focus();
+  }
 }
 
 function openProjectDialog(project?: Project) {
