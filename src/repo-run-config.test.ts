@@ -76,3 +76,12 @@ test('requires a start command and integer port together', () => {
   assert.throws(() => validateRepoRunConfig({ repo: config.repo, port: 3000 }), /together/);
   for (const port of [1024, 65535]) assert.equal(validateRepoRunConfig({ ...config, port }).port, port);
 });
+
+test('readiness paths survive YAML round trips and reject remote or malformed targets', () => {
+  const value = { ...config, readinessPath: '/health?check=ready' };
+  assert.deepEqual(parseRepoRunConfig(stringifyRepoRunConfig(value)), value);
+  for (const readinessPath of ['', 'https://example.com/', '//example.com/', '/bad path', '/health#fragment', '/bad\\path', null, 1, '/' + 'a'.repeat(1024)]) {
+    assert.throws(() => validateRepoRunConfig({ ...config, readinessPath }), /readinessPath/);
+  }
+  assert.throws(() => validateRepoRunConfig({ repo: 'acme/demo', readinessPath: '/health' }), /readinessPath/);
+});

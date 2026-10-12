@@ -33,11 +33,16 @@ test('default recipe fields match restored application readiness', () => {
   });
 });
 
+test('multiline startup scripts preserve shell source without flattening it', () => {
+  const launch = { ...recipe, command: "set -e\nexport PORT=3000\nexec node server.mjs" };
+  assert.deepEqual(startupRecipe(launch), launch);
+});
+
 test('invalid recipes cannot reach the network', async () => {
   let calls = 0;
   const request = createStartupClient({ fetcher: async () => { calls++; return Response.json({}); } });
   for (const invalid of [
-    { ...recipe, command: '  ' }, { ...recipe, command: 'npm start\nrm app' }, { ...recipe, cwd: 'relative/path' },
+    { ...recipe, command: '  ' }, { ...recipe, command: 'npm start\0' }, { ...recipe, cwd: 'relative/path' },
     { ...recipe, readiness: { ...recipe.readiness, port: 22 } },
     { ...recipe, readiness: { ...recipe.readiness, path: '//another-host/path' } },
     { ...recipe, readiness: { ...recipe.readiness, timeoutMs: 60_001 } },

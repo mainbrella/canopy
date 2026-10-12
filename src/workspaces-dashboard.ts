@@ -94,7 +94,7 @@ export function createWorkspacesDashboard({ getAccountId, onUnauthenticated, onC
   const dialogError = form.querySelector<HTMLElement>('[role="alert"]')!, dialogStatus = form.querySelector<HTMLElement>('[role="status"]')!;
   const launchSettings = form.querySelector<HTMLFieldSetElement>('[data-workspace-launch]')!, launchEnabled = form.querySelector<HTMLInputElement>('[data-workspace-launch-enabled]')!;
   const launchFields = form.querySelector<HTMLElement>('[data-workspace-launch-fields]')!;
-  const command = form.querySelector<HTMLInputElement>('#workspace-launch-command')!, cwd = form.querySelector<HTMLInputElement>('#workspace-launch-cwd')!;
+  const command = form.querySelector<HTMLTextAreaElement>('#workspace-launch-command')!, cwd = form.querySelector<HTMLInputElement>('#workspace-launch-cwd')!;
   const port = form.querySelector<HTMLInputElement>('#workspace-launch-port')!, path = form.querySelector<HTMLInputElement>('#workspace-launch-path')!, timeout = form.querySelector<HTMLInputElement>('#workspace-launch-timeout')!;
   const abort = new AbortController(), request = createWorkspaceClient({ onUnauthenticated, signal: abort.signal });
   let active = false, supported = false, canSave = false, restoreLaunch = false, externalBusy = false, busy = false, disposed = false, version = 0;

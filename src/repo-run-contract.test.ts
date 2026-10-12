@@ -4,13 +4,14 @@ import { launchIdentity, normalizeRepo, repoRunUrl } from './repo-run-contract.t
 
 test('share links preserve launch settings without a private run identity', () => {
   const url = repoRunUrl({ repo: 'https://github.com/acme/demo.git', ref: 'feature/a', size: 'small', cwd: 'apps/web',
-    setupCommand: 'npm ci && echo "ready"', startCommand: 'npm run dev -- --host 0.0.0.0', port: 3000 }, 'https://mainbrella.com');
+    setupCommand: 'npm ci && echo "ready"', startCommand: 'npm run dev -- --host 0.0.0.0', port: 3000, readinessPath: '/health?check=ready' }, 'https://mainbrella.com');
   assert.equal(url.pathname, '/run/'); assert.equal(url.hash, '');
   assert.equal(url.searchParams.get('repo'), 'acme/demo');
   assert.equal(url.searchParams.get('ref'), 'feature/a');
   assert.equal(url.searchParams.get('setupCommand'), 'npm ci && echo "ready"');
   assert.equal(url.searchParams.get('cwd'), 'apps/web');
   assert.equal(url.searchParams.get('port'), '3000');
+  assert.equal(url.searchParams.get('readinessPath'), '/health?check=ready');
   assert.equal(url.searchParams.has('size'), false);
   assert.equal(normalizeRepo('  acme/demo  '), 'acme/demo');
 });

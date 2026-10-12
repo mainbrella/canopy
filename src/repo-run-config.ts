@@ -2,12 +2,12 @@ import { normalizeRepo, type RepoRunOptions } from './repo-run-contract.ts';
 import { validRepo } from './repo-run-prompt.ts';
 import { Document, isAlias, isMap, isScalar, parseDocument, Scalar } from 'yaml';
 
-const keys = ['repo', 'ref', 'catalogId', 'size', 'cwd', 'setupCommand', 'startCommand', 'port'];
+const keys = ['repo', 'ref', 'catalogId', 'size', 'cwd', 'setupCommand', 'startCommand', 'port', 'readinessPath'];
 
 export function validateRepoRunConfig(value: unknown): RepoRunOptions {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use a YAML mapping containing the repository configuration.');
   const config = value as Record<string, unknown>;
-  if (Object.keys(config).some(key => !keys.includes(key))) throw new Error('Use only repo, ref, catalogId, size, cwd, setupCommand, startCommand and port.');
+  if (Object.keys(config).some(key => !keys.includes(key))) throw new Error('Use only repo, ref, catalogId, size, cwd, setupCommand, startCommand, port and readinessPath.');
   if (typeof config.repo !== 'string' || !validRepo(config.repo)) throw new Error('repo must be a GitHub URL or owner/repository.');
   const result: RepoRunOptions = { repo: normalizeRepo(config.repo), size: 'small', cwd: '.' };
   if (config.ref !== undefined) {
@@ -38,6 +38,13 @@ export function validateRepoRunConfig(value: unknown): RepoRunOptions {
     result.port = config.port;
   }
   if (Boolean(result.startCommand) !== (result.port !== undefined)) throw new Error('Supply startCommand and port together, or omit both for a terminal-only run.');
+  if (config.readinessPath !== undefined) {
+    const path = config.readinessPath;
+    if (!result.startCommand || typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') || path.length > 1024 || /[\s\\#\x00-\x1f\x7f]/.test(path)) {
+      throw new Error('readinessPath requires a start command and must be a local HTTP path such as /health, without spaces or a fragment.');
+    }
+    result.readinessPath = path;
+  }
   return result;
 }
 
@@ -56,13 +63,13 @@ export function parseRepoRunConfig(text: string): RepoRunOptions {
   const fences = [...text.matchAll(/```([^\r\n`]*)\r?\n([\s\S]*?)```/g)];
   const yamlCandidates = fences.filter(fence => ['yaml', 'yml', ''].includes(fence[1].trim().toLowerCase()));
   const jsonCandidates = fences.filter(fence => fence[1].trim().toLowerCase() === 'json');
-  const rawYaml = !fences.length && /^(?:---\s*\n)?(?:repo|ref|catalogId|size|cwd|setupCommand|startCommand|port)\s*:/m.test(trimmed);
+  const rawYaml = !fences.length && /^(?:---\s*\n)?(?:repo|ref|catalogId|size|cwd|setupCommand|startCommand|port|readinessPath)\s*:/m.test(trimmed);
   if (rawYaml) return validateRepoRunConfig(parseYamlConfig(trimmed));
   if (yamlCandidates.length || jsonCandidates.length) {
     const candidates: unknown[] = [];
     for (const fence of yamlCandidates) {
       const body = fence[2];
-      if (!/^(?:---\s*\n)?(?:repo|ref|catalogId|size|cwd|setupCommand|startCommand|port)\s*:/m.test(body.trim())) continue;
+      if (!/^(?:---\s*\n)?(?:repo|ref|catalogId|size|cwd|setupCommand|startCommand|port|readinessPath)\s*:/m.test(body.trim())) continue;
       candidates.push(parseYamlConfig(body));
     }
     for (const fence of jsonCandidates) {

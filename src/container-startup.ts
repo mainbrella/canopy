@@ -4,7 +4,7 @@ import type { ClientOptions, Container, ContainerIdentity, RestoreLaunch } from 
 export function startupRecipe(value: unknown): RestoreLaunch {
   const launch = value as RestoreLaunch | null;
   const cwd = launch?.cwd ?? '/workspace', path = launch?.readiness?.path ?? '/', timeoutMs = launch?.readiness?.timeoutMs ?? 30_000;
-  if (!launch || typeof launch.command !== 'string' || !launch.command.trim() || launch.command.length > 4096 || /[\0\r\n]/.test(launch.command)
+  if (!launch || typeof launch.command !== 'string' || !launch.command.trim() || launch.command.length > 4096 || launch.command.includes('\0')
     || typeof cwd !== 'string' || !cwd.startsWith('/') || cwd.length > 1024 || /[\0\r\n]/.test(cwd)
     || !Number.isInteger(launch.readiness?.port) || launch.readiness.port < 1024 || launch.readiness.port > 65535
     || typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') || path.length > 1024 || /[\s\\#\x00-\x1f\x7f]/.test(path)
@@ -46,7 +46,7 @@ export function createContainerStartup({ onUnauthenticated, onChanged }: { onUna
   const form = dialog.querySelector<HTMLFormElement>('form')!;
   const enabled = form.querySelector<HTMLInputElement>('[data-startup-enabled]')!;
   const fields = form.querySelector<HTMLFieldSetElement>('[data-startup-fields]')!;
-  const command = form.querySelector<HTMLInputElement>('#startup-command')!, cwd = form.querySelector<HTMLInputElement>('#startup-cwd')!;
+  const command = form.querySelector<HTMLTextAreaElement>('#startup-command')!, cwd = form.querySelector<HTMLInputElement>('#startup-cwd')!;
   const port = form.querySelector<HTMLInputElement>('#startup-port')!, path = form.querySelector<HTMLInputElement>('#startup-path')!, timeout = form.querySelector<HTMLInputElement>('#startup-timeout')!;
   const submit = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
   const status = form.querySelector<HTMLElement>('[role="status"]')!, error = form.querySelector<HTMLElement>('[role="alert"]')!;
@@ -82,7 +82,7 @@ export function createContainerStartup({ onUnauthenticated, onChanged }: { onUna
       await request(selected, launch);
       if (disposed) return;
       await onChanged();
-      if (!disposed && current()) status.textContent = launch ? 'Saved. The command will run on future resumes and forks. The current application keeps running.' : 'Saved. Future resumes and forks will restore files without starting an application.';
+      if (!disposed && current()) status.textContent = launch ? 'Saved. Future resumes and forks will use this command.' : 'Saved. Future resumes and forks will restore files without starting an application.';
     } catch (caught) {
       if (!disposed) { status.textContent = ''; error.textContent = startupError(caught instanceof Error ? caught.message : ''); error.hidden = false; }
     } finally { busy = false; if (!disposed) controls(); }

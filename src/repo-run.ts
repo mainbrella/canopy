@@ -331,7 +331,8 @@ function options(): RepoRunOptions {
     ...(params.get('catalogId') ? { catalogId: params.get('catalogId')! } : {}),
     ...(params.get('setupCommand') ? { setupCommand: params.get('setupCommand')! } : {}),
     ...(params.get('startCommand') ? { startCommand: params.get('startCommand')! } : {}),
-    ...(params.get('port') ? { port: Number(params.get('port')) } : {}) };
+    ...(params.get('port') ? { port: Number(params.get('port')) } : {}),
+    ...(params.get('readinessPath') ? { readinessPath: params.get('readinessPath')! } : {}) };
 }
 function submitLabel() { return 'Run repository'; }
 function updatePrompt() {
@@ -353,7 +354,8 @@ function updatePrompt() {
   config.hidden = !launchMode;
   const value = options();
   config.textContent = [value.ref && `Ref: ${value.ref}`, `Runtime: ${value.catalogId || 'Automatic'} · Size: ${value.size}`, `Directory: ${value.cwd}`,
-    value.setupCommand && `Setup: ${value.setupCommand}`, value.startCommand && `Start: ${value.startCommand}`, value.port !== undefined && `Preview port: ${value.port}`].filter(Boolean).join('\n');
+    value.setupCommand && `Setup: ${value.setupCommand}`, value.startCommand && `Start: ${value.startCommand}`, value.port !== undefined && `Preview port: ${value.port}`,
+    value.startCommand && `HTTP readiness: ${value.readinessPath || '/'} must return 2xx`].filter(Boolean).join('\n');
   if (tryFlow && (!accessChecked || !active && !prepareOnly)) {
     form.hidden = true;
     status.hidden = false;

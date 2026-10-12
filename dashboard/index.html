@@ -336,7 +336,7 @@ WORKDIR /workspace</textarea>
             <fieldset class="workspace-launch-settings workspace-launch-fields" data-startup-fields hidden>
               <legend class="visually-hidden">Application startup</legend>
               <label for="startup-command">Startup command</label>
-              <input id="startup-command" type="text" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start">
+              <textarea id="startup-command" rows="3" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start"></textarea>
               <label for="startup-cwd">Working directory</label>
               <input id="startup-cwd" type="text" maxlength="1024" value="/workspace" autocomplete="off" spellcheck="false">
               <div class="workspace-launch-grid">
@@ -363,7 +363,7 @@ WORKDIR /workspace</textarea>
               <label class="workspace-stop-choice"><input type="checkbox" data-workspace-launch-enabled> Start the application when restored</label>
               <div class="workspace-launch-fields" data-workspace-launch-fields hidden>
                 <label for="workspace-launch-command">Startup command</label>
-                <input id="workspace-launch-command" type="text" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start">
+                <textarea id="workspace-launch-command" rows="3" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start"></textarea>
                 <label for="workspace-launch-cwd">Working directory</label>
                 <input id="workspace-launch-cwd" type="text" maxlength="1024" value="/workspace" autocomplete="off" spellcheck="false">
                 <div class="workspace-launch-grid">
