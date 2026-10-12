@@ -11,15 +11,15 @@
   <text x="28" y="67" class="small">Local Mainbrella run · schematic, not elapsed time</text>
   <text x="28" y="114" class="label">Source</text>
   <path d="M132 108H755" class="process"/>
-  <circle cx="240" cy="108" r="5" fill="#397b5c"/>
+  <circle cx="270" cy="108" r="5" fill="#397b5c"/>
   <text x="450" y="98" class="small">Same process nonce through capture</text>
-  <path d="M240 118V159" class="file-path"/>
-  <use href="#files" x="216" y="170"/>
+  <path d="M270 118V159" class="file-path"/>
+  <use href="#files" x="246" y="170"/>
   <text x="28" y="194" class="label">Saved files</text>
   <text x="28" y="219" class="small">Checkout + dependencies</text>
-  <path d="M262 190H280Q294 190 294 208V253Q294 268 310 268H336" class="file-path"/>
-  <path d="M262 190H280Q294 190 294 208V316Q294 331 310 331H336" class="file-path"/>
-  <path d="M262 190H280Q294 190 294 208V379Q294 394 310 394H336" class="file-path"/>
+  <path d="M292 190H294Q308 190 308 208V253Q308 268 324 268H336" class="file-path"/>
+  <path d="M292 190H294Q308 190 308 208V316Q308 331 324 331H336" class="file-path"/>
+  <path d="M292 190H294Q308 190 308 208V379Q308 394 324 394H336" class="file-path"/>
   <text x="346" y="213" class="small">Restored files</text>
   <text x="555" y="213" class="small">Explicit server start</text>
   <text x="28" y="274" class="label">Baseline</text>
