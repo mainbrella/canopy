@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Repo Rodeo starts with a disappearing button, a patch we know is wrong, and a local Mainbrella run. E2B and Daytona are next." />
+    <meta name="description" content="A disappearing button, a patch we know is wrong, and the first Mainbrella, E2B, and Daytona setup results. Building Repo Rodeo around evidence we can inspect." />
     <meta name="theme-color" content="#181a1b" />
     <link rel="canonical" href="https://mainbrella.com/blog/one-bug-three-clouds/" />
     <meta property="og:title" content="One Bug, Three Clouds: Building Repo Rodeo · Mainbrella" />
@@ -32,7 +32,7 @@
         <p>Move “Join the waitlist” to the top of the editor, hit Save, and everything looks fine. The button is still there. The editor says “Saved.” Reload the page and the button disappears. Three blocks went in; two came back.</p>
         <p>You can <a href="/repo-rodeo-bug/">try the broken editor</a> without an account. We planted this bug deliberately. It gives <a href="https://github.com/mainbrella/repo-rodeo">Repo Rodeo</a> a small, repeatable failure while we build the machinery for handling somebody else’s GitHub issue.</p>
         <p>The product we want takes an issue and a reproduction recipe, prepares the application, then gives independent coding agents their own copies to repair. A maintainer should be able to open the broken app, open a proposed repair, repeat the same actions, and inspect the diff. Getting both apps into the browser would be useful even when every agent fails.</p>
-        <p>The three clouds in the title are E2B, Daytona, and Mainbrella. So far, we have a local experiment and a completed manual run through Mainbrella’s local API and OrbStack containers. The patches are deterministic controls. AI repair attempts and the other two providers are still ahead of us. Before adding agents, we need to know that the experiment can reject a bad repair.</p>
+        <p>The three clouds in the title are E2B, Daytona, and Mainbrella. So far, we have a local experiment, a completed manual run through Mainbrella’s local API and OrbStack containers, and initial cloud attempts on E2B and Daytona. The patches are deterministic controls. A completed three-provider comparison and AI repair attempts are still ahead of us. Before adding agents, we need to know that the experiment can reject a bad repair.</p>
 
         <p>The editor holds the current document in memory and saves a serialized copy to <code>localStorage</code>. Its serializer assigns positions from the array index, then filters them:</p>
         <pre class="docs-code" tabindex="0" role="region" aria-label="The deliberately broken serializer"><code>blocks
@@ -94,14 +94,36 @@
         <p>Cleanup gave us a less tidy result. All four fixture previews returned 404 after revocation. Deleting their exact container generations and the two saved workspaces left the fixture account with no containers, no workspaces, and no live reserved workspace bytes. Two Docker snapshot images still existed, with no attached containers. An API receipt saying “deleted” hadn’t reclaimed those images. The original account also retained a separate baseline container for inspection.</p>
         <p>The cleanup record keeps those facts separate. We still need to measure physical snapshot retention. This is also why there’s no price or speed ranking here: the run used local OrbStack, and Docker inspection showed no matching per-container CPU or memory limits for the requested Small configuration. Those timings wouldn’t make a fair cloud comparison.</p>
 
-        <p>The latest <a href="https://github.com/mainbrella/repo-rodeo/commit/0248e94e6a890135ed0bcf3be2955f5962b303ed">commit</a> turns the manual recipe into a tracked Mainbrella adapter. Its full capture-and-restore path still needs a live run. Its first recorded <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/examples/mainbrella-preflight-result.json">preflight</a> encountered the original account’s quota problem and stopped before creating anything. The earlier manual result doesn’t automatically qualify the new implementation.</p>
-        <p>E2B and Daytona will answer different preparation questions. <a href="https://docs.e2b.dev/sandbox/fork">E2B documents forks that preserve files and memory</a>, which gives us a process-preserving case to test. <a href="https://www.daytona.io/docs/en/snapshots/">Daytona distinguishes container filesystem snapshots from VM snapshots that include memory</a>. We’ll keep those modes separate and send the same browser reproduction through each. Today, selecting either provider in Repo Rodeo writes an unsupported result and exits without contacting it.</p>
+        <p>A <a href="https://github.com/mainbrella/repo-rodeo/commit/0248e94e6a890135ed0bcf3be2955f5962b303ed">subsequent commit</a> turns the manual recipe into a tracked Mainbrella adapter. Its full capture-and-restore path still needs a live run. Its first recorded <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/examples/mainbrella-preflight-result.json">preflight</a> encountered the original account’s quota problem and stopped before creating anything. The earlier manual result doesn’t automatically qualify the new implementation.</p>
+
+        <p>E2B gave us another way to reach a running machine without reaching a reproduced bug. Its console showed a running sandbox and process start and exit messages during setup. These are the Level and Message columns from that console capture:</p>
+        <figure class="article-figure rodeo-e2b-figure">
+          <a class="rodeo-console-crop crop-e2b-logs" href="/images/blog/one-bug-three-clouds/e2b-process-logs.png" aria-label="View the full original E2B console screenshot">
+            <img src="/images/blog/one-bug-three-clouds/e2b-process-logs.png" width="3424" height="1840" alt="E2B’s log message column shows process stream starts and ends, including processes with PIDs 1823 and 1841 starting and ending." loading="lazy" decoding="async" />
+          </a>
+        </figure>
+        <p>The <a href="https://github.com/mainbrella/repo-rodeo/blob/c89fb6023066c3abadc399d1d0df4b47201748f4/notes/2026-10-11-e2b.md">E2B run notes</a> explain what happened next. The template’s Node version was too old for the pinned Vite build. Installing Node <code>22.22.2</code> and setting the command’s PATH explicitly got the server running. Authenticated HTTP readiness eventually returned 200, but Chromium followed a redirect and received 403. Our browser helper had authenticated the first request without handling the redirect chain correctly.</p>
+        <p>The <a href="https://github.com/mainbrella/repo-rodeo/blob/c89fb6023066c3abadc399d1d0df4b47201748f4/examples/e2b-cloud-preview-failure/result.json">retained cloud result</a> therefore stops before capture or repair attempts. The redirect fix has passed a local Chromium check and still needs another cloud run. <a href="https://docs.e2b.dev/sandbox/fork">E2B’s documented memory-preserving fork</a> is the intended next step once the external browser can establish the baseline.</p>
+
+        <p>Daytona’s setup makes the sandbox class worth checking before asking it to fork. The details panel in this capture identifies a <strong>Container</strong>, with one vCPU, 1 GiB of memory, 3 GiB of disk, and private preview access. Its lifecycle settings are visible alongside those resources.</p>
+        <figure class="article-figure rodeo-daytona-figure">
+          <div class="rodeo-console-scroll" tabindex="0" role="region" aria-label="Daytona container settings screenshot; scroll horizontally on small screens to inspect the values">
+            <a class="rodeo-console-crop crop-daytona-details" href="/images/blog/one-bug-three-clouds/daytona-container-details.png" aria-label="View the full original Daytona sandbox screenshot">
+              <img src="/images/blog/one-bug-three-clouds/daytona-container-details.png" width="3424" height="1840" alt="Daytona’s sandbox details show class Container, private preview access, one vCPU, 1 GiB of memory, 3 GiB of disk, auto-stop after 30 minutes, auto-archive after seven days, and auto-delete disabled." loading="lazy" decoding="async" />
+            </a>
+          </div>
+        </figure>
+        <p>Daytona’s audit log records a successful create, a fork rejected with HTTP 422, and a successful delete for the same sandbox. Its action and outcome fields read:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Action and outcome fields transcribed from the Daytona audit-log screenshot"><code>create   200   Success
+fork     422   Error
+delete   200   Success</code></pre>
+        <p>That rejection gives us a reason to keep filesystem snapshots and memory forks separate in the adapter. <a href="https://www.daytona.io/docs/en/snapshots/">Daytona documents filesystem captures for containers and memory captures for VMs</a>. The container snapshot path still needs a completed capture and verified restores before we can put a Daytona result beside the passing Mainbrella controls.</p>
         <p>You can run the standalone controls now from the <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/README.md">repository</a>, using its pinned Node version:</p>
         <pre class="docs-code" tabindex="0" role="region" aria-label="Run the standalone Repo Rodeo experiment"><code>npm ci
 npx playwright install chromium
 npm run experiment -- --seed 12345</code></pre>
         <p>The command writes a new evidence directory with the inputs, patches, document observations, traces, screenshots, and cleanup record. Its temporary working copies are a local test arrangement, not security sandboxes for untrusted repositories.</p>
-        <p>Next comes a complete live run of the tracked adapter, then the E2B and Daytona implementations. Before asking any of them to carry an agent’s proposed fix, they have to carry the same deliberately wrong patch through Save and reload and reject it.</p>
+        <p>The next cloud run needs to get the external browser through preview authentication, establish the baseline, and then create the independent branches. Before asking any of them to carry an agent’s proposed fix, they have to carry the same deliberately wrong patch through Save and reload and reject it.</p>
       </article>
     </main>
     <!-- site-footer -->
