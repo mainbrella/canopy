@@ -18,7 +18,7 @@ async function transform(filename: string, path: string) {
 }
 
 test('article CSS is inlined in source order after critical shared styles', async () => {
-  const html = await transform('blog/one-bug-three-clouds/index.html', '/blog/one-bug-three-clouds/index.html');
+  const html = await transform('blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html', '/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html');
   const critical = html.indexOf('<style data-critical-css>');
   const shared = html.indexOf('<link rel="stylesheet" href="/mainbrella.css"');
   const sharedArticle = html.indexOf('<style data-article-css="/blog/inside-our-brella/article.css">');

@@ -2,3 +2,6 @@
 /download/ /platform/ 301
 /download/index.html /platform/ 301
 /build /build/ 308
+/blog/one-bug-three-clouds /blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/ 301
+/blog/one-bug-three-clouds/ /blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/ 301
+/blog/one-bug-three-clouds/index.html /blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/ 301
