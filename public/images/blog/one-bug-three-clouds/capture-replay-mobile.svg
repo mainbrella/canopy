@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="540" viewBox="0 0 360 540" role="img" aria-labelledby="title desc">
+  <title id="title">Three requests, one workspace</title>
+  <desc id="desc">Mobile schematic of the observed production capture replay. Capture with the recorded body and key K creates workspace W. The client receives HTTP 200 headers, then discards the body. A retry and replay use that same body and key, and both read and return W without another creation.</desc>
+  <defs>
+    <marker id="request" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#55616c" stroke-width="1.4"/></marker>
+    <marker id="response" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#397b5c" stroke-width="1.4"/></marker>
+  </defs>
+  <style>text{font-family:Helvetica,Arial,sans-serif;fill:#263238;font-size:15px}.heading{font-size:22px;font-weight:600}.small{font-size:13px;fill:#55616c}.actor{font-weight:600}.lane{fill:none;stroke:#a7adb0;stroke-width:1.5;stroke-dasharray:5 6}.request{fill:none;stroke:#55616c;stroke-width:2;marker-end:url(#request)}.response{fill:none;stroke:#397b5c;stroke-width:2;marker-end:url(#response)}.lost{fill:none;stroke:#9c4538;stroke-width:2;stroke-dasharray:5 5}.failure{fill:#9c4538}.saved{fill:#397b5c}</style>
+  <rect width="360" height="540" rx="4" fill="#f7f4ec"/>
+  <text x="18" y="35" class="heading">Three requests, one workspace</text>
+  <text x="18" y="60" class="small">Same recorded body and key on every request</text>
+  <text x="35" y="106" text-anchor="middle" class="actor">Client</text>
+  <text x="218" y="106" text-anchor="middle" class="actor">Mainbrella</text>
+  <text x="325" y="93" text-anchor="middle" class="actor">Saved</text>
+  <text x="325" y="113" text-anchor="middle" class="actor">W</text>
+  <path d="M35 121V497M218 121V497" class="lane"/>
+  <path d="M325 174V497" fill="none" stroke="#397b5c" stroke-width="3"/>
+  <text x="65" y="139">Capture · key K</text>
+  <path d="M44 150H208" class="request"/>
+  <text x="245" y="164" class="small">Create</text>
+  <path d="M228 174H313" class="request"/>
+  <circle cx="325" cy="174" r="5" fill="#397b5c"/>
+  <text x="70" y="203">200 headers</text>
+  <path d="M208 214H45" class="request"/>
+  <text x="69" y="250" class="failure">Body discarded</text>
+  <path d="M208 261H66" class="lost"/>
+  <path d="M56 254l14 14m0-14-14 14" stroke="#9c4538" stroke-width="2.5"/>
+  <text x="75" y="301">Retry · key K</text>
+  <path d="M44 312H208" class="request"/>
+  <text x="243" y="302" class="small">Read W</text>
+  <path d="M228 312H313" class="request"/>
+  <circle cx="325" cy="312" r="4" fill="#397b5c"/>
+  <text x="51" y="350" class="saved">200 · workspace W</text>
+  <path d="M208 361H45" class="response"/>
+  <text x="68" y="408">Replay · key K</text>
+  <path d="M44 419H208" class="request"/>
+  <text x="243" y="409" class="small">Read W</text>
+  <path d="M228 419H313" class="request"/>
+  <circle cx="325" cy="419" r="4" fill="#397b5c"/>
+  <text x="51" y="457" class="saved">200 · workspace W</text>
+  <path d="M208 468H45" class="response"/>
+  <text x="18" y="524" class="actor">Only one workspace was created</text>
+</svg>

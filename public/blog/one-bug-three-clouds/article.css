@@ -11,6 +11,8 @@
 .rodeo-article .rodeo-results tr > :last-child { padding-right: 0; }
 .rodeo-article .rodeo-results thead th { color: var(--muted); font-weight: 500; }
 .rodeo-article .rodeo-results tbody th { font-weight: 500; }
+.rodeo-article .rodeo-accounting th:first-child { width: 46%; }
+.rodeo-article .rodeo-accounting td { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rodeo-article .rodeo-process-figure img { display: block; }
 .rodeo-article .rodeo-console-crop { position: relative; display: block; overflow: hidden; background: #000; }
 .rodeo-article .rodeo-console-crop img { position: absolute; max-width: none; height: auto; }
@@ -34,6 +36,7 @@
   .rodeo-article .rodeo-results th,
   .rodeo-article .rodeo-results td { padding-right: 12px; }
   .rodeo-article .rodeo-process-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
+  .rodeo-article .rodeo-replay-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
   .rodeo-article .rodeo-e2b-figure,
   .rodeo-article .rodeo-daytona-figure,
   .rodeo-article .rodeo-profile-figure { margin-right: auto; margin-left: auto; }
