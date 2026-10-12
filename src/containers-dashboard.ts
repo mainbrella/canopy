@@ -9,6 +9,7 @@ import { createPrivateServices } from './private-services.ts';
 import { formatBalance } from './prepaid-billing.ts';
 import { canResumeContainer, createLifecycleClient, lifecycleError, type ContainerAction } from './container-lifecycle.ts';
 import { createSandboxSecurity } from './sandbox-security.ts';
+import { createContainerStartup } from './container-startup.ts';
 
 type CreationState = {
   active: boolean; containers: unknown[];
@@ -123,6 +124,7 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
   const forkStatus = forkDialog.querySelector<HTMLElement>('[role="status"]')!;
   let forkSource: Container | null = null;
   const workspaces = createWorkspacesDashboard({getAccountId,onUnauthenticated:()=>{dispose();onUnauthenticated();},onChanged:()=>load()});
+  const startup = createContainerStartup({ onUnauthenticated: () => { dispose(); onUnauthenticated(); }, onChanged: () => load() });
   const observations = createContainerObservations({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
   const previews = createContainerPreviews({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
   const security = createSandboxSecurity({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
@@ -203,6 +205,7 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
     previews.setBusy(busy || !data || disposed);
     privateServices.setBusy(busy || !data || disposed);
     workspaces.setBusy(busy || !data || disposed);
+    startup.setBusy(busy || !data || disposed);
     security.setBusy(busy || !data || disposed);
     forkDialog.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button[type="submit"]').forEach(control => { control.disabled = busy || disposed; });
     forkName.readOnly = Boolean(forkSource && pendingForkNames.has(forkIdentity(forkSource)));
@@ -242,6 +245,7 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
     onData?.(data);
     previews.sync(data.containers, previewsSupported);
     privateServices.sync(data.containers);
+    startup.sync(data.containers);
 
     if (Array.isArray(data.sizes)) {
       const key = JSON.stringify(data.sizes);
@@ -357,9 +361,14 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
           if (window.confirm(`Delete ${container.name || container.id}? This stops the machine and revokes access to its files and saved stop state. Separately saved workspaces remain available. Provider snapshot data may remain until retention expires.${production ? ' Automatic recovery will be disabled.' : ''}`)) mutate('DELETE', container.id, container.createdAt);
         });
         details.append(heading, state);
+        if (container.launch && container.lifecycle !== 'production') {
+          const launch = document.createElement('p'); launch.className = 'dashboard-status container-startup-summary';
+          launch.textContent = `On resume or fork: ${container.launch.command} · HTTP ${container.launch.readiness.port}${container.launch.readiness.path || '/'}`;
+          details.append(launch);
+        }
         if (container.readiness) {
           const appState = document.createElement('p'); appState.className = 'dashboard-status';
-          appState.textContent = container.readiness.status === 'ready' ? 'Application ready'
+          appState.textContent = container.readiness.status === 'ready' ? `Application ready · HTTP ${container.readiness.port}${container.readiness.path}`
             : container.readiness.status === 'starting' ? 'Application starting; checking HTTP readiness…'
             : 'Application did not become ready. Open the terminal to inspect or restart it.';
           details.append(appState);
@@ -415,6 +424,9 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
           fork.onclick = () => {
             if (busy || disposed) return;
             forkSource = container; forkName.value = pendingForkNames.get(forkIdentity(container)) ?? `${container.name || 'Container'} fork`.slice(0, 80);
+            forkDialog.querySelector<HTMLElement>('[data-fork-startup]')!.textContent = container.launch
+              ? `After copying, runs ${container.launch.command} and checks HTTP ${container.launch.readiness.port}${container.launch.readiness.path || '/'}.`
+              : 'No startup command is saved. Start the application in the fork’s terminal, or configure Startup settings before forking.';
             forkDialog.querySelector<HTMLButtonElement>('[type="submit"]')!.textContent = pendingForkNames.has(forkIdentity(container)) ? 'Retry fork' : 'Create fork';
             controls();
             forkError.hidden = true; forkStatus.textContent = ''; forkDialog.showModal(); forkName.focus();
@@ -438,6 +450,7 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
         previews.attach(expansionCell, menuActions, container);
         observations.attach(menuActions, container);
         workspaces.attach(menuActions,container);
+        startup.attach(menuActions, container);
         privateServices.attach(menuActions, container);
         menuActions.append(stop);
         if (expansionCell.children.length) body.append(expansion);
@@ -582,6 +595,7 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
       observability = capabilities?.observability ?? {};
       persistence = capabilities?.persistence ?? {};
       workspaces.configure(persistence);
+      startup.configure(persistence.startupConfiguration === true);
       security.configure({ internetControl: capabilities?.networking?.internetControl === true,
         egressPolicies: capabilities?.networking?.egressPolicies === true, secrets: capabilities?.secrets?.vault === true });
       observations.configure(observability);
@@ -698,6 +712,7 @@ export function createContainersDashboard({ onUnauthenticated, getAccountId, lif
   function dispose() {
     privateServices.dispose();
     workspaces.dispose();
+    startup.dispose();
     security.dispose();
     observations.dispose();
     previews.dispose();

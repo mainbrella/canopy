@@ -5,6 +5,7 @@ export interface User {
   name?: string;
 }
 export interface ContainerIdentity { id: string; createdAt: string }
+export interface RestoreLaunch { command: string; cwd?: string; readiness: { port: number; path?: string; timeoutMs?: number } }
 export interface Container extends ContainerIdentity {
   imageName?: string;
   name?: string;
@@ -16,6 +17,7 @@ export interface Container extends ContainerIdentity {
   workspaceId?: string;
   persistenceExpiresAt?: number;
   internet?: boolean;
+  launch?: RestoreLaunch;
   readiness?: { status: 'starting' | 'ready' | 'failed'; port: number; path: string; logPath: string; checkedAt?: string; error?: string; logTail?: string };
 }
 export interface MachineSize {
@@ -73,7 +75,7 @@ export interface ContainerData {
   imageCatalog?: { id: string; name: string }[];
 }
 export interface ObservabilityCapabilities { lifecycleEvents?: boolean; metrics?: boolean; webhooks?: boolean }
-export interface PersistenceCapabilities { workspaces?: boolean; snapshots?: boolean; filesystemAfterStop?: boolean; filesystemFork?: boolean; restoreLaunch?: boolean }
+export interface PersistenceCapabilities { workspaces?: boolean; snapshots?: boolean; filesystemAfterStop?: boolean; filesystemFork?: boolean; restoreLaunch?: boolean; startupConfiguration?: boolean }
 export interface ClientOptions { fetcher?: typeof fetch; onUnauthenticated?: () => void; signal?: AbortSignal }
 export interface ImageData {
   buildsEnabled: boolean;

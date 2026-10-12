@@ -463,6 +463,7 @@
 .workspace-launch-logs { margin-top: 8px; font-size: 13px; }
 .workspace-launch-logs summary { width: fit-content; min-height: 44px; padding: 8px 0; cursor: pointer; }
 .workspace-launch-logs pre { max-height: 240px; max-width: 70ch; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.container-startup-summary { overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .workspace-usage { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
 }

@@ -238,6 +238,7 @@
             <label for="container-fork-name">Name</label>
             <input id="container-fork-name" type="text" required maxlength="80" autocomplete="off">
             <p class="dashboard-status">Copies saved filesystem changes into a new container. Running processes and memory are not copied. The new machine uses your normal compute allowance.</p>
+            <p class="dashboard-status" data-fork-startup></p>
             <p class="dashboard-status" role="status"></p>
             <p class="dashboard-error" role="alert" hidden></p>
             <div class="container-actions"><button type="submit" class="button button-small">Create fork</button><button type="button" class="dashboard-retry" data-fork-close>Cancel</button></div>
@@ -325,6 +326,30 @@ WORKDIR /workspace</textarea>
               <button id="images-refresh" class="dashboard-retry" type="button" disabled>Refresh images</button>
             </div>
           </div>
+        </dialog>
+        <dialog id="container-startup-dialog" class="workspace-save-dialog" aria-labelledby="container-startup-title">
+          <form>
+            <h3 id="container-startup-title">Startup settings</h3>
+            <p class="dashboard-status" data-startup-container></p>
+            <label class="workspace-stop-choice"><input type="checkbox" data-startup-enabled> Start application on resume or fork</label>
+            <p class="dashboard-status">Starts a fresh process after files are restored. Memory is not preserved. Saving these settings does not restart the current application.</p>
+            <fieldset class="workspace-launch-settings workspace-launch-fields" data-startup-fields hidden>
+              <legend class="visually-hidden">Application startup</legend>
+              <label for="startup-command">Startup command</label>
+              <input id="startup-command" type="text" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start">
+              <label for="startup-cwd">Working directory</label>
+              <input id="startup-cwd" type="text" maxlength="1024" value="/workspace" autocomplete="off" spellcheck="false">
+              <div class="workspace-launch-grid">
+                <div><label for="startup-port">HTTP readiness port</label><input id="startup-port" type="number" min="1024" max="65535" step="1" inputmode="numeric" placeholder="3000"></div>
+                <div><label for="startup-timeout">Wait up to (seconds)</label><input id="startup-timeout" type="number" min="1" max="60" step="1" value="30" inputmode="numeric"></div>
+              </div>
+              <label for="startup-path">HTTP readiness path</label>
+              <input id="startup-path" type="text" maxlength="1024" value="/" autocomplete="off" spellcheck="false">
+              <p class="dashboard-status">Use a foreground command and an HTTP path that returns 2xx when the application is ready.</p>
+            </fieldset>
+            <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Save settings</button><button type="button" class="dashboard-retry" data-startup-close>Close</button></div>
+          </form>
         </dialog>
         <dialog id="workspace-save-dialog" class="workspace-save-dialog" aria-labelledby="workspace-save-title">
           <form>

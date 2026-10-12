@@ -1,11 +1,10 @@
-import type { ClientOptions, Container, ContainerIdentity, PersistenceCapabilities } from './types.ts';
+import type { ClientOptions, Container, ContainerIdentity, PersistenceCapabilities, RestoreLaunch } from './types.ts';
 import { API_ORIGIN } from './auth.ts';
 import { createWorkspaceJournal, type WorkspaceJournal, type WorkspaceOperation } from './workspace-operations.ts';
 
-interface LaunchRecipe { command: string; cwd?: string; readiness: { port: number; path?: string; timeoutMs?: number } }
 interface Workspace {
   id: string; name: string; expiresAt: number; status: string; archived: boolean; size: string;
-  bytes?: number | null; reservedBytes?: number; launch?: LaunchRecipe; stopRequested?: boolean; stopCompleted?: boolean;
+  bytes?: number | null; reservedBytes?: number; launch?: RestoreLaunch; stopRequested?: boolean; stopCompleted?: boolean;
 }
 const uuid = (value: unknown) => typeof value === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value);
 export function workspaceMetadata(input: unknown): Workspace {
@@ -271,12 +270,14 @@ export function createWorkspacesDashboard({ getAccountId, onUnauthenticated, onC
       }
     }, false, action === 'restore');
   }
-  function open(container: ContainerIdentity & { name?: string; imageName?: string }, trigger: HTMLElement) {
+  function open(container: Container, trigger: HTMLElement) {
     controls();
     if (pending || journalError) { error.textContent = pending ? messages.workspace_request_pending : messages[journalError]; error.hidden = false; return; }
     selected = { id: container.id, createdAt: container.createdAt }; returnFocus = trigger;
     name.value = container.name || container.imageName || 'My workspace'; stop.checked = false;
-    launchEnabled.checked = false; command.value = ''; cwd.value = '/workspace'; port.value = ''; path.value = '/'; timeout.value = '30';
+    const launch = container.launch;
+    launchEnabled.checked = Boolean(launch); command.value = launch?.command ?? ''; cwd.value = launch?.cwd ?? '/workspace';
+    port.value = launch ? String(launch.readiness.port) : ''; path.value = launch?.readiness.path ?? '/'; timeout.value = String((launch?.readiness.timeoutMs ?? 30_000) / 1000);
     dialogError.hidden = true; dialogStatus.textContent = ''; controls(); dialog.showModal(); name.focus();
   }
   form.onsubmit = async event => {
