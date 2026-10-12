@@ -14,6 +14,20 @@
 .rodeo-article .rodeo-table-scroll { max-width: 100%; overflow-x: auto; margin: 28px 0; }
 .rodeo-article .rodeo-table-scroll .rodeo-results { margin: 0; }
 .rodeo-article .rodeo-table-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.rodeo-article .rodeo-console-crop { position: relative; display: block; overflow: hidden; background: #000; }
+.rodeo-article .rodeo-console-crop img { position: absolute; max-width: none; height: auto; }
+.rodeo-article .rodeo-console-crop:focus-visible { z-index: 1; outline: 2px solid var(--blue); outline-offset: -2px; }
+.rodeo-article .rodeo-console-scroll { max-width: 100%; overflow-x: auto; }
+.rodeo-article .rodeo-console-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.rodeo-article .rodeo-daytona-figure { max-width: 540px; }
+.rodeo-article .crop-daytona-details { min-width: 500px; aspect-ratio: 900 / 920; }
+.rodeo-article .crop-daytona-details img { width: 380.444%; left: -268%; top: -80.652%; }
+.rodeo-article .crop-e2b-concurrency { width: min(100%, 340px); aspect-ratio: 515 / 92; margin-bottom: 16px; }
+.rodeo-article .crop-e2b-concurrency img { width: 664.854%; left: -534.369%; top: -402.174%; }
+.rodeo-article .crop-e2b-terminal { min-width: 780px; aspect-ratio: 1660 / 610; }
+.rodeo-article .crop-e2b-terminal img { width: 206.265%; left: -39.157%; top: -155.738%; }
+.rodeo-article .crop-daytona-snapshot { aspect-ratio: 1300 / 177; }
+.rodeo-article .crop-daytona-snapshot img { width: 263.385%; left: -104.615%; top: -374.011%; }
 .rodeo-article .rodeo-process-table { font-size: 15px; font-variant-numeric: tabular-nums; overflow-wrap: normal; }
 .rodeo-article .rodeo-process-table th,
 .rodeo-article .rodeo-process-table td { padding-top: 12px; padding-bottom: 12px; }
@@ -32,4 +46,7 @@
   .rodeo-article .rodeo-results td { padding-right: 12px; }
   .rodeo-article .rodeo-replay-figure,
   .rodeo-article .rodeo-worker-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
+  .rodeo-article .crop-daytona-snapshot { aspect-ratio: 650 / 177; }
+  .rodeo-article .crop-daytona-snapshot img { width: 526.769%; left: -306.154%; }
+  .rodeo-article .rodeo-daytona-figure { margin-right: auto; margin-left: auto; }
 }

@@ -90,7 +90,26 @@
         <!-- process-table:end -->
         <p>Mainbrella's original run needed our runner to start each restored server. With the saved recipe, all three copies listened and served the editor over their protected previews without a client-side launch command. Each had a fresh nonce; the source kept running. All 417 tracked file hashes matched in every copy, along with dependencies, the prepared marker, permissions, and a symlink. The <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/process-state.json">original process records</a> retain the earlier PID, nonce, and file observations.</p>
         <p>E2B brought the source's listener, PID, and nonce into all three forks before we launched anything. Its <a href="https://docs.e2b.dev/sandbox/fork">fork documentation</a> also says capture pauses the source and drops active connections. A process remembering its work doesn't mean the terminal watching it stays connected.</p>
+        <p>The console showed the source and three branches together: four concurrent sandboxes, with <code>htop</code> open in the source.</p>
+        <figure class="article-figure rodeo-terminal-figure">
+          <a class="rodeo-console-crop crop-e2b-concurrency" href="/images/blog/one-bug-three-clouds/e2b-four-sandboxes-terminal.png" aria-label="View the full screenshot showing four concurrent E2B sandboxes">
+            <img src="/images/blog/one-bug-three-clouds/e2b-four-sandboxes-terminal.png" width="3424" height="1840" alt="The E2B console header reports LIVE and four concurrent sandboxes." loading="lazy" decoding="async" />
+          </a>
+          <div class="rodeo-console-scroll" tabindex="0" role="region" aria-label="E2B terminal screenshot; scroll horizontally on small screens to inspect the running sandbox">
+            <a class="rodeo-console-crop crop-e2b-terminal" href="/images/blog/one-bug-three-clouds/e2b-four-sandboxes-terminal.png" aria-label="View the full E2B terminal screenshot, including the four-sandbox count">
+              <img src="/images/blog/one-bug-three-clouds/e2b-four-sandboxes-terminal.png" width="3424" height="1840" alt="The same screenshot's terminal shows htop with CPU bars, memory use, task counts, and a process list in the prepared source sandbox." loading="lazy" decoding="async" />
+            </a>
+          </div>
+        </figure>
         <p>Daytona's container snapshot required a stopped source. After capture, the source and all three branches needed fresh servers. Its <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/daytona-rerun/result.json">successful rerun</a> preserved files, dependencies, and branch isolation and produced the same repair outcomes as the other two. This tests Daytona's container snapshots; its VM memory snapshots are a separate mode we haven't exercised.</p>
+        <p>The historical settings panel identifies the sandbox as class <strong>Container</strong> and its preview as private.</p>
+        <figure class="article-figure rodeo-daytona-figure">
+          <div class="rodeo-console-scroll" tabindex="0" role="region" aria-label="Daytona container settings screenshot; scroll horizontally on small screens to inspect the values">
+            <a class="rodeo-console-crop crop-daytona-details" href="/images/blog/one-bug-three-clouds/daytona-container-details.png" aria-label="View the full original Daytona sandbox screenshot">
+              <img src="/images/blog/one-bug-three-clouds/daytona-container-details.png" width="3424" height="1840" alt="Daytona's sandbox details show class Container, private preview access, one vCPU, 1 GiB of memory, 3 GiB of disk, auto-stop after 30 minutes, auto-archive after seven days, and auto-delete disabled." loading="lazy" decoding="async" />
+            </a>
+          </div>
+        </figure>
         <p>For the editor, restarting was fine. The document lives in the external browser's <code>localStorage</code>, outside the server container. Each browser test reconstructs it. We even stopped E2B's inherited servers before checking the patches. That experiment demonstrated process preservation, but the repair never used it.</p>
 
         <h2>A worker you can't restart into correctness</h2>
@@ -139,6 +158,12 @@
 
         <h2>Checking what deletion actually did</h2>
         <p>Our first Daytona snapshot exceeded the harness's three-minute deadline while the provider kept working. A later delete returned 403: our key could manage sandboxes but couldn't delete persistent snapshots. We had permission to make the mess and insufficient permission to clean it up.</p>
+        <p>A screenshot from that first attempt shows the snapshot still marked <code>Snapshotting</code>.</p>
+        <figure class="article-figure rodeo-snapshot-figure">
+          <a class="rodeo-console-crop crop-daytona-snapshot" href="/images/blog/one-bug-three-clouds/daytona-snapshotting.png" aria-label="View the original Daytona snapshot status screenshot">
+            <img src="/images/blog/one-bug-three-clouds/daytona-snapshotting.png" width="3424" height="1840" alt="In the first attempt, Daytona's snapshot row shows one vCPU, 1 GiB of memory, 3 GiB of disk, and the state Snapshotting." loading="lazy" decoding="async" />
+          </a>
+        </figure>
         <p>The adapter now checks both sets of permissions before provisioning, saves the requested snapshot name before submission, and polls separately with a ten-minute deadline. The <a href="https://github.com/mainbrella/repo-rodeo/blob/99f25ce00fe907b29c618b2b83959118d1e15f86/notes/2026-10-12-daytona-rerun.md">rerun</a> completed the snapshot and all repair controls, then deleted its sandboxes and snapshot while preserving thirteen pre-existing snapshots.</p>
         <p>Yet its overall result said <code>failed</code>. The API confirmed deletion, but several old previews returned 401 instead of the 404 or 410 the adapter required. Meanwhile, E2B passed a special rule allowing repeated 502s after API-confirmed absence. It also got more probes. Those labels reflected different acceptance rules in our code. Using them to rank providers was a mistake.</p>
         <p>We reran the editor with a shared cleanup protocol. Every current preview had to return 200 with its credential before deletion. After cleanup, we checked exact API resource absence and made three rounds of requests to each old URL, with and without preview headers, with a two-second pause between rounds. We also provisioned a small live control server after deleting the editor resources. Its preview had to stay at 200 during each of three further rounds, so we could check whether the gateway still served a known-live sandbox.</p>
