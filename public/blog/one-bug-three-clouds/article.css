@@ -44,6 +44,7 @@
   .rodeo-article .rodeo-results { font-size: 15px; }
   .rodeo-article .rodeo-results th,
   .rodeo-article .rodeo-results td { padding-right: 12px; }
+  .rodeo-article .crop-daytona-details { min-width: 0; }
   .rodeo-article .rodeo-replay-figure,
   .rodeo-article .rodeo-worker-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
   .rodeo-article .crop-daytona-snapshot { aspect-ratio: 650 / 177; }
