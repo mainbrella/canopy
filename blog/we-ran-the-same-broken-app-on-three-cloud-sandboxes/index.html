@@ -156,6 +156,19 @@
         </figure>
         <p>The lost reply came after successful HTTP headers. This establishes recovery of a completed save, not what happens if capture is interrupted earlier. We didn't run keyed replay on E2B or Daytona: those adapters don't implement it. That is a gap in this comparison, not a demonstrated failure of their services. We disabled keyed replay for all three matched runs so their shared recovery check covered the same interrupted job.</p>
 
+        <h3 id="capture-recovery">Follow-up: recover the save by name</h3>
+        <p>We then tested E2B and Daytona using their supported named-snapshot recovery paths. Before submitting, the client persisted a unique snapshot name. The harness received a successful save response, retained it privately, and withheld it from the recovering client. E2B used a new SDK client to list snapshots by the saved name and source sandbox. Daytona polled the saved name until the snapshot was active. Each recovered snapshot restored into a new sandbox with the prepared file intact, and each run issued exactly one capture POST.</p>
+        <table class="rodeo-results">
+          <caption class="sr-only">Save-response recovery observations, with a different supported mechanism for each provider</caption>
+          <thead><tr><th scope="col">Provider</th><th scope="col">Recovery</th><th scope="col">Capture count</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Mainbrella</th><td>Replay the same request key</td><td>One capture; three POSTs</td></tr>
+            <tr><th scope="row"><a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/capture-recovery/e2b/result.json">E2B</a></th><td>List by persisted name</td><td>One capture; one POST</td></tr>
+            <tr><th scope="row"><a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/capture-recovery/daytona/result.json">Daytona</a></th><td>Poll persisted name</td><td>One capture; one POST</td></tr>
+          </tbody>
+        </table>
+        <p>Both follow-ups completed cleanup, confirmed the two test sandboxes and saved snapshot absent, and preserved the original account inventories. E2B used a full snapshot and Daytona a container filesystem snapshot; Mainbrella's earlier check used the prepared web app. These are separate single-run behavior checks, not a matched reliability or cost benchmark. We did not resend the competitor capture requests or assume an undocumented idempotency header. Mainbrella demonstrates keyed replay; all three demonstrate recovery of a usable save after its reply is lost.</p>
+
         <h2>Checking what deletion actually did</h2>
         <p>Our first Daytona snapshot exceeded the harness's three-minute deadline while the provider kept working. A later delete returned 403: our key could manage sandboxes but couldn't delete persistent snapshots. We had permission to make the mess and insufficient permission to clean it up.</p>
         <p>A screenshot from that first attempt shows the snapshot still marked <code>Snapshotting</code>.</p>
