@@ -112,19 +112,21 @@ const rows = exported.flatMap(run => run.observations.filter(observation =>
   .map((observation, index) => {
     const { process, filesystem } = observation;
     const copy = observation.copy === 'source' ? 'source, before capture' : observation.copy;
+    const original = run.observations.find(value => value.stage === 'before capture').process;
+    const originalPresent = process.serverReachable && process.pid === original.pid && process.nonce === original.nonce;
     const started = observation.copy === 'source' ? null : run.observations.find(value =>
       value.copy === observation.copy && value.stage === 'after patch and explicit restart');
     if (started) {
       assert.equal(started.process.serverReachable, true);
       assert.notEqual(started.process.nonce, run.observations.find(value => value.stage === 'before capture').process.nonce);
     }
-    return `            <tr${index === 0 ? ' class="provider-start"' : ''}><th scope="row">${run.provider} · ${copy}</th><td>${process.serverReachable ? 'Yes' : 'No'}</td><td>${process.pid ?? 'none'}</td><td>${process.nonce ? `<code>${process.nonce.slice(0, 8)}</code>` : 'none'}</td><td>${filesystem.checkedFiles}/${filesystem.checkedFiles}</td><td>${started ? 'Yes, new nonce' : 'n/a'}</td></tr>`;
+    return `            <tr${index === 0 ? ' class="provider-start"' : ''}><th scope="row">${run.provider} · ${copy}</th><td>${originalPresent ? 'Yes' : 'No'}</td><td>${process.pid ?? 'none'}</td><td>${process.nonce ? `<code>${process.nonce.slice(0, 8)}</code>` : 'none'}</td><td>${filesystem.checkedFiles}/${filesystem.checkedFiles}</td><td>${started ? 'Yes, new nonce' : 'n/a'}</td></tr>`;
   })).join('\n');
 const table = `<!-- process-table:start -->
         <div class="rodeo-table-scroll" tabindex="0" role="region" aria-label="Source and branch process observations; scroll horizontally if needed">
           <table class="rodeo-results rodeo-process-table">
-            <caption class="sr-only">Initial listening state, PID and nonce before any branch launch or patch. All branches listen after an explicit start or restart, with fresh nonces. Source rows have no branch launch. Files column counts matching tracked file hashes; dependencies, permissions, marker and symlink were also checked.</caption>
-            <thead><tr><th scope="col">Provider · copy</th><th scope="col">Initially listening</th><th scope="col">Initial PID</th><th scope="col">Initial nonce</th><th scope="col">Files</th><th scope="col">After branch launch</th></tr></thead>
+            <caption class="sr-only">Presence of the original source process, checked by listener, PID and nonce before any branch launch or patch. All branches listen after an explicit start or restart, with fresh nonces. Source rows provide the reference process and have no branch launch. Files column counts matching tracked file hashes; dependencies, permissions, marker and symlink were also checked.</caption>
+            <thead><tr><th scope="col">Provider · copy</th><th scope="col">Original process present</th><th scope="col">Initial PID</th><th scope="col">Initial nonce</th><th scope="col">Files</th><th scope="col">After branch launch</th></tr></thead>
             <tbody>
 ${rows}
             </tbody>
