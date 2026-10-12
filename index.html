@@ -74,9 +74,8 @@
 
       <section class="home-section home-compare" id="compare" aria-labelledby="compare-title">
         <div class="home-container">
-          <div class="home-section-heading"><div><p class="home-eyebrow"><span aria-hidden="true"></span> How Mainbrella compares</p><h2 id="compare-title">The complete platform for what’s <span>next.</span></h2></div><p class="home-heading-aside">One Cloudflare stack.<br />From build to hosting.</p></div>
-          <div class="home-compare-layout">
-            <div class="home-comparison-table-group"><p class="home-scroll-hint">Scroll to compare <span aria-hidden="true">→</span></p>
+          <div class="home-section-heading"><div><p class="home-eyebrow"><span aria-hidden="true"></span> How Mainbrella compares</p><h2 id="compare-title">The complete platform for what’s <span>next.</span></h2></div></div>
+            <p class="home-scroll-hint">Scroll to compare <span aria-hidden="true">→</span></p>
             <div class="home-table-wrap" role="region" aria-label="Platform comparison" tabindex="0">
               <table class="home-compare-table"><thead><tr><th scope="col">Feature</th><th scope="col"><img src="/images/logo.png" alt="" /> Mainbrella</th><th scope="col">E2B</th><th scope="col">Daytona</th></tr></thead><tbody>
                 <tr><th scope="row">Built-in AI app builder</th><td><span class="home-check" aria-hidden="true">✓</span><span class="home-sr-only">Supported</span></td><td>Bring your own</td><td>Bring your own</td></tr>
@@ -91,24 +90,8 @@
                 <tr><th scope="row">Usage-based compute</th><td><span class="home-check" aria-hidden="true">✓</span><span class="home-sr-only">Supported</span></td><td><span class="home-check" aria-hidden="true">✓</span><span class="home-sr-only">Supported</span></td><td><span class="home-check" aria-hidden="true">✓</span><span class="home-sr-only">Supported</span></td></tr>
                 <tr><th scope="row">Hosted apps &amp; custom domains</th><td><span class="home-check" aria-hidden="true">✓</span><span class="home-sr-only">Supported</span><small>Supported deployments</small></td><td>Bring your own host</td><td>Custom preview proxy</td></tr>
               </tbody></table>
-            </div></div>
-            <aside class="home-compare-cta"><p class="home-eyebrow"><span aria-hidden="true"></span> Different by design</p><h3>One platform.<br />From experimentation to production.</h3><p>Build, run, and ship on the same developer-friendly platform, powered by Cloudflare Containers.</p><a class="home-primary-link" href="#home-build-prompt">Get started free <span aria-hidden="true">→</span></a><span class="home-cta-note">No credit card required</span></aside>
-          </div>
+            </div>
           <details class="home-comparison-sources"><summary>Comparison notes &amp; sources <span>Reviewed October 12, 2026</span></summary><p>Capabilities reflect publicly documented product features and the linked Mainbrella production checks; plans and availability can change. <a href="/compare/">Read our comparison notes</a>. Mainbrella restored three copies of a prepared app with automatic startup and readiness checks, and separately recovered a completed workspace save after its response body was lost. E2B and Daytona save-response recovery was not tested; this does not mean it is unsupported. <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/#process-state">App startup evidence</a> · <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/#recovery">Lost-response recovery evidence</a>.</p><p>Sources: <a href="https://docs.e2b.dev/sandbox">E2B sandboxes</a>, <a href="https://e2b.dev/resources/introducing-build-system-2-0">E2B startup and readiness</a>, <a href="https://e2b.dev/open-source">E2B open source</a>, <a href="https://www.daytona.io/docs/en/sandboxes/">Daytona sandboxes</a>, <a href="https://www.daytona.io/docs/en/tools/cli/#daytona-snapshot-create">Daytona snapshot entrypoints</a>, <a href="https://www.daytona.io/docs/en/custom-preview-proxy/">Daytona custom preview proxy</a>, <a href="https://www.daytona.io/dotfiles/updates/daytona-is-going-closed-source">Daytona open-source update</a>.</p></details>
-        </div>
-      </section>
-
-      <section class="home-section home-architecture" id="architecture" aria-labelledby="architecture-title">
-        <div class="home-container">
-          <div class="home-section-heading"><div><p class="home-eyebrow"><span aria-hidden="true"></span> Cloudflare-native architecture</p><h2 id="architecture-title">A modern stack for modern <span>builders.</span></h2><p class="home-section-lead">Mainbrella combines Cloudflare’s developer platform with durable orchestration and real Linux environments.</p></div><p class="home-heading-aside">Simple primitives.<br />Powerful outcomes.</p></div>
-          <div class="home-architecture-flow">
-            <article class="home-arch-node home-arch-client"><h3><span class="home-arch-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg></span>Your app / client</h3><ul><li>Browser</li><li>JS / Python SDK</li><li>API request</li><li>AI agent / CLI</li></ul></article><span class="home-arch-arrow" aria-hidden="true">→</span>
-            <article class="home-arch-node home-arch-mainbrella"><h3><img src="/images/logo.png" alt="" /> Mainbrella</h3><p>API + account Durable Object</p><ul><li>Auth, orgs, and project management</li><li>Creates and manages container instances</li><li>Lifecycle, networking, previews</li><li>Coordinates storage and metadata</li></ul></article><span class="home-arch-arrow" aria-hidden="true">→</span>
-            <article class="home-arch-node home-arch-cloudflare"><h3><span class="home-arch-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3 7 9 5 9-5m-9 5v10"/></svg></span>Cloudflare Containers</h3><ul><li>Real Linux containers</li><li>Isolated, secure runtime</li><li>Web services, dev servers, databases</li><li>PTY, logs, and metrics</li></ul></article><span class="home-arch-arrow" aria-hidden="true">→</span>
-            <article class="home-arch-node home-arch-env"><h3><span class="home-arch-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span>Your environments</h3><ul><li>Previews (shared URLs)</li><li>Projects (persistent)</li><li>Production hosting</li><li>Custom domains</li></ul></article>
-          </div>
-          <ul class="home-services" aria-label="Cloudflare platform services"><li><b>D1</b><span>Metadata, users, projects</span></li><li><b>Durable Objects</b><span>Account state, orchestration</span></li><li><b>R2</b><span>Project files, artifacts, assets</span></li><li><b>Cloudflare edge</b><span>Global delivery, secure access</span></li></ul>
-          <!-- agent-setup -->
         </div>
       </section>
 
