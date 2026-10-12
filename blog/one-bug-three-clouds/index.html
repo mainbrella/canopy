@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Repo Rodeo starts with a disappearing button, a patch we know is wrong, and a local Mainbrella run. E2B and Daytona are next." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/one-bug-three-clouds/" />
+    <meta property="og:title" content="One Bug, Three Clouds: Building Repo Rodeo · Mainbrella" />
+    <meta property="og:description" content="The editor said Saved. Reloading lost the button. Building an experiment that can tell a repair from a convincing demo." />
+    <meta property="og:url" content="https://mainbrella.com/blog/one-bug-three-clouds/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/one-bug-three-clouds/before-reload.png" />
+    <meta property="og:image:alt" content="The broken editor still displays Join the waitlist after saving. Reloading drops that button." />
+    <meta property="article:published_time" content="2026-10-11T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/one-bug-three-clouds/article.css" />
+    <title>One Bug, Three Clouds: Building Repo Rodeo · Mainbrella</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella rodeo-article">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>One Bug, Three Clouds: Building Repo Rodeo</h1>
+        <p class="article-meta"><time datetime="2026-10-11">October 11, 2026</time> · Andrew Arrow</p>
+
+        <p>Move “Join the waitlist” to the top of the editor, hit Save, and everything looks fine. The button is still there. The editor says “Saved.” Reload the page and the button disappears. Three blocks went in; two came back.</p>
+        <p>You can <a href="/repo-rodeo-bug/">try the broken editor</a> without an account. We planted this bug deliberately. It gives <a href="https://github.com/mainbrella/repo-rodeo">Repo Rodeo</a> a small, repeatable failure while we build the machinery for handling somebody else’s GitHub issue.</p>
+        <p>The product we want takes an issue and a reproduction recipe, prepares the application, then gives independent coding agents their own copies to repair. A maintainer should be able to open the broken app, open a proposed repair, repeat the same actions, and inspect the diff. Getting both apps into the browser would be useful even when every agent fails.</p>
+        <p>The three clouds in the title are E2B, Daytona, and Mainbrella. So far, we have a local experiment and a completed manual run through Mainbrella’s local API and OrbStack containers. The patches are deterministic controls. AI repair attempts and the other two providers are still ahead of us. Before adding agents, we need to know that the experiment can reject a bad repair.</p>
+
+        <p>The editor holds the current document in memory and saves a serialized copy to <code>localStorage</code>. Its serializer assigns positions from the array index, then filters them:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="The deliberately broken serializer"><code>blocks
+  .map((block, position) =&gt; ({ ...block, position }))
+  .filter(block =&gt; block.position);</code></pre>
+        <p>Zero is false, so the first block gets thrown away. The storage write succeeds, which earns the “Saved” message, while the editor continues displaying its untouched in-memory draft. Moving the button makes the loss easy to see. Saving in the original order loses the heading instead.</p>
+        <p>These captures show the preview in the broken editor immediately after saving and after a browser reload. The same heading and paragraph survive; the button doesn’t.</p>
+
+        <div class="rodeo-screenshots">
+          <figure class="article-figure">
+            <p class="rodeo-image-label">After Save</p>
+            <a href="/images/blog/one-bug-three-clouds/before-reload.png" aria-label="View the editor preview after saving">
+              <img src="/images/blog/one-bug-three-clouds/before-reload.png" width="742" height="418" alt="The editor preview after Save still shows Join the waitlist above Friday demo and Bring something that almost works." decoding="async" fetchpriority="high" />
+            </a>
+          </figure>
+          <figure class="article-figure">
+            <p class="rodeo-image-label">After reload</p>
+            <a href="/images/blog/one-bug-three-clouds/after-reload.png" aria-label="View the editor preview after reloading">
+              <img src="/images/blog/one-bug-three-clouds/after-reload.png" width="742" height="418" alt="After reloading the same saved document, the preview contains Friday demo and the paragraph. Join the waitlist is missing." decoding="async" />
+            </a>
+          </figure>
+        </div>
+
+        <p>The correct patch removes the filter. The deliberately misleading patch adds <code>render()</code> after saving, leaving the serializer alone. It redraws the document that’s already in memory, so a demonstration that ends at Save looks perfectly healthy. Reload still loses the first block.</p>
+        <p>That bad patch is useful. If our verifier accepts it, adding a cleverer agent just gives us a more persuasive wrong answer. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/fixtures/editor/repro.spec.js">browser test</a> therefore compares ordered block IDs and text before Save, after Save, and after reload. Looking for “Join the waitlist” somewhere on the page would be too weak; help text could contain the words while the document had lost the button.</p>
+        <p>The suite also saves without reordering, edits the text, checks that Reset leaves unrelated browser storage alone, and generates fresh documents from a recorded random seed. The seed makes the randomized case repeatable. These are checks of this editor’s persistence behavior, with known answers, rather than a score for an agent’s ability to repair unfamiliar code.</p>
+        <p>The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/examples/run-result.json">retained local result</a> has the expected pattern:</p>
+
+        <table class="rodeo-results">
+          <caption class="sr-only">Recorded standalone local experiment with deterministic patches</caption>
+          <thead><tr><th scope="col">App copy</th><th scope="col">Browser checks</th><th scope="col">After reload</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Baseline</th><td>5 failed, 1 passed</td><td>First block lost</td></tr>
+            <tr><th scope="row">Correct patch</th><td>6 passed</td><td>Document preserved</td></tr>
+            <tr><th scope="row">Misleading patch</th><td>5 failed, 1 passed</td><td>First block lost</td></tr>
+          </tbody>
+        </table>
+
+        <p>Five failures count as reproduction only when they show the specified loss. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/src/verifier.ts">verifier</a> checks that the document was intact before reload and that afterward it contains exactly the expected document minus its first block. A timeout, HTTP error, missing test, or unrelated assertion produces an unverified result. An unverified baseline stops the experiment before either candidate runs.</p>
+        <p>This mattered in the first Mainbrella run. We archived a pinned checkout of this website, uploaded it through the file API, installed its dependencies in a container, and started Vite. The browser reached the protected preview and got HTTP 403. The experiment hadn’t reproduced the bug. It hadn’t even reached the editor.</p>
+        <p>Mainbrella forwarded the guest Host header as <code>container</code>, which Vite didn’t allow. Adding that exact host to the run’s launcher got us to the application. The launcher also set the local API address explicitly so the copied website wouldn’t default to the production API. Those were changes to the experimental launch setup; the host checkout stayed untouched. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/notes/2026-10-11-local-mainbrella.md">run notes</a> retain the failed attempt along with the working one.</p>
+
+        <p>Once the baseline reproduced the loss, we wanted three independent copies of that prepared application. Installing dependencies belongs in the common starting point. A patch belongs in one branch. The deployment advertised saved workspaces but disabled native filesystem forking and memory preservation, so we tested saving the files and restoring them into fresh containers.</p>
+        <p>The first capture request hit another obstacle: HTTP 429, <code>workspace_quota_exceeded</code>. The account reported 100 saved workspaces against a limit of 20. We left those workspaces alone. The manual experiment continued with a disposable account and a synthetic trial entitlement in local D1. That let us test capture and restore through the same API, but it tells us nothing about signup or payment.</p>
+        <p>One saved workspace then supplied the baseline, correct-patch, and misleading-patch branches. All three retained the checkout, lockfile, and installed dependencies. None needed another <code>npm ci</code>. A different marker file in each branch stayed private to that branch, and the source had no marker file.</p>
+        <p>Keeping the files was only half the question. The running server exposed a random nonce held solely in process memory. Its nonce stayed the same across capture. Each restored container initially refused connections; explicitly starting Vite produced a fresh nonce in each one. The files survived. The running servers had to be started again.</p>
+
+        <figure class="article-figure rodeo-process-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/one-bug-three-clouds/saved-workspace-mobile.svg" width="360" height="544" />
+            <img src="/images/blog/one-bug-three-clouds/saved-workspace.svg" width="800" height="430" alt="Schematic of the observed local saved-workspace run. The source server keeps running through capture. Saved files fan out to baseline, correct, and misleading branches. Each branch initially has no listener, then starts a server with a new process nonce. The source process does not continue into the restores." loading="lazy" decoding="async" />
+          </picture>
+        </figure>
+
+        <p>For this bug, a fresh process works fine. The interesting state is code on disk and a document the external browser can reconstruct. A bug involving a half-processed in-memory queue would need a different experiment. Calling both operations “copy the environment” would hide precisely the difference we’re trying to measure.</p>
+        <p>The same six browser checks ran outside all the containers, through each branch’s protected preview, with a fresh browser context per test. The restored baseline and misleading patch reproduced the loss. The correct patch passed, including all twelve reloads in the seeded holdout. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/notes/evidence/mainbrella-local-20261011-01/manifest.json">public observation bundle</a> lets you inspect the recorded documents. Raw traces and screenshots remain private because the preview URLs carry bearer credentials; the public bundle alone can’t rerun the verifier’s full decision.</p>
+
+        <p>A repair attempt will also need to outlive the page watching it. In the manual run, we submitted an eight-second managed job, attached to its output, and closed the browser after the first message. A new browser recovered the same execution ID, both messages, and exit status zero. Reattaching didn’t restart the job. That’s a useful result for the eventual agent workflow, though the job itself was a deterministic command.</p>
+        <p>Cleanup gave us a less tidy result. All four fixture previews returned 404 after revocation. Deleting their exact container generations and the two saved workspaces left the fixture account with no containers, no workspaces, and no live reserved workspace bytes. Two Docker snapshot images still existed, with no attached containers. An API receipt saying “deleted” hadn’t reclaimed those images. The original account also retained a separate baseline container for inspection.</p>
+        <p>The cleanup record keeps those facts separate. We still need to measure physical snapshot retention. This is also why there’s no price or speed ranking here: the run used local OrbStack, and Docker inspection showed no matching per-container CPU or memory limits for the requested Small configuration. Those timings wouldn’t make a fair cloud comparison.</p>
+
+        <p>The latest <a href="https://github.com/mainbrella/repo-rodeo/commit/0248e94e6a890135ed0bcf3be2955f5962b303ed">commit</a> turns the manual recipe into a tracked Mainbrella adapter. Its full capture-and-restore path still needs a live run. Its first recorded <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/examples/mainbrella-preflight-result.json">preflight</a> encountered the original account’s quota problem and stopped before creating anything. The earlier manual result doesn’t automatically qualify the new implementation.</p>
+        <p>E2B and Daytona will answer different preparation questions. <a href="https://docs.e2b.dev/sandbox/fork">E2B documents forks that preserve files and memory</a>, which gives us a process-preserving case to test. <a href="https://www.daytona.io/docs/en/snapshots/">Daytona distinguishes container filesystem snapshots from VM snapshots that include memory</a>. We’ll keep those modes separate and send the same browser reproduction through each. Today, selecting either provider in Repo Rodeo writes an unsupported result and exits without contacting it.</p>
+        <p>You can run the standalone controls now from the <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/README.md">repository</a>, using its pinned Node version:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Run the standalone Repo Rodeo experiment"><code>npm ci
+npx playwright install chromium
+npm run experiment -- --seed 12345</code></pre>
+        <p>The command writes a new evidence directory with the inputs, patches, document observations, traces, screenshots, and cleanup record. Its temporary working copies are a local test arrangement, not security sandboxes for untrusted repositories.</p>
+        <p>Next comes a complete live run of the tracked adapter, then the E2B and Daytona implementations. Before asking any of them to carry an agent’s proposed fix, they have to carry the same deliberately wrong patch through Save and reload and reject it.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>
