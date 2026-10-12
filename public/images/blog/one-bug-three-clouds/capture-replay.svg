@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="440" viewBox="0 0 800 440" role="img" aria-labelledby="title desc">
   <title id="title">Three requests, one workspace</title>
-  <desc id="desc">Schematic of the observed production Mainbrella response-loss test, not an elapsed-time chart. Capture with body B and key K creates workspace W. The client receives successful headers and discards the response body. A retry and a replay use the same body and key; both read the existing workspace and return W. There is only one creation.</desc>
+  <desc id="desc">Schematic of the observed production Mainbrella response-loss test, not an elapsed-time chart. Capture with body B and key K creates workspace W. The client receives successful headers and discards the response body. A retry and a replay use the same body and key; both recover the identity W. There is only one creation.</desc>
   <defs>
     <marker id="request" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#55616c" stroke-width="1.4"/></marker>
     <marker id="response" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#397b5c" stroke-width="1.4"/></marker>
@@ -26,14 +26,14 @@
   <path d="M124 231l14 14m0-14-14 14" stroke="#9c4538" stroke-width="2.5"/>
   <text x="174" y="270">Retry · body B + key K</text>
   <path d="M83 281H417" class="request"/>
-  <text x="535" y="270" class="small">Read W</text>
+  <text x="535" y="270" class="small">Same W</text>
   <path d="M438 281H691" class="request"/>
   <circle cx="703" cy="281" r="4" fill="#397b5c"/>
   <text x="180" y="307" class="saved">HTTP 200 · workspace W</text>
   <path d="M417 318H84" class="response"/>
   <text x="166" y="348">Replay · body B + key K</text>
   <path d="M83 359H417" class="request"/>
-  <text x="535" y="348" class="small">Read W</text>
+  <text x="535" y="348" class="small">Same W</text>
   <path d="M438 359H691" class="request"/>
   <circle cx="703" cy="359" r="4" fill="#397b5c"/>
   <text x="180" y="385" class="saved">HTTP 200 · workspace W</text>
