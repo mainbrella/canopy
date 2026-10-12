@@ -1,0 +1,136 @@
+/* Crops use the supplied, unmodified 3424 × 1840 screenshots.
+   x/y/w/h below are integer source-pixel bounds; no screenshot content is recreated. */
+.agent-computer-article .screenshot-crop {
+  display: block;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #000;
+}
+.agent-computer-article .screenshot-crop img {
+  display: block;
+  position: absolute;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  border: 0;
+}
+.agent-computer-article .screenshot-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.agent-computer-article .screenshot-scroll .screenshot-crop {
+  min-width: var(--screenshot-readable-width, 780px);
+}
+.agent-computer-article .screenshot-scroll:focus-visible,
+.agent-computer-article a.screenshot-crop:focus-visible {
+  outline: 2px solid var(--accent, #8bbdf7);
+  outline-offset: 4px;
+}
+
+/* compare-mainbrella-bug-sandboxes.png: x=624, y=802, width=1840, height=770. */
+.agent-computer-article .screenshot-e2b-terminal {
+  aspect-ratio: 1840 / 770;
+  --screenshot-readable-width: 780px;
+}
+.agent-computer-article .screenshot-e2b-terminal img {
+  width: 186.086957%;
+  left: -33.913043%;
+  top: -104.155844%;
+}
+
+/* sandboxes-status-today.png: x=624, y=671, width=1304, height=560. */
+.agent-computer-article .screenshot-e2b-filesystem {
+  aspect-ratio: 1304 / 560;
+  --screenshot-readable-width: 540px;
+}
+.agent-computer-article .screenshot-e2b-filesystem img {
+  width: 262.576687%;
+  left: -47.852761%;
+  top: -119.821429%;
+}
+
+/* sandbox-status-e2b-console.png: x=624, y=917, width=1850, height=628. */
+.agent-computer-article .screenshot-e2b-process-logs {
+  aspect-ratio: 1850 / 628;
+  --screenshot-readable-width: 800px;
+}
+.agent-computer-article .screenshot-e2b-process-logs img {
+  width: 185.081081%;
+  left: -33.729730%;
+  top: -146.019108%;
+}
+
+/* compare-mainbrella-bug-sandboxes-status.png: x=624, y=913, width=1784, height=386. */
+.agent-computer-article .screenshot-e2b-monitoring {
+  aspect-ratio: 1784 / 386;
+  --screenshot-readable-width: 780px;
+}
+.agent-computer-article .screenshot-e2b-monitoring img {
+  width: 191.928251%;
+  left: -34.977578%;
+  top: -236.528497%;
+}
+
+/* daytona-sandbox-details.png: x=2436, y=744, width=840, height=875. */
+.agent-computer-article .screenshot-daytona-container-config {
+  aspect-ratio: 840 / 875;
+  --screenshot-readable-width: 360px;
+  max-width: 520px;
+}
+.agent-computer-article .screenshot-daytona-container-config img {
+  width: 407.619048%;
+  left: -290.000000%;
+  top: -85.028571%;
+}
+
+/* compare-mainbrella-features-sandboxes-e2b-console.png: x=1360, y=660, width=1310, height=177. */
+.agent-computer-article .screenshot-daytona-snapshots {
+  aspect-ratio: 1310 / 177;
+  --screenshot-readable-width: 780px;
+}
+.agent-computer-article .screenshot-daytona-snapshots img {
+  width: 261.374046%;
+  left: -103.816794%;
+  top: -372.881356%;
+}
+
+/* sandbox-creation-dashboard.png: x=745, y=660, width=1900, height=304. */
+.agent-computer-article .screenshot-daytona-branches {
+  aspect-ratio: 1900 / 304;
+  --screenshot-readable-width: 816px;
+}
+.agent-computer-article .screenshot-daytona-branches img {
+  width: 180.210526%;
+  left: -39.210526%;
+  top: -217.105263%;
+}
+
+/* sandbox-audit-logs-daytona.png: x=1510, y=668, width=1765, height=482. */
+.agent-computer-article .screenshot-daytona-audit {
+  aspect-ratio: 1765 / 482;
+  --screenshot-readable-width: 816px;
+}
+.agent-computer-article .screenshot-daytona-audit img {
+  width: 193.994334%;
+  left: -85.552408%;
+  top: -138.589212%;
+}
+
+/* sandbox-details-daytona.png: x=1555, y=377, width=1735, height=357. */
+.agent-computer-article .screenshot-daytona-spending {
+  aspect-ratio: 1735 / 357;
+  --screenshot-readable-width: 816px;
+}
+.agent-computer-article .screenshot-daytona-spending img {
+  width: 197.348703%;
+  left: -89.625360%;
+  top: -105.602241%;
+}
+
+@media (min-width: 900px) {
+  .agent-computer-article .screenshot-scroll .screenshot-crop { min-width: 0; }
+}
+

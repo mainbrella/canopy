@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="What does an AI agent do with its own Linux computer? A screenshot tour through terminals, running apps, disposable workspaces, and copies that remember unfinished work." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/ai-agent-linux-box/" />
+    <meta property="og:title" content="Give your AI agent a computer it can break · Mainbrella" />
+    <meta property="og:description" content="A terminal, a running app, and three chances to get a fix right. What cloud sandboxes give AI agents, illustrated with E2B and Daytona." />
+    <meta property="og:url" content="https://mainbrella.com/blog/ai-agent-linux-box/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/one-bug-three-clouds/before-reload.png" />
+    <meta property="og:image:alt" content="A web app still shows Join the waitlist after Save. Reloading reveals that the button was never saved." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/ai-agent-linux-box/article.css" />
+    <link rel="stylesheet" href="/blog/ai-agent-linux-box/screenshots.css" />
+    <title>Give your AI agent a computer it can break · Mainbrella</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella agent-computer-article">
+      <article>
+        <h1>Give your AI agent a computer it can break</h1>
+        <p class="article-meta">Andrew Arrow · Article draft</p>
+
+        <p>Ask an AI to fix a web app and you eventually want to see the patch run. Install the dependencies. Start the server. Open the page and try the thing that was broken. A cloud sandbox gives the agent a Linux computer to do that work, with a workspace you can throw away when an attempt goes badly.</p>
+        <p>That’s the job of services such as <a href="https://docs.e2b.dev/">E2B</a>, <a href="https://www.daytona.io/docs/en/sandboxes/">Daytona</a>, and our own <a href="/docs/containers/">Mainbrella</a>. You rent a separate computer for a task, let software operate it, and inspect what happened. You can prepare the app once, then make a separate copy for each repair.</p>
+
+        <h2>A terminal the agent can use</h2>
+        <p>Here’s one of our E2B sandboxes with <code>htop</code> open. It has running processes, memory in use, and a shell you can enter yourself. The familiar Linux tools work here.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="E2B terminal; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-e2b-terminal">
+              <img src="/images/blog/ai-agent-linux-box/e2b-terminal.png" width="3424" height="1840" alt="E2B’s terminal runs htop, showing CPU activity, memory use, and a list of Linux processes." decoding="async" fetchpriority="high" />
+            </div>
+          </div>
+          <figcaption>E2B’s terminal, running <code>htop</code>. You can inspect the processes on the computer the automation is using. Wide screenshots can be scrolled on a phone.</figcaption>
+        </figure>
+        <p>The language model can run elsewhere. An agent program sends a command to this machine, gets back its output, and gives that output to the model for its next decision. A test failure can lead to another edit and another run. The model doesn’t need to predict what <code>npm test</code> would say when it can ask a computer to execute it.</p>
+        <p>Files persist between those commands. Install a package, change a source file, or generate a report, and the next command can use the result. The dashboard lets a human inspect the same filesystem.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="E2B filesystem; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-e2b-filesystem">
+              <img src="/images/blog/ai-agent-linux-box/e2b-filesystem.png" width="3424" height="1840" alt="E2B’s filesystem browser lists files in the user’s home directory, with .profile selected." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>E2B’s file browser, with the shell’s <code>.profile</code> selected. Files on this remote computer can be inspected as well as changed by commands.</figcaption>
+        </figure>
+        <p>“Sandbox” describes the separate environment. Underneath, it might be a Linux container or a small virtual machine; <a href="https://docs.e2b.dev/sandbox">E2B uses VMs</a>, while <a href="https://www.daytona.io/docs/en/sandboxes/">Daytona offers several kinds</a>. You don’t have to learn their internals to understand the useful promise: this task gets its own files and processes.</p>
+
+        <h2>The app has to work after reload</h2>
+        <p>We made a tiny editor with a deliberately nasty bug. Move “Join the waitlist” to the top, press Save, and the preview looks fine. Reload, and the button disappears. The app said “Saved.” It was telling the truth about writing something, which is an unhelpful level of honesty.</p>
+        <div class="app-comparison">
+          <figure class="article-figure">
+            <p class="image-label">After Save</p>
+            <a href="/images/blog/one-bug-three-clouds/before-reload.png" aria-label="Enlarge the app after Save">
+              <img src="/images/blog/one-bug-three-clouds/before-reload.png" width="742" height="416" alt="The editor preview contains Join the waitlist, Friday demo, and Bring something that almost works." loading="lazy" decoding="async" />
+            </a>
+          </figure>
+          <figure class="article-figure">
+            <p class="image-label">After reload</p>
+            <a href="/images/blog/one-bug-three-clouds/after-reload.png" aria-label="Enlarge the app after reload">
+              <img src="/images/blog/one-bug-three-clouds/after-reload.png" width="742" height="416" alt="After reload, Friday demo and the paragraph remain, but Join the waitlist has disappeared." loading="lazy" decoding="async" />
+            </a>
+          </figure>
+        </div>
+        <p>You can <a href="/repo-rodeo-bug/">try the bug yourself</a>. The save routine drops the first block because its filter treats position zero as false. A plausible-looking repair redraws the page after Save. The good repair saves every block. Both can look successful in a demo that stops before reload.</p>
+        <p>A server running inside a remote computer also needs a route to the browser. A preview URL gives you that route. Now a person or a browser test can open the app, click Save, and reload. In our experiment, the browser tests ran outside the sandboxes, so a patch couldn’t improve its score by changing the tests.</p>
+
+        <h2>Give each attempt its own computer</h2>
+        <p>Suppose you want to try two repairs. You could keep editing one directory, undo each attempt, and hope you restored everything. A sandbox gives you another option: prepare the app once, then make independent copies of the prepared computer.</p>
+        <p>That copies more than a Git checkout. It can bring the installed dependencies and setup files along too. Here’s Daytona creating a new sandbox from a saved snapshot while another sandbox is running.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="Daytona sandbox creation; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-daytona-branches">
+              <img src="/images/blog/ai-agent-linux-box/daytona-branches.png" width="3424" height="1840" alt="Daytona lists one sandbox as Creating from a rodeo snapshot and another as Started from the base sandbox image." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>Daytona: one sandbox is “Started”; a new one is “Creating” from our saved snapshot. Each becomes a separate workspace.</figcaption>
+        </figure>
+        <p>A snapshot is a saved starting point for another machine. You can see it separately from the running sandboxes in Daytona’s dashboard.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="Daytona saved snapshot; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-daytona-snapshots">
+              <img src="/images/blog/ai-agent-linux-box/daytona-snapshots.png" width="3424" height="1840" alt="Daytona’s snapshot catalog shows a copy labeled From sandbox in the Snapshotting state, with one CPU, 1 GiB of RAM, and 3 GiB of disk." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>The saved copy has its own lifecycle. This historical Daytona capture was still “Snapshotting” when the screenshot was taken.</figcaption>
+        </figure>
+        <p>We prepared the same editor on all three services, then made three copies: unchanged, correctly patched, and misleadingly patched. <strong>We supplied the patches ourselves.</strong> This checked the workspaces and the tests, rather than an AI’s ability to invent a repair.</p>
+        <p>All nine copies kept the source files and installed dependencies. Each could be changed without changing the others. All three providers produced the expected <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/followups.json">editor results</a>:</p>
+        <table class="attempt-results">
+          <caption>What the browser found after reload</caption>
+          <thead><tr><th scope="col">Attempt</th><th scope="col">Result</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Leave it broken</th><td>The first block disappears</td></tr>
+            <tr><th scope="row">Fix the save routine</th><td>Every block survives</td></tr>
+            <tr><th scope="row">Make it look fixed</th><td>The first block still disappears</td></tr>
+          </tbody>
+        </table>
+        <p>This is the part I want from an agent’s computer: let it try an idea without changing the starting environment. An unsuccessful attempt can be discarded while the starting point remains available.</p>
+
+        <h2>Can you copy unfinished work?</h2>
+        <p>The editor’s document lived in the browser, and our test could recreate it. Restarting its server was fine. But a running program can hold something you can’t recover by checking out its files.</p>
+        <p>For a second experiment, we gave a worker five jobs and paused it before processing them. The jobs lived only in memory. Two were free items that still needed receipts; the broken program skipped them. We wanted three attempts to process independent copies of those same five accepted jobs.</p>
+        <p>E2B’s <a href="https://docs.e2b.dev/sandbox/fork">live fork</a> preserved the running worker and its queue in each copy. The unchanged processor produced three receipts, the good patch produced five, and the fake patch produced none. After those copies finished, the original still had all five jobs waiting.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/ai-agent-linux-box/pending-jobs-mobile.svg" width="390" height="690" />
+            <img src="/images/blog/ai-agent-linux-box/pending-jobs.svg" width="850" height="500" alt="E2B live copies each begin with five accepted jobs. The supplied unchanged, correct, and fake processors return three, five, and zero receipts. Mainbrella and Daytona filesystem copies start with empty queues." loading="lazy" decoding="async" />
+          </picture>
+          <figcaption>One selected worker run per provider, with five expected receipts. These are supplied repairs to a constructed workload. <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/worker/e2b/result.json">E2B observations</a>; <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/worker/mainbrella/result.json">Mainbrella</a>; <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/worker/daytona/result.json">Daytona</a>.</figcaption>
+        </figure>
+        <p>The Mainbrella saved-workspace and Daytona container-snapshot paths copied the files, then started fresh workers. Their queues were empty. Even the correct patch had no original jobs left to process. Restarting E2B’s worker also lost the queue: saving memory and restarting a program do different things.</p>
+        <p>Mainbrella can restore the app and <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/editor-startup/mainbrella/result.json">start its server automatically</a>. That still starts a fresh process. Daytona also offers VM memory snapshots; we tested its container snapshots here.</p>
+        <p>We deliberately gave this worker a pause point where a changed processor file could be loaded without restarting. It’s a small demonstration, not a way to patch every running program. In a production system, a durable queue could make the jobs recoverable after a restart. Here, copying memory let us experiment with work already in progress.</p>
+
+        <h2>What happens while the agent is working?</h2>
+        <p>An agent that can run commands can also leave a process spinning or start a server that uses too much memory. The operator needs to see the machine as well as the conversation. E2B’s monitoring view shows CPU and RAM use over time.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="E2B resource monitoring; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-e2b-monitoring">
+              <img src="/images/blog/ai-agent-linux-box/e2b-monitoring.png" width="3424" height="1840" alt="E2B’s monitoring pane plots CPU activity and RAM use for a running sandbox." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>E2B’s CPU and RAM charts. These show one machine’s activity over a short interval, rather than a performance comparison.</figcaption>
+        </figure>
+        <p>You also choose how much computer the task gets and when it stops. This Daytona container had one CPU, 1 GiB of memory, and a private preview, with lifecycle settings visible alongside them.</p>
+        <figure class="article-figure screenshot-figure screenshot-config-figure">
+          <div class="screenshot-crop screenshot-daytona-container-config">
+            <img src="/images/blog/ai-agent-linux-box/daytona-container-config.png" width="3424" height="1840" alt="Daytona’s overview lists sandbox class Container, private preview access, one CPU, 1 GiB of memory, 3 GiB of disk, and automatic lifecycle settings." loading="lazy" decoding="async" />
+          </div>
+          <figcaption>Daytona’s container configuration. The memory allocation, preview access, and stopping policy belong to this machine.</figcaption>
+        </figure>
+        <p>The computer’s lifetime and the client’s connection are separate. In our checks, all three services could recover a command’s output after its first client detached. We tested a short, eight-second job; this wasn’t a test of leaving an agent running overnight.</p>
+        <p>A dashboard gives you another way to follow the machine. This E2B log shows process starts and exits, including whether commands are still running.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="E2B process events; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-e2b-process-logs">
+              <img src="/images/blog/ai-agent-linux-box/e2b-process-logs.png" width="3424" height="1840" alt="E2B’s log pane records processes starting and ending, including process IDs." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>E2B’s process events show starts and exits. This view records runtime activity; it isn’t the application’s own log output.</figcaption>
+        </figure>
+        <p>Activity logs help explain an automation’s mess. This Daytona run recorded successful creates and deletes alongside a fork request the selected sandbox type didn’t support.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="Daytona activity log; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-daytona-audit">
+              <img src="/images/blog/ai-agent-linux-box/daytona-audit.png" width="3424" height="1840" alt="Daytona’s audit log shows successful sandbox creates and deletes and a fork request rejected with HTTP 422 because the selected type did not support it." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>Daytona’s audit log preserves the unsuccessful fork request alongside successful operations. A failed action leaves something you can investigate.</figcaption>
+        </figure>
+        <p>And the runtime costs money. Daytona’s spending view includes this 33-second interval at $0.00062189. That’s one recorded interval on one configuration, so it doesn’t tell us the cost of a complete repair or which provider is cheaper.</p>
+        <figure class="article-figure screenshot-figure">
+          <div class="screenshot-scroll" tabindex="0" role="region" aria-label="Daytona recorded spending; scroll horizontally to inspect">
+            <div class="screenshot-crop screenshot-daytona-spending">
+              <img src="/images/blog/ai-agent-linux-box/daytona-spending.png" width="3424" height="1840" alt="Daytona’s spending view records a 33-second interval with one CPU, 1 GB of RAM, 3 GB of disk, and a cost of $0.00062189." loading="lazy" decoding="async" />
+            </div>
+          </div>
+          <figcaption>One Daytona billing interval: 33 seconds, $0.00062189. A single row is too little evidence for a total-cost comparison.</figcaption>
+        </figure>
+        <p>Saving the result and deleting the temporary machine are part of finishing the task. Our runs checked that their test resources disappeared from each provider’s API inventory. The longer <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/">experiment report</a> follows recovery and cleanup in detail.</p>
+
+        <h2>Why rent the computer?</h2>
+        <p>You can do much of this with your own Docker setup or a VM. The service earns its place by making those computers available to a program: create one, send commands, inspect files, reach a running app, make another copy, and clean up.</p>
+        <p>The sandbox supplies the place to try. You still need a check that can tell a good answer from a convincing one. In our editor, that check was wonderfully ordinary: reload the page and see whether the button is still there.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>
