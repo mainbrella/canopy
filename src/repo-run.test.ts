@@ -33,7 +33,7 @@ class Element {
 }
 const flush = async () => { for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve)); };
 type ExecutionRecord = { stdout?: string; stderr?: string; status?: string; exitCode?: number | null; timedOut?: boolean; outputTruncated?: boolean; startedAt?: string; cursor?: number };
-async function fixture(t: TestContext, { search = '?repo=acme/demo&catalogId=node', hash = '', session = true, paid = true, billing = undefined as Record<string, number> | undefined, resolveError = '', state: initialState = null as RepositoryLaunch | null, stored = {} as Record<string, string>, executions: initialExecutions = {} as Record<string, ExecutionRecord | ExecutionRecord[]>, unavailableExecutions = [] as string[], executionGate: initialExecutionGate = null as Promise<void> | null, outputEvents = {} as Record<string, string | ReadableStream<Uint8Array>> } = {}) {
+async function fixture(t: TestContext, { search = '?repo=acme/demo&catalogId=node', hash = '', session = true, paid = true, repositoryImages = true as boolean | null, billing = undefined as Record<string, number> | undefined, resolveError = '', state: initialState = null as RepositoryLaunch | null, stored = {} as Record<string, string>, executions: initialExecutions = {} as Record<string, ExecutionRecord | ExecutionRecord[]>, unavailableExecutions = [] as string[], executionGate: initialExecutionGate = null as Promise<void> | null, outputEvents = {} as Record<string, string | ReadableStream<Uint8Array>> } = {}) {
   const nodes = new Map<string, Element>();
   const node = (id: string) => { if (!nodes.has(id)) nodes.set(id, new Element()); return nodes.get(id)!; };
   node('run-submit').textContent = 'Run repository';
@@ -67,6 +67,7 @@ async function fixture(t: TestContext, { search = '?repo=acme/demo&catalogId=nod
     const url = new URL(input); const body = options.body ? JSON.parse(options.body as string) : null;
     calls.push({ url, options, body });
     if (gate) await gate;
+    if (url.pathname === '/capabilities') return Response.json({ images: repositoryImages === null ? {} : { repositoryLaunch: repositoryImages } });
     if (url.pathname === '/containers') return Response.json({ active: paid, billing, limits: { maxStartsPerMonth: 1000 }, usage: { starts: 3 } });
     if (url.pathname === '/repo-launches/resolve') return resolveError ? Response.json({ error: resolveError }, { status: 503 }) : Response.json({ repo: 'acme/demo', ref: 'main', commit: 'a'.repeat(40), suggestedCatalogId: 'node' });
     if (url.pathname === '/repo-launches') {
@@ -104,7 +105,7 @@ async function fixture(t: TestContext, { search = '?repo=acme/demo&catalogId=nod
   t.after(() => events.get('pagehide')?.());
   const step = async () => { const first = timeouts.entries().next().value; if (first) { timeouts.delete(first[0]); await first[1](); await flush(); } };
   return { node, calls, copied, location, terminals, events, intervals, storage, step, flush, state: () => state, executionCalls,
-    failCreate(status: number) { failCreate = status; }, failAdvance() { failAdvance = true; }, failPreview() { previewFailure = true; }, failSetup() { setupFailure = true; }, setGate(value: Promise<void>) { gate = value; }, setAdvanceGate(value: Promise<void>) { advanceGate = value; }, setExecutionGate(value: Promise<void>) { executionGate = value; } };
+    setRepositoryImages(value: boolean | null) { repositoryImages = value; }, failCreate(status: number) { failCreate = status; }, failAdvance() { failAdvance = true; }, failPreview() { previewFailure = true; }, failSetup() { setupFailure = true; }, setGate(value: Promise<void>) { gate = value; }, setAdvanceGate(value: Promise<void>) { advanceGate = value; }, setExecutionGate(value: Promise<void>) { executionGate = value; } };
 }
 
 test('opening a shared repo link prepares settings without mutations and preserves settings through login', async t => {
@@ -787,4 +788,42 @@ test('private-repository detection keeps the selected custom image instead of re
   const config = parseRepoRunConfig(f.node('run-import-text').value);
   assert.equal(config.imageId, imageId); assert.equal(config.catalogId, undefined);
   assert.ok(f.calls.every(call => (call.options.method ?? 'GET') === 'GET'));
+});
+
+for (const repositoryImages of [false, null]) test(`custom-image launch stays blocked when its capability is ${repositoryImages === null ? 'missing' : 'false'}`, async t => {
+  const imageId = '87654321-1234-4234-8234-123456789abc';
+  const f = await fixture(t, { search: '', repositoryImages });
+  const configuration = `repo: acme/demo\nimageId: ${imageId}\nsetupCommand: npm ci`;
+  f.node('run-import-text').value = configuration;
+  await f.node('run-form').fire('input', { target: f.node('run-import-text') }); await f.flush();
+  assert.equal(f.node('run-submit').disabled, true);
+  assert.match(f.node('run-error').textContent, /unavailable on this deployment/);
+  assert.equal(f.node('run-access-retry').hidden, false);
+  assert.equal(f.node('run-import-text').value, configuration);
+  assert.match(f.node('run-config').textContent, new RegExp(imageId));
+  await f.node('run-form').fire('submit'); await f.flush();
+  assert.ok(f.calls.every(call => (call.options.method ?? 'GET') === 'GET'));
+  assert.ok([...f.storage.values()].some(value => JSON.parse(value).imageId === imageId));
+  f.setRepositoryImages(true);
+  await f.node('run-access-retry').fire('click'); await f.flush();
+  assert.equal(f.node('run-submit').disabled, false);
+  assert.equal(f.node('run-error').hidden, true);
+  await f.node('run-form').fire('submit'); await f.flush();
+  assert.equal(f.calls.find(call => call.url.pathname === '/repo-launches')?.body.imageId, imageId);
+});
+
+test('changing reviewed stock configuration to a custom image checks capability before running', async t => {
+  const f = await fixture(t, { search: '', repositoryImages: false });
+  await pasteConfig(f);
+  assert.equal(f.node('run-submit').disabled, false);
+  const imageId = '87654321-1234-4234-8234-123456789abc';
+  f.node('run-import-text').value = `repo: acme/demo\nimageId: ${imageId}`;
+  await f.node('run-form').fire('input', { target: f.node('run-import-text') }); await f.flush();
+  assert.equal(f.node('run-submit').disabled, true);
+  assert.equal(f.calls.some(call => call.url.pathname === '/capabilities'), true);
+  await f.node('run-form').fire('submit'); await f.flush();
+  assert.ok(f.calls.every(call => (call.options.method ?? 'GET') === 'GET'));
+  await pasteConfig(f);
+  assert.equal(f.node('run-submit').disabled, false);
+  assert.equal(f.node('run-error').hidden, true);
 });

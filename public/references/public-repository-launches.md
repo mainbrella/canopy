@@ -8,8 +8,12 @@ result is a shell in `/workspace/repo` on a Small machine. Each recipient gets a
 separate container. GitHub login is unnecessary for public repositories.
 
 Optional query/body fields are `ref`, `catalogId` (`node`, `python`, `rust`, `go`,
-`devops`), `size`, `cwd` (relative to the checkout), `setupCommand`, `startCommand`,
-and `port` (1024–65535). Start command and port must be supplied together. Runtime
+`devops`) or an owned ready custom `imageId` (mutually exclusive), `size`, `cwd`
+(relative to the checkout), `setupCommand`, `startCommand`, `port` (1024–65535),
+and `readinessPath` (local HTTP path, default `/`). Start command and port must be
+supplied together; readinessPath requires them. Initial and restored readiness
+both require HTTP 2xx without following redirects. Use `/health` or another direct
+2xx endpoint when the application's root redirects. Runtime
 suggestions use manifests in the working directory; ambiguous projects default
 to Node and allow an override. Commands from share links are visible before Run.
 
@@ -23,9 +27,21 @@ Debian this is `apt-get update` followed by
 `apt-get install -y --no-install-recommends python3 make g++`. Do not skip required
 lifecycle scripts or regenerate the lockfile to bypass this failure. Repair failed
 installs in the retained container, preserving its checkout and completed work.
-Repository Dockerfiles are evidence for prerequisites, not automatically compatible
-custom images: this launch contract accepts `catalogId`, not `imageId`, and custom
-images require one stage starting with `FROM mainbrella:base`.
+When `/capabilities` advertises `images.repositoryLaunch`, ready custom images can
+be reused through `imageId`; their ownership and readiness
+are checked before repository resolution and again before allocation. The selected
+immutable image ID is part of the keyed request: changed selections conflict and
+an unavailable image never falls back to a catalog runtime. Other accounts cannot
+use an image merely by receiving its launch link. Custom images need `git` for
+checkout and `curl` for preview readiness, alongside the managed runtime tools.
+The launch does not build an arbitrary repository Dockerfile or run Compose.
+Custom-image builds still require one stage starting with `FROM mainbrella:base`;
+the existing `baseImage` option can supply an approved digest-pinned external base.
+Keep the selected image available until allocation is confirmed. If an allocation
+reply is lost and the image is deleted, retry rejects before the existing create
+API can recover its receipt. Preserve the launch/key and reconcile the exact
+admitted generation in the owned container inventory; creating a new launch is
+not a substitute for resolving that uncertain allocation.
 
 Authenticated endpoints accept session cookies or existing session/API Bearer
 credentials. Cookie mutations require a trusted Origin:

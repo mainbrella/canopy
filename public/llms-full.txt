@@ -1084,12 +1084,24 @@ starts the application once in each restored generation:
 }
 ```
 
-The recipe runs a user-authored shell command; review it before saving. Working
+The recipe runs a user-authored shell command of up to 4,096 characters, including
+multiline scripts; review it before saving. Working
 directory defaults to `/workspace`, health path to `/`, and readiness timeout to
 30 seconds (allowed range 1–60 seconds). Readiness checks use a local application
 port (1024–65535), require HTTP 2xx, and do not follow redirects. Existing outbound
 policy and vault bindings keep their normal behavior; the recipe does not accept
 raw environment secrets. Saving the recipe does not run it in the source.
+
+When `persistence.startupConfiguration` is true, configure an ordinary running
+source with `PATCH /containers/startup` and `{id, createdAt, launch}`. The response
+contains that exact identity and the canonical recipe. This changes only future
+startup: it does not start or restart the current app. Stop/Resume and Fork
+inherit it; `launch:null` clears it. Existing saved snapshots remain immutable,
+and explicit `POST /workspaces` still needs its own `launch` field. Production
+containers use their separate `startupCommand` instead. Paid access, ownership
+and the exact running generation are required; cookie mutations need a trusted
+Origin. An older runtime fails with `workspace_launch_unavailable` rather than
+silently omitting the recipe.
 
 The container and creation response include `readiness.status` (`starting`,
 `ready`, or `failed`) separately from the machine's lifecycle `status`. A running
@@ -1098,6 +1110,8 @@ exact generation. Failed startup leaves the restored machine accessible, with
 `readiness.error`, `logPath`, and an optional bounded `logTail` for inspection.
 Status polling and same-key creation recovery never rerun the launch command.
 This is a fresh process and does not preserve the source's memory or nonce.
+The SDK's `waitUntilReady()` / `wait_until_ready()` waits for this application
+state, rejects replaced or stopped generations, and retains failure diagnostics.
 
 | Plan | Saved workspaces | Reserved capacity | Retention | Saves/month | Capture capacity/month | Retained capture capacity |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -1130,8 +1144,12 @@ result is a shell in `/workspace/repo` on a Small machine. Each recipient gets a
 separate container. GitHub login is unnecessary for public repositories.
 
 Optional query/body fields are `ref`, `catalogId` (`node`, `python`, `rust`, `go`,
-`devops`), `size`, `cwd` (relative to the checkout), `setupCommand`, `startCommand`,
-and `port` (1024–65535). Start command and port must be supplied together. Runtime
+`devops`) or an owned ready custom `imageId` (mutually exclusive), `size`, `cwd`
+(relative to the checkout), `setupCommand`, `startCommand`, `port` (1024–65535),
+and `readinessPath` (local HTTP path, default `/`). Start command and port must be
+supplied together; readinessPath requires them. Initial and restored readiness
+both require HTTP 2xx without following redirects. Use `/health` or another direct
+2xx endpoint when the application's root redirects. Runtime
 suggestions use manifests in the working directory; ambiguous projects default
 to Node and allow an override. Commands from share links are visible before Run.
 
@@ -1145,9 +1163,21 @@ Debian this is `apt-get update` followed by
 `apt-get install -y --no-install-recommends python3 make g++`. Do not skip required
 lifecycle scripts or regenerate the lockfile to bypass this failure. Repair failed
 installs in the retained container, preserving its checkout and completed work.
-Repository Dockerfiles are evidence for prerequisites, not automatically compatible
-custom images: this launch contract accepts `catalogId`, not `imageId`, and custom
-images require one stage starting with `FROM mainbrella:base`.
+When `/capabilities` advertises `images.repositoryLaunch`, ready custom images can
+be reused through `imageId`; their ownership and readiness
+are checked before repository resolution and again before allocation. The selected
+immutable image ID is part of the keyed request: changed selections conflict and
+an unavailable image never falls back to a catalog runtime. Other accounts cannot
+use an image merely by receiving its launch link. Custom images need `git` for
+checkout and `curl` for preview readiness, alongside the managed runtime tools.
+The launch does not build an arbitrary repository Dockerfile or run Compose.
+Custom-image builds still require one stage starting with `FROM mainbrella:base`;
+the existing `baseImage` option can supply an approved digest-pinned external base.
+Keep the selected image available until allocation is confirmed. If an allocation
+reply is lost and the image is deleted, retry rejects before the existing create
+API can recover its receipt. Preserve the launch/key and reconcile the exact
+admitted generation in the owned container inventory; creating a new launch is
+not a substitute for resolving that uncertain allocation.
 
 Authenticated endpoints accept session cookies or existing session/API Bearer
 credentials. Cookie mutations require a trusted Origin:
@@ -1840,6 +1870,7 @@ The next CLI release includes a browser launcher:
 ```sh
 mainbrella repo acme/demo --ref main --open
 mainbrella repo acme/web --setup 'npm ci' --start 'npm run dev -- --host 0.0.0.0' --port 3000 --open
+mainbrella repo acme/web --image-id YOUR_READY_IMAGE_UUID --start 'npm start' --port 3000 --readiness-path /health --open
 ```
 
 It prints a shareable `https://mainbrella.com/run/` URL and optionally opens it
@@ -2056,6 +2087,38 @@ Keep credentials in your application's secret store; do not put them in a
 Dockerfile or logs. The base must satisfy Mainbrella's shell/GNU-tooling contract.
 Builds use an operator-configured private build repository. Cache/private-base
 support requires its backend migration, configuration and live qualification.
+
+## Local Git operations
+
+The 0.2.0 source SDK exposes `sandbox.git.status`, `branches`, `diff`, `commit`
+and `checkout`. Every operation requires an absolute repository `cwd` and Git
+2.23+ in the guest. Commands use argv and existing managed execution APIs.
+
+```js
+const cwd = '/workspace/project';
+const { entries } = await sandbox.git.status({ cwd });
+const { branches } = await sandbox.git.branches({ cwd });
+const { patch } = await sandbox.git.diff({ cwd, staged: true });
+await sandbox.git.checkout({ cwd, branch: 'work/fix', create: true, idempotencyKey: 'work-fix' });
+// Commit only changes already staged by the caller; the helper never runs git add.
+const committed = await sandbox.git.commit({ cwd, message: 'Fix prepared change',
+  author: { name: 'Developer', email: 'developer@example.com' }, idempotencyKey: 'prepared-fix' });
+```
+
+Status preserves separate index/worktree codes and rename source paths; branches
+contains local branch names, commit IDs and the current flag. `diff` accepts
+literal `paths` and defaults to unstaged changes. Mutation keys are required;
+retain returned `executionId` and `idempotencyKey`. Errors keep the key, operation
+phase and known execution identity for reconciliation. No mutation retries,
+fetches, pushes, credential injection or forced checkout occur. Git rejects a
+checkout that would overwrite local changes.
+
+Each call reads configured filter names in one managed execution, then runs the
+operation in another. It disables hooks, external diff/text conversion, configured
+clean/smudge/process filters and signing. Keep Git configuration and the index
+stable while operating. Each execution defaults to 30 seconds (maximum 60),
+output is limited to 1 MiB, and incomplete output raises an error. See
+[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 
@@ -2507,6 +2570,38 @@ before authenticated imports. Keep tokens in your secret store, outside the
 Dockerfile and logs. Builds require a configured private build repository.
 Existing images without inline cache metadata may yield no cache hits. These
 options require migration, configuration and live qualification.
+
+## Local Git operations
+
+The 0.2.0 source SDK adds `sandbox.git.status`, `branches`, `diff`, `commit` and
+`checkout`. Each requires an absolute repository `cwd` and Git 2.23+ in the guest.
+
+```python
+cwd = '/workspace/project'
+entries = sandbox.git.status(cwd=cwd)['entries']
+branches = sandbox.git.branches(cwd=cwd)['branches']
+patch = sandbox.git.diff(cwd=cwd, staged=True)['patch']
+sandbox.git.checkout(cwd=cwd, branch='work/fix', create=True, idempotency_key='work-fix')
+# The caller must stage changes first; commit never runs git add.
+result = sandbox.git.commit(cwd=cwd, message='Fix prepared change',
+                            author={'name': 'Developer', 'email': 'developer@example.com'},
+                            idempotency_key='prepared-fix')
+```
+
+Results preserve `executionId` and `idempotencyKey`; status entries include
+`indexStatus`, `worktreeStatus`, `path` and rename `originalPath`. Branches are
+local names with commit IDs and the current flag. Diff defaults to unstaged
+changes and accepts literal `paths`. Mutations require a key and are never
+retried automatically. Errors expose `git_operation`, `git_phase`,
+`idempotency_key`, and a known `execution_id` for reconciliation.
+
+Two bounded argv executions inspect filter names and run the operation. Hooks,
+configured filters, external diffs/text conversion and signing are disabled.
+No fetch, push, credentials or forced checkout are implicit; Git protects local
+changes. Keep repository configuration and the index stable during an operation.
+Each execution defaults to 30 seconds (maximum 60) and output to 1 MiB; partial
+output is rejected. See the
+[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 

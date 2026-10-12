@@ -229,6 +229,7 @@ The next CLI release includes a browser launcher:
 ```sh
 mainbrella repo acme/demo --ref main --open
 mainbrella repo acme/web --setup 'npm ci' --start 'npm run dev -- --host 0.0.0.0' --port 3000 --open
+mainbrella repo acme/web --image-id YOUR_READY_IMAGE_UUID --start 'npm start' --port 3000 --readiness-path /health --open
 ```
 
 It prints a shareable `https://mainbrella.com/run/` URL and optionally opens it
@@ -445,6 +446,38 @@ Keep credentials in your application's secret store; do not put them in a
 Dockerfile or logs. The base must satisfy Mainbrella's shell/GNU-tooling contract.
 Builds use an operator-configured private build repository. Cache/private-base
 support requires its backend migration, configuration and live qualification.
+
+## Local Git operations
+
+The 0.2.0 source SDK exposes `sandbox.git.status`, `branches`, `diff`, `commit`
+and `checkout`. Every operation requires an absolute repository `cwd` and Git
+2.23+ in the guest. Commands use argv and existing managed execution APIs.
+
+```js
+const cwd = '/workspace/project';
+const { entries } = await sandbox.git.status({ cwd });
+const { branches } = await sandbox.git.branches({ cwd });
+const { patch } = await sandbox.git.diff({ cwd, staged: true });
+await sandbox.git.checkout({ cwd, branch: 'work/fix', create: true, idempotencyKey: 'work-fix' });
+// Commit only changes already staged by the caller; the helper never runs git add.
+const committed = await sandbox.git.commit({ cwd, message: 'Fix prepared change',
+  author: { name: 'Developer', email: 'developer@example.com' }, idempotencyKey: 'prepared-fix' });
+```
+
+Status preserves separate index/worktree codes and rename source paths; branches
+contains local branch names, commit IDs and the current flag. `diff` accepts
+literal `paths` and defaults to unstaged changes. Mutation keys are required;
+retain returned `executionId` and `idempotencyKey`. Errors keep the key, operation
+phase and known execution identity for reconciliation. No mutation retries,
+fetches, pushes, credential injection or forced checkout occur. Git rejects a
+checkout that would overwrite local changes.
+
+Each call reads configured filter names in one managed execution, then runs the
+operation in another. It disables hooks, external diff/text conversion, configured
+clean/smudge/process filters and signing. Keep Git configuration and the index
+stable while operating. Each execution defaults to 30 seconds (maximum 60),
+output is limited to 1 MiB, and incomplete output raises an error. See
+[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 

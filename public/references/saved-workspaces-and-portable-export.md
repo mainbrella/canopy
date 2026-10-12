@@ -20,12 +20,24 @@ starts the application once in each restored generation:
 }
 ```
 
-The recipe runs a user-authored shell command; review it before saving. Working
+The recipe runs a user-authored shell command of up to 4,096 characters, including
+multiline scripts; review it before saving. Working
 directory defaults to `/workspace`, health path to `/`, and readiness timeout to
 30 seconds (allowed range 1–60 seconds). Readiness checks use a local application
 port (1024–65535), require HTTP 2xx, and do not follow redirects. Existing outbound
 policy and vault bindings keep their normal behavior; the recipe does not accept
 raw environment secrets. Saving the recipe does not run it in the source.
+
+When `persistence.startupConfiguration` is true, configure an ordinary running
+source with `PATCH /containers/startup` and `{id, createdAt, launch}`. The response
+contains that exact identity and the canonical recipe. This changes only future
+startup: it does not start or restart the current app. Stop/Resume and Fork
+inherit it; `launch:null` clears it. Existing saved snapshots remain immutable,
+and explicit `POST /workspaces` still needs its own `launch` field. Production
+containers use their separate `startupCommand` instead. Paid access, ownership
+and the exact running generation are required; cookie mutations need a trusted
+Origin. An older runtime fails with `workspace_launch_unavailable` rather than
+silently omitting the recipe.
 
 The container and creation response include `readiness.status` (`starting`,
 `ready`, or `failed`) separately from the machine's lifecycle `status`. A running
@@ -34,6 +46,8 @@ exact generation. Failed startup leaves the restored machine accessible, with
 `readiness.error`, `logPath`, and an optional bounded `logTail` for inspection.
 Status polling and same-key creation recovery never rerun the launch command.
 This is a fresh process and does not preserve the source's memory or nonce.
+The SDK's `waitUntilReady()` / `wait_until_ready()` waits for this application
+state, rejects replaced or stopped generations, and retains failure diagnostics.
 
 | Plan | Saved workspaces | Reserved capacity | Retention | Saves/month | Capture capacity/month | Retained capture capacity |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
