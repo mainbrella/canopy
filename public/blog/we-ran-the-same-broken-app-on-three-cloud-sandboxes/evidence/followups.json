@@ -263,8 +263,17 @@
       "physicalStorage": "not-measured"
     }
   ],
+  "automaticRestoreLaunch": {
+    "provider": "mainbrella",
+    "result": "restore-launch/mainbrella/result.json",
+    "sha256": "b3c1820679e9656b88a0564592e10c295eb823668932c71ca6d3ecbcfad59ffb",
+    "listening": true,
+    "clientSideLaunchCommands": 0,
+    "memoryPreserved": false,
+    "limitation": "Separate production qualification of saved launch recipes, not a matched provider comparison."
+  },
   "validation": {
-    "sealedPrivateFilesChecked": 5947,
+    "sealedPrivateFilesChecked": 5988,
     "workerVerdictsRecomputed": true,
     "retainedCredentialScanPassed": true
   },
@@ -390,7 +399,14 @@
     "matched/daytona/observations/prepared-baseline/edited-text.json": "905964b428c3842e2768417aee6b7c5e89fc664c5fb06cb727af6645f7508ddd",
     "matched/daytona/observations/prepared-baseline/holdout.json": "9a086047fa52b0b4dcb93b79db12e67ac193d122fb665685216a9d21d0348bff",
     "matched/daytona/observations/prepared-baseline/original-order.json": "e4ddc51b2efa4ecf87510c6cdade51b9164c85140e41c38f98c8a74fd450aec3",
-    "matched/daytona/observations/prepared-baseline/reset-isolation.json": "fd97d652c1d8451d36450cdbf607518e223b3a14945447000126a22f0366816a"
+    "matched/daytona/observations/prepared-baseline/reset-isolation.json": "fd97d652c1d8451d36450cdbf607518e223b3a14945447000126a22f0366816a",
+    "restore-launch/mainbrella/inputs/fixtures/memory-worker/processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+    "restore-launch/mainbrella/inputs/fixtures/memory-worker/server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+    "restore-launch/mainbrella/inputs/src/providers/mainbrella.ts": "1b2a1622484a8264b2f03643ea55c91872ff1360c7aac891189f332b33bb74d0",
+    "restore-launch/mainbrella/inputs/src/restore-launch-experiment.ts": "21d89239c254fd49274ba3cc90a5506769167f5bffb4501ea3111c2c033c6b9a",
+    "restore-launch/mainbrella/inputs/src/worker-verifier.ts": "348b2ae577bb856fd2fc8b0ee088c3ce31e70bded2fa17dbd47b9f0dcc876d8b",
+    "restore-launch/mainbrella/result.json": "b3c1820679e9656b88a0564592e10c295eb823668932c71ca6d3ecbcfad59ffb",
+    "restore-launch/mainbrella/result.sha256": "93353ef00091f395a5d210be123232783b4f661cc377a35a4ddef6f5371b9ad4"
   },
   "limitation": "These are reported observations with locally verified hashes, not independent attestations. Public editor bundles cannot replay the original strict verification without private browser traces and screenshots. No cleanup record establishes physical storage reclamation."
 }

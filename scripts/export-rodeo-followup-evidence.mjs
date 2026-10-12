@@ -216,12 +216,32 @@ for (const provider of Object.keys(selected)) {
     physicalStorage: observations.physicalStorage });
 }
 
+const launchRoot = join(repository, 'artifacts/mainbrella-restore-launch-2026-10-12T12-08-25-536Z');
+const launch = await checkResult(launchRoot);
+assert.equal(launch.result.status, 'completed');
+assert.equal(launch.result.restore.readiness.status, 'ready');
+assert.equal(launch.result.restore.clientSideLaunchCommands, 0);
+assert.notEqual(launch.result.restore.process.nonce, launch.result.source.beforeCapture.nonce);
+assert.equal(launch.result.restore.process.pending, 0);
+assert.equal(launch.result.source.afterRestore.pending, 5);
+assert.equal(launch.result.cleanup.confirmed, true);
+for (const [path, digest] of Object.entries(launch.result.inputHashes)) {
+  assert.equal(hash(await readFile(join(launchRoot, 'private/inputs', path))), digest);
+  await put(`restore-launch/mainbrella/inputs/${path}`, await readFile(join(launchRoot, 'private/inputs', path)));
+}
+await put('restore-launch/mainbrella/result.json', launch.bytes);
+await put('restore-launch/mainbrella/result.sha256', await readFile(join(launchRoot, 'result.sha256')));
+
 // Scan once more after collecting credentials from every selected/history run.
 for (const path of Object.keys(files)) scan(await readFile(join(output, path)));
 await putJson('followups.json', { schemaVersion: 1, worker: { seed: 12346, guestNode: '22.22.2',
   sharedInputHashes: Object.fromEntries(core.map(path => [path, reference.inputHashes[path]])), runs: workerRuns,
   sourceArchive: 'worker/source.tar.gz', sourceManifest: 'worker/source-manifest.json', history: 'worker/run-history.json' },
-  matchedEditorAndCleanup: cleanupRuns, validation: { sealedPrivateFilesChecked: sealedFilesChecked,
+  matchedEditorAndCleanup: cleanupRuns,
+  automaticRestoreLaunch: { provider: 'mainbrella', result: 'restore-launch/mainbrella/result.json',
+    sha256: launch.sha256, listening: true, clientSideLaunchCommands: 0, memoryPreserved: false,
+    limitation: 'Separate production qualification of saved launch recipes, not a matched provider comparison.' },
+  validation: { sealedPrivateFilesChecked: sealedFilesChecked,
     workerVerdictsRecomputed: true, retainedCredentialScanPassed: true }, files,
   limitation: 'These are reported observations with locally verified hashes, not independent attestations. Public editor bundles cannot replay the original strict verification without private browser traces and screenshots. No cleanup record establishes physical storage reclamation.' });
 console.log(JSON.stringify({ output, filesExported: Object.keys(files).length, sealedFilesChecked,
