@@ -85,3 +85,11 @@ test('readiness paths survive YAML round trips and reject remote or malformed ta
   }
   assert.throws(() => validateRepoRunConfig({ repo: 'acme/demo', readinessPath: '/health' }), /readinessPath/);
 });
+
+test('an existing custom image survives configuration import and cannot combine with a stock runtime', () => {
+  const { catalogId, ...configuration } = config;
+  const value = { ...configuration, imageId: '87654321-1234-4234-8234-123456789abc' };
+  assert.deepEqual(parseRepoRunConfig(stringifyRepoRunConfig(value)), value);
+  assert.throws(() => validateRepoRunConfig({ ...value, catalogId }), /not both/);
+  assert.throws(() => validateRepoRunConfig({ ...configuration, imageId: 'not-an-image' }), /imageId/);
+});

@@ -463,7 +463,8 @@
 .workspace-launch-logs { margin-top: 8px; font-size: 13px; }
 .workspace-launch-logs summary { width: fit-content; min-height: 44px; padding: 8px 0; cursor: pointer; }
 .workspace-launch-logs pre { max-height: 240px; max-width: 70ch; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.container-startup-summary { overflow-wrap: anywhere; }
+.container-startup-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+#container-fork-dialog [data-fork-startup] { max-height: min(160px, 30dvh); overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
 .workspace-save-dialog textarea { width: 100%; min-width: 0; min-height: 88px; max-height: 240px; padding: 8px 12px; border: 1px solid var(--control-border); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; resize: vertical; }
 @media (max-width: 600px) {
   .workspace-usage { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }

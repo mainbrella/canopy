@@ -1,5 +1,5 @@
 export interface RepoRunOptions {
-  repo: string; ref?: string; catalogId?: string; size: string; cwd: string;
+  repo: string; ref?: string; catalogId?: string; imageId?: string; size: string; cwd: string;
   setupCommand?: string; startCommand?: string; port?: number; readinessPath?: string;
 }
 export interface RepositoryLaunch {
@@ -25,7 +25,7 @@ export function validRepo(value: string): boolean {
 export function repoRunUrl(options: RepoRunOptions, origin: string): URL {
   const url = new URL('/run/', origin);
   url.searchParams.set('repo', normalizeRepo(options.repo));
-  for (const key of ['ref', 'catalogId', 'size', 'cwd', 'setupCommand', 'startCommand', 'port', 'readinessPath'] as const) {
+  for (const key of ['ref', 'catalogId', 'imageId', 'size', 'cwd', 'setupCommand', 'startCommand', 'port', 'readinessPath'] as const) {
     const value = options[key];
     if (value !== undefined && value !== '' && !(key === 'size' && value === 'small') && !(key === 'cwd' && value === '.')) url.searchParams.set(key, String(value));
   }

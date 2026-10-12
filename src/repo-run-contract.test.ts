@@ -21,3 +21,10 @@ test('private launch identity and uncertain request keys are distinct and valida
   assert.deepEqual(launchIdentity(`#request=${id}`), { kind: 'request', id });
   for (const hash of ['', '#launch=bad', `#launch=${id}&repo=other`, '#token=secret']) assert.equal(launchIdentity(hash), null);
 });
+
+test('custom-image configuration links retain the pinned image without substituting a runtime', () => {
+  const imageId = '87654321-1234-4234-8234-123456789abc';
+  const url = repoRunUrl({ repo: 'acme/demo', size: 'small', cwd: '.', imageId }, 'https://mainbrella.com');
+  assert.equal(url.searchParams.get('imageId'), imageId);
+  assert.equal(url.searchParams.has('catalogId'), false);
+});

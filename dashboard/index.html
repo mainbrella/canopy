@@ -238,7 +238,7 @@
             <label for="container-fork-name">Name</label>
             <input id="container-fork-name" type="text" required maxlength="80" autocomplete="off">
             <p class="dashboard-status">Copies saved filesystem changes into a new container. Running processes and memory are not copied. The new machine uses your normal compute allowance.</p>
-            <p class="dashboard-status" data-fork-startup></p>
+            <p class="dashboard-status" data-fork-startup tabindex="0" aria-label="Application startup after copying"></p>
             <p class="dashboard-status" role="status"></p>
             <p class="dashboard-error" role="alert" hidden></p>
             <div class="container-actions"><button type="submit" class="button button-small">Create fork</button><button type="button" class="dashboard-retry" data-fork-close>Cancel</button></div>

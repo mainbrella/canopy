@@ -2,12 +2,12 @@ import { normalizeRepo, type RepoRunOptions } from './repo-run-contract.ts';
 import { validRepo } from './repo-run-prompt.ts';
 import { Document, isAlias, isMap, isScalar, parseDocument, Scalar } from 'yaml';
 
-const keys = ['repo', 'ref', 'catalogId', 'size', 'cwd', 'setupCommand', 'startCommand', 'port', 'readinessPath'];
+const keys = ['repo', 'ref', 'catalogId', 'imageId', 'size', 'cwd', 'setupCommand', 'startCommand', 'port', 'readinessPath'];
 
 export function validateRepoRunConfig(value: unknown): RepoRunOptions {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use a YAML mapping containing the repository configuration.');
   const config = value as Record<string, unknown>;
-  if (Object.keys(config).some(key => !keys.includes(key))) throw new Error('Use only repo, ref, catalogId, size, cwd, setupCommand, startCommand, port and readinessPath.');
+  if (Object.keys(config).some(key => !keys.includes(key))) throw new Error('Use only repo, ref, catalogId, imageId, size, cwd, setupCommand, startCommand, port and readinessPath.');
   if (typeof config.repo !== 'string' || !validRepo(config.repo)) throw new Error('repo must be a GitHub URL or owner/repository.');
   const result: RepoRunOptions = { repo: normalizeRepo(config.repo), size: 'small', cwd: '.' };
   if (config.ref !== undefined) {
@@ -17,6 +17,11 @@ export function validateRepoRunConfig(value: unknown): RepoRunOptions {
   if (config.catalogId !== undefined) {
     if (typeof config.catalogId !== 'string' || !['node', 'python', 'rust', 'go', 'devops'].includes(config.catalogId)) throw new Error('catalogId must be node, python, rust, go or devops.');
     result.catalogId = config.catalogId;
+  }
+  if (config.imageId !== undefined) {
+    if (typeof config.imageId !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(config.imageId)) throw new Error('imageId must be the ID of a ready custom image in your account.');
+    if (config.catalogId !== undefined) throw new Error('Choose imageId or catalogId, not both.');
+    result.imageId = config.imageId;
   }
   if (config.size !== undefined) {
     if (typeof config.size !== 'string' || !['lite', 'small', 'medium', 'large', 'xl'].includes(config.size)) throw new Error('size must be lite, small, medium, large or xl.');
@@ -63,13 +68,13 @@ export function parseRepoRunConfig(text: string): RepoRunOptions {
   const fences = [...text.matchAll(/```([^\r\n`]*)\r?\n([\s\S]*?)```/g)];
   const yamlCandidates = fences.filter(fence => ['yaml', 'yml', ''].includes(fence[1].trim().toLowerCase()));
   const jsonCandidates = fences.filter(fence => fence[1].trim().toLowerCase() === 'json');
-  const rawYaml = !fences.length && /^(?:---\s*\n)?(?:repo|ref|catalogId|size|cwd|setupCommand|startCommand|port|readinessPath)\s*:/m.test(trimmed);
+  const rawYaml = !fences.length && /^(?:---\s*\n)?(?:repo|ref|catalogId|imageId|size|cwd|setupCommand|startCommand|port|readinessPath)\s*:/m.test(trimmed);
   if (rawYaml) return validateRepoRunConfig(parseYamlConfig(trimmed));
   if (yamlCandidates.length || jsonCandidates.length) {
     const candidates: unknown[] = [];
     for (const fence of yamlCandidates) {
       const body = fence[2];
-      if (!/^(?:---\s*\n)?(?:repo|ref|catalogId|size|cwd|setupCommand|startCommand|port|readinessPath)\s*:/m.test(body.trim())) continue;
+      if (!/^(?:---\s*\n)?(?:repo|ref|catalogId|imageId|size|cwd|setupCommand|startCommand|port|readinessPath)\s*:/m.test(body.trim())) continue;
       candidates.push(parseYamlConfig(body));
     }
     for (const fence of jsonCandidates) {

@@ -33,7 +33,7 @@
 }</code></pre>
 <p>Supply <code>MAINBRELLA_API_KEY</code> through your client's environment settings. The server requires Node 22+. Start with the capabilities and list tools; creation consumes normal account allowance. Mutations use the exact generation, and lifecycle tools require an explicit idempotency key. See the <a href="/references/mcp-agent-integration.md">MCP contract</a> and <a href="/sdk/javascript.md">SDK setup</a>.</p>
 <h2 id="codex">Codex</h2>
-      <p>Download and inspect the <a href="/skills/mainbrella-containers-0.1.0.tar.gz">Mainbrella skill archive (0.1.0)</a>. Extract its folder into your project’s <code>.agents/skills/</code> directory; it includes the API contract and indexed references. Invoke <code>$mainbrella-containers</code> and give Codex a concrete task:</p>
+      <p>Download and inspect the <a href="/skills/mainbrella-containers-0.2.0.tar.gz">Mainbrella skill archive (0.2.0)</a>. Extract its folder into your project’s <code>.agents/skills/</code> directory; it includes the API contract and indexed references. Invoke <code>$mainbrella-containers</code> and give Codex a concrete task:</p>
       <pre class="docs-code"><code>$mainbrella-containers
 Integrate Mainbrella with this project's existing command tools.
 Run the read-only doctor first. Verify hello output and binary
@@ -41,7 +41,7 @@ file transfer, then stop only the generation verification created.
 Preserve existing containers and report any cleanup failure.</code></pre>
       <p>Codex uses the skill to follow the documented HTTP workflow. See <a href="https://learn.chatgpt.com/docs/build-skills">official OpenAI skill documentation</a> for skill discovery and invocation.</p>
       <h2 id="claude-code">Claude Code</h2>
-      <p>Download and inspect the same <a href="/skills/mainbrella-containers-0.1.0.tar.gz">skill archive</a>. Extract its folder into <code>.claude/skills/</code>. Invoke the skill with:</p>
+      <p>Download and inspect the same <a href="/skills/mainbrella-containers-0.2.0.tar.gz">skill archive</a>. Extract its folder into <code>.claude/skills/</code>. Invoke the skill with:</p>
       <pre class="docs-code"><code>/mainbrella-containers
 Integrate Mainbrella with this project's existing command tools.
 Run the doctor, verify foreground and managed execution, cancellation and binary file transfer,

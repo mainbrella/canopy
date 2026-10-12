@@ -23,7 +23,7 @@ const prepareOnly = params.get('prepare') === '1';
 let privateRequested = params.get('private') === '1';
 let identity = launchIdentity(location.hash);
 // Existing configured links remain supported; new configurations stay in this tab.
-const legacyMode = Boolean(params.get('catalogId') || params.get('setupCommand') || params.get('startCommand'));
+const legacyMode = Boolean(params.get('catalogId') || params.get('setupCommand') || params.get('startCommand') || params.get('imageId') && validRepo(params.get('repo') ?? ''));
 let configId = /^#config=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/.exec(location.hash)?.[1];
 let imported: RepoRunOptions | null = null;
 if (configId || identity?.kind === 'request' && !params.get('repo')) {
@@ -36,6 +36,7 @@ let launchMode = Boolean(identity || legacyMode || imported);
 let launch: RepositoryLaunch | null = null;
 let userId: string | null = null;
 let active = false;
+let repositoryImagesSupported = false;
 let accessChecked = !tryFlow;
 let busy = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -166,7 +167,7 @@ function renderStatus() {
     detail = launch.phase === 'allocating' ? `Waiting for your ${launch.options.size} container to become available. The repository will be cloned next.`
       : launch.phase === 'cloning' ? `Checking out commit ${launch.repository.commit.slice(0, 12)}. Clone limit: 5 minutes.`
         : launch.phase === 'setup' ? `Running your YAML setup command. Setup limit: 15 minutes. ${previewNext}`
-          : `Waiting for a successful HTTP response at / on port ${launch.options.port}. Readiness checks usually run for about 60 seconds; the startup command has a 4-minute limit. ${previewNext}`;
+          : `Waiting for an HTTP 2xx response at ${launch.options.readinessPath || '/'} on port ${launch.options.port}. Readiness checks usually run for about 60 seconds; the startup command has a 4-minute limit. ${previewNext}`;
     const stage = reportedStage(execution);
     if (stage) detail = `Current stage: ${stage}. ${detail}`;
     const live = execution && ['starting', 'running'].includes(execution.status);
@@ -301,6 +302,9 @@ const messages: Record<string, string> = {
   container_quota_exceeded: 'Your monthly container start allowance has been reached.',
   compute_allowance_exhausted: 'Your compute allowance has been used.',
   image_not_available: 'This runtime is unavailable. Start a new run with another runtime.',
+  image_not_found: 'This custom image is unavailable in your account. Choose one of your ready images in the dashboard.',
+  image_not_ready: 'This custom image has not finished building. Check its build output in the dashboard before running this repository.',
+  repository_image_launch_unavailable: 'Running repositories with custom images is unavailable on this deployment. Your configuration is saved. Retry the access check after the API is updated.',
   launch_not_found: 'This run was not found in your account. Open the launch link to create your own run.',
   idempotency_key_conflict: 'This launch was already submitted with different settings. Open a new run to change them.',
   invalid_request: 'Check the repository, ref, directory, and preview settings. A start command and port must be supplied together.',
@@ -329,6 +333,7 @@ function options(): RepoRunOptions {
   return { repo: normalizeRepo(repo.value), size: params.get('size') || 'small', cwd: params.get('cwd') || '.',
     ...(params.get('ref') ? { ref: params.get('ref')! } : {}),
     ...(params.get('catalogId') ? { catalogId: params.get('catalogId')! } : {}),
+    ...(params.get('imageId') ? { imageId: params.get('imageId')! } : {}),
     ...(params.get('setupCommand') ? { setupCommand: params.get('setupCommand')! } : {}),
     ...(params.get('startCommand') ? { startCommand: params.get('startCommand')! } : {}),
     ...(params.get('port') ? { port: Number(params.get('port')) } : {}),
@@ -353,7 +358,10 @@ function updatePrompt() {
   const config = element('run-config');
   config.hidden = !launchMode;
   const value = options();
-  config.textContent = [value.ref && `Ref: ${value.ref}`, `Runtime: ${value.catalogId || 'Automatic'} · Size: ${value.size}`, `Directory: ${value.cwd}`,
+  const selectedImage = element('run-image-selection');
+  selectedImage.hidden = !value.imageId || launchMode;
+  selectedImage.textContent = value.imageId ? `Custom image: ${value.imageId}` : '';
+  config.textContent = [value.ref && `Ref: ${value.ref}`, value.imageId ? `Custom image: ${value.imageId} · Size: ${value.size}` : `Runtime: ${value.catalogId || 'Automatic'} · Size: ${value.size}`, `Directory: ${value.cwd}`,
     value.setupCommand && `Setup: ${value.setupCommand}`, value.startCommand && `Start: ${value.startCommand}`, value.port !== undefined && `Preview port: ${value.port}`,
     value.startCommand && `HTTP readiness: ${value.readinessPath || '/'} must return 2xx`].filter(Boolean).join('\n');
   if (tryFlow && (!accessChecked || !active && !prepareOnly)) {
@@ -376,6 +384,7 @@ function storeConfiguration(id: string, value: RepoRunOptions) {
 function importConfiguration() {
   if (identity || legacyMode || busy) return;
   const wasLaunchMode = launchMode;
+  const previousImage = options().imageId;
   const note = element('run-import-status');
   try {
     const value = parseRepoRunConfig(configInput.value);
@@ -389,7 +398,7 @@ function importConfiguration() {
     note.className = 'dashboard-status';
     history.replaceState(null, '', configurationUrl());
     updatePrompt(); updateSignIn();
-    if (!wasLaunchMode) void init();
+    if (!wasLaunchMode || value.imageId !== previousImage) void init();
   } catch (cause) {
     imported = null; launchMode = false;
     configInput.setAttribute('aria-invalid', String(Boolean(configInput.value.trim())));
@@ -473,6 +482,7 @@ async function request<T>(path: string, method = 'GET', body?: unknown, key?: st
 function signIn() {
   sessionVersion++;
   active = false; userId = null; launch = null;
+  repositoryImagesSupported = false;
   stopOutputStreams(); logCache.clear(); pendingPreviewId = undefined; previewExpiry = 0;
   progressPaused = false; progressCheckedAt = 0; previewError = false;
   element('run-source').textContent = ''; element('run-commit').textContent = '';
@@ -613,6 +623,11 @@ async function run() {
   if (busy || !active || stopped) return;
   const version = sessionVersion;
   const value = options();
+  if (value.imageId && !repositoryImagesSupported) {
+    showError(new Error('repository_image_launch_unavailable'));
+    element('run-access-retry').hidden = false;
+    return;
+  }
   if (Boolean(value.startCommand) !== (value.port !== undefined)) {
     error.textContent = 'Supply both a start command and preview port. Ask your AI for a corrected configuration.';
     error.hidden = false; return;
@@ -642,7 +657,7 @@ async function run() {
         fields.disabled = false; submit.textContent = submitLabel();
       }
     }
-  } finally { busy = false; submit.disabled = Boolean(userId) && !active; }
+  } finally { busy = false; submit.disabled = Boolean(userId) && (!active || Boolean(options().imageId) && !repositoryImagesSupported); }
   if (launch && !stopped) void advance();
 }
 const previewRequest = createPreviewClient({ onUnauthenticated: signIn });
@@ -688,6 +703,8 @@ async function createPreview() {
 }
 async function init() {
   const version = ++sessionVersion;
+  const needsImageSupport = Boolean(options().imageId) && identity?.kind !== 'launch';
+  if (needsImageSupport) { repositoryImagesSupported = false; submit.disabled = true; }
   error.hidden = true;
   element('run-retry').hidden = true;
   if (!launch) element('run-progress').hidden = true;
@@ -704,13 +721,17 @@ async function init() {
     }
     userId = session.user.id;
     submit.formNoValidate = false;
-    const data = await request<ContainerData>('/containers');
+    const [data, capabilities] = await Promise.all([
+      request<ContainerData>('/containers'),
+      needsImageSupport ? request<{ images?: { repositoryLaunch?: boolean } }>('/capabilities', 'GET', undefined, undefined, 10_000).catch(() => null) : null,
+    ]);
     if (stopped || version !== sessionVersion) return;
+    repositoryImagesSupported = capabilities?.images?.repositoryLaunch === true;
     active = data.active;
     const prepaid = data.billing?.balanceCents !== undefined;
     if (prepaid && typeof data.billing?.availableBalanceCents === 'number' && data.billing.availableBalanceCents <= 0) active = false;
     accessChecked = true;
-    submit.disabled = !active;
+    submit.disabled = !active || needsImageSupport && !repositoryImagesSupported;
     element('run-access').hidden = !launchMode || active;
     element('run-sign-in').hidden = true;
     element('run-plans').hidden = active;
@@ -724,6 +745,12 @@ async function init() {
     element('run-access-retry').hidden = true;
     element('run-funding-note').textContent = tryFlow && active && !prepaid
       ? 'Your active plan or trial covers this run. Prepaid funds are not required.' : '';
+    if (needsImageSupport && !repositoryImagesSupported) {
+      showError(new Error('repository_image_launch_unavailable'));
+      element('run-access-retry').hidden = false;
+      form.hidden = false; updatePrompt();
+      return;
+    }
     if (tryFlow && !prepareOnly && !active && identity?.kind !== 'launch') {
       status.textContent = 'Checking your repository before checkout…';
       const value = options();
@@ -794,7 +821,8 @@ window.addEventListener('github-repository-ready', event => {
   }
   // Keep a reviewed configuration when reconnecting; detection supplies first-use defaults only.
   if (!imported && detail.suggestedConfiguration) {
-    configInput.value = stringifyRepoRunConfig(detail.suggestedConfiguration);
+    const { catalogId, ...detected } = detail.suggestedConfiguration;
+    configInput.value = stringifyRepoRunConfig(params.get('imageId') ? { ...detected, imageId: params.get('imageId')! } : detail.suggestedConfiguration);
     importConfiguration();
   } else { updatePrompt(); preparePrompt(); }
 });

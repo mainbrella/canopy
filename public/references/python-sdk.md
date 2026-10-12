@@ -2,7 +2,7 @@
 
 Published on PyPI as `mainbrella` 0.1.0. Python 3.10+; standard-library runtime.
 
-The source additions documented below are available in this source checkout and need a new SDK release and matching API/runtime deployment. They are not included in the already-published 0.1.0 artifacts.
+This checkout prepares the unreleased 0.2.0 SDK. The source additions below need artifact and deployed qualification before publication, and matching API/runtime capabilities. They are not included in the published 0.1.0 artifacts. Install a locally qualified 0.2.0 wheel to use this checkout's features; the registry command below installs 0.1.0.
 
 ```sh
 pip install mainbrella==0.1.0
@@ -146,7 +146,7 @@ offline = client.create(internet=False, idempotency_key="offline-workspace")
 
 ## Saved workspaces
 
-Check `client.capabilities()["persistence"]["snapshots"]` before save/restore. Ordinary stop discards changes; save explicitly.
+Check `client.capabilities()["persistence"]["snapshots"]` before save/restore. `kill()` and `delete()` discard changes; `stop()` preserves the filesystem when filesystem lifecycle support is enabled.
 
 ```python
 import uuid
@@ -164,10 +164,27 @@ The unreleased SDK accepts `launch={"command": "node server.mjs",
 "cwd": "/workspace/app", "readiness": {"port": 3000, "path": "/health"}}`
 in `save_workspace` when the deployment advertises `persistence.restoreLaunch`.
 Each restore starts that command once. Restore returns when the machine is
-running; inspect `restored.readiness` and refresh the exact container through
-`client.list()` until its readiness status is `ready` or `failed`. Failure
-diagnostics include a log path and bounded tail. This starts a new process;
+running; call `restored.wait_until_ready()` to wait for the application HTTP
+check. Failure diagnostics on `error.readiness` include a log path and bounded
+tail. This starts a new process;
 it does not preserve the original application's memory.
+
+For an already running app, configure the command once before Stop/Resume or Fork:
+
+```python
+sandbox.configure_startup({"command": "node server.mjs", "cwd": "/workspace/app",
+                           "readiness": {"port": 3000, "path": "/health"}})
+branch = sandbox.fork(idempotency_key=str(uuid.uuid4()))
+branch.wait_until_ready(wait_timeout=90)
+```
+
+`configure_startup` requires `persistence.startupConfiguration`. It records settings
+for future restores without running or restarting the current app; pass `None`
+to clear them. Stop/Resume and Fork inherit the settings, while explicit
+`save_workspace` still requires its own `launch` argument. Readiness polling
+checks the exact generation, never launches a process, and rejects replaced or
+stopped machines, failed launches, missing readiness and timeout. A successful
+initial check does not provide continuous health monitoring.
 
 ## Unreleased stateful Python interpreter
 
@@ -359,6 +376,33 @@ the directory as a whole is not. Permissions are not synchronized. Keep both tre
 stable during copying. Polling `watch` starts after an initial metadata baseline;
 its default interval is one second. Transient changes and same-size rewrites within
 one second may be missed. The native server watcher capability remains unavailable.
+
+### Native Linux notifications
+
+`watch_native` runs native filesystem notifications in one supervised execution.
+The guest requires Node 22+ on PATH; the Python client keeps its standard-library
+runtime. It does not repeatedly list files.
+
+```python
+with sandbox.files.watch_native('/workspace/project', timeout_ms=60000,
+                               idempotency_key='project-watch') as watcher:
+    for event in watcher.events():
+        if event['type'] == 'ready':
+            continue
+        print(event['type'], event['filename'])  # rename/change; relative name or None
+        break
+```
+
+Wait for `ready` before changes you need to observe. Recursion defaults to true,
+with at most 2,048 directories and 64 levels. A watcher occupies managed execution
+capacity for at most 15 minutes, with 512 KiB of guest output. Preserve
+`watcher.execution.id` and `watcher.idempotency_key`. A disconnected reader leaves
+the execution running; call `events()` again on the same handle to consume
+retained output, or `close()` to cancel it. The context manager cancels on exit.
+Notifications can coalesce or be lost, and registering a new subtree has a race;
+they are not a durable file-change journal. Start a new watcher after a generation
+ends. This SDK helper does not enable a server watch endpoint. See
+[native watcher limits](https://github.com/mainbrella/backend/blob/main/docs/native-file-watch.md).
 
 ## Linux desktop automation (unreleased)
 

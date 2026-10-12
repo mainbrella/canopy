@@ -336,6 +336,13 @@ test('preview issuance is limited to a newly started ready app and renewal stays
   const expiry = Date.now; t.mock.method(Date, 'now', () => expiry() + 1000000); f.intervals[0]();
   assert.equal(f.node('run-preview-open').hidden, true); assert.match(f.node('run-preview-status').textContent, /expired/);
 });
+
+test('startup progress names the configured HTTP readiness path', async t => {
+  const f = await fixture(t, { search: '?repo=acme/demo&startCommand=npm+start&port=3000&readinessPath=%2Fhealth', executions: { 'start-exec': { status: 'running', exitCode: null } } });
+  await f.node('run-form').fire('submit'); await f.flush(); await f.step();
+  assert.match(f.node('run-phase-detail').textContent, /HTTP 2xx response at \/health on port 3000/);
+  assert.equal(f.calls.find(call => call.url.pathname === '/repo-launches')?.body.readinessPath, '/health');
+});
 test('signing out during a pending launch discards private responses and does not advance', async t => {
   const f = await fixture(t); let release!: () => void; f.setGate(new Promise<void>(resolve => { release = resolve; }));
   await f.node('run-form').fire('submit'); f.events.get('auth-change')?.(); release(); await f.flush();
@@ -743,5 +750,41 @@ test('unpaid users can import and review JSON but cannot run it', async t => {
   const f = await fixture(t, { search: '', paid: false }); await pasteConfig(f);
   assert.equal(f.node('run-submit').disabled, true); assert.equal(f.node('run-config').hidden, false);
   assert.equal(f.node('run-plans').hidden, false);
+  assert.ok(f.calls.every(call => (call.options.method ?? 'GET') === 'GET'));
+});
+
+test('a ready-image handoff permits choosing a repository and never provisions on arrival', async t => {
+  const imageId = '87654321-1234-4234-8234-123456789abc';
+  const f = await fixture(t, { search: `?imageId=${imageId}` });
+  assert.equal(f.node('run-repo').readOnly, false);
+  assert.equal(f.node('run-submit').hidden, true);
+  assert.match(f.node('run-image-selection').textContent, new RegExp(imageId));
+  assert.equal(f.calls.length, 0);
+  f.node('run-repo').value = 'acme/demo';
+  await f.node('run-form').fire('input', { target: f.node('run-repo') });
+  assert.match(f.node('run-prompt-text').value, new RegExp(`imageId: ${imageId}`));
+  assert.match(f.node('run-prompt-text').value, /Preserve any supplied imageId/);
+  assert.equal(f.calls.length, 0);
+});
+
+test('reviewed custom-image launches send the exact selected image and share it again', async t => {
+  const imageId = '87654321-1234-4234-8234-123456789abc';
+  const f = await fixture(t, { search: `?repo=acme/demo&imageId=${imageId}` });
+  assert.match(f.node('run-config').textContent, new RegExp(`Custom image: ${imageId}`));
+  assert.ok(f.calls.every(call => (call.options.method ?? 'GET') === 'GET'));
+  await f.node('run-form').fire('submit'); await f.flush();
+  const created = f.calls.find(call => call.url.pathname === '/repo-launches');
+  assert.equal(created?.body.imageId, imageId);
+  assert.equal(created?.body.catalogId, undefined);
+});
+
+test('private-repository detection keeps the selected custom image instead of replacing it with a stock runtime', async t => {
+  const imageId = '87654321-1234-4234-8234-123456789abc';
+  const f = await fixture(t, { search: `?imageId=${imageId}` });
+  f.events.get('github-repository-ready')?.({ detail: { private: true,
+    suggestedConfiguration: { repo: 'acme/demo', size: 'small', cwd: '.', catalogId: 'node', setupCommand: 'npm ci' } } });
+  await f.flush();
+  const config = parseRepoRunConfig(f.node('run-import-text').value);
+  assert.equal(config.imageId, imageId); assert.equal(config.catalogId, undefined);
   assert.ok(f.calls.every(call => (call.options.method ?? 'GET') === 'GET'));
 });

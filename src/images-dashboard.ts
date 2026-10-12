@@ -31,6 +31,7 @@ export function createImagesDashboard({ onUnauthenticated, onImagesChanged, onSe
   let timer: ReturnType<typeof setTimeout> | undefined;
   let logId: string | null = null;
   let renderKey = '';
+  let repositoryLaunchSupported = false;
 
   function controls() {
     const pending = data?.images.some(image => activeStatuses.includes(image.status));
@@ -71,7 +72,7 @@ export function createImagesDashboard({ onUnauthenticated, onImagesChanged, onSe
 
   function render() {
     if (!data) return;
-    const key = JSON.stringify(data.images);
+    const key = JSON.stringify([data.images, repositoryLaunchSupported]);
     const remaining = Math.max(0, data.limits.maxBuildsPerMonth - data.usage.builds);
     status.textContent = !data.buildsEnabled ? 'Custom image builds are not available yet. Choose a stock image in the Stock Images tab.'
       : data.images.length ? `${remaining} image builds remaining this month.`
@@ -98,7 +99,14 @@ export function createImagesDashboard({ onUnauthenticated, onImagesChanged, onSe
           button.setAttribute('aria-label', `${label}: ${image.name}`);
           button.addEventListener('click', callback); actions.append(button);
         }
-        if (image.status === 'ready') action('Use image', () => onSelectImage(image.id));
+        if (image.status === 'ready') {
+          action('Use image', () => onSelectImage(image.id));
+          if (repositoryLaunchSupported) {
+            const repository = document.createElement('a'); repository.className = 'dashboard-retry'; repository.textContent = 'Run a repository';
+            repository.href = `/run/?${new URLSearchParams({ imageId: image.id })}`;
+            repository.setAttribute('aria-label', `Run a repository using ${image.name}`); actions.append(repository);
+          }
+        }
         action('Build output', () => loadLogs(image));
         if (!activeStatuses.includes(image.status)) action('Remove', () => remove(image));
         row.append(details, actions); list.append(row);
@@ -121,10 +129,14 @@ export function createImagesDashboard({ onUnauthenticated, onImagesChanged, onSe
     if (!background) error.hidden = true;
     controls();
     try {
-      const result = await request('/images');
+      const [result, capabilities] = await Promise.all([
+        request('/images'),
+        request('/capabilities', { signal: AbortSignal.timeout(10_000) }).catch(() => null),
+      ]);
       if (disposed) return;
       if (!Array.isArray(result.images) || !Number.isInteger(result.usage?.builds)
         || !Number.isInteger(result.limits?.maxBuildsPerMonth)) throw new Error('image_builds_unavailable');
+      repositoryLaunchSupported = capabilities?.images?.repositoryLaunch === true;
       data = result; render();
       if (logId) {
         const image = data?.images.find(image => image.id === logId);

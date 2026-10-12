@@ -213,7 +213,7 @@ active access, and available allowance. Avoid concurrent launches during setup.
 Production verification must confirm hello output, exit code 0, and cleanup;
 mocked tests do not satisfy that live release gate.
 
-To install the skill in Codex, extract `public/skills/mainbrella-containers-0.1.0.tar.gz` into `.agents/skills/` (or the agent’s equivalent directory), then invoke `$mainbrella-containers`. The archive includes canonical instructions and indexed API/SDK references. Provision `MAINBRELLA_API_KEY`
+To install the skill in Codex, extract `public/skills/mainbrella-containers-0.2.0.tar.gz` into `.agents/skills/` (or the agent’s equivalent directory), then invoke `$mainbrella-containers`. The archive includes canonical instructions and indexed API/SDK references. Provision `MAINBRELLA_API_KEY`
 separately using the instructions in `API.md`.
 
 ## Public website
