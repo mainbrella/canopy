@@ -11,6 +11,7 @@
 .rodeo-article .rodeo-results tr > :last-child { padding-right: 0; }
 .rodeo-article .rodeo-results thead th { color: var(--muted); font-weight: 500; }
 .rodeo-article .rodeo-results tbody th { font-weight: 500; }
+.rodeo-article .rodeo-ranking tr > :nth-child(-n + 2) { width: 1%; white-space: nowrap; }
 .rodeo-article .rodeo-accounting th:first-child { width: 46%; }
 .rodeo-article .rodeo-accounting td { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rodeo-article .rodeo-process-figure img { display: block; }
