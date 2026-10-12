@@ -3,8 +3,7 @@
 .rodeo-article .rodeo-screenshots .article-figure { margin: 0; min-width: 0; }
 .rodeo-article .rodeo-image-label { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
 .rodeo-article .rodeo-screenshots a,
-.rodeo-article .rodeo-screenshots img,
-.rodeo-article .rodeo-process-figure img { display: block; }
+.rodeo-article .rodeo-screenshots img { display: block; }
 .rodeo-article .rodeo-results { width: 100%; margin: 28px 0; border-collapse: collapse; font-size: 17px; line-height: 1.5; }
 .rodeo-article .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .rodeo-article .rodeo-results th,
@@ -31,7 +30,6 @@
   .rodeo-article .rodeo-results { font-size: 15px; }
   .rodeo-article .rodeo-results th,
   .rodeo-article .rodeo-results td { padding-right: 12px; }
-  .rodeo-article .rodeo-process-figure,
   .rodeo-article .rodeo-replay-figure,
   .rodeo-article .rodeo-worker-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
 }

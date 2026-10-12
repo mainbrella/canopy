@@ -272,8 +272,34 @@
     "memoryPreserved": false,
     "limitation": "Separate production qualification of saved launch recipes, not a matched provider comparison."
   },
+  "editorAutomaticStartup": {
+    "provider": "mainbrella",
+    "result": "editor-startup/mainbrella/result.json",
+    "sha256": "18725ffd12116cc035adb6b3eaabb1eb98583a6aae94a4a4856ac489575d1d52",
+    "copies": 3,
+    "listening": 3,
+    "clientSideLaunchCommands": 0,
+    "memoryPreserved": false,
+    "history": [
+      {
+        "result": "editor-startup/mainbrella/attempt-1/result.json",
+        "sha256": "b3613029702892dc4ca3361b567c537e2e08ba9f5eb0d52bd08d8bd03da19b1b",
+        "status": "failed",
+        "cleanupConfirmed": true,
+        "reason": "First copy was automatically listening; the verifier rejected the app route’s canonical trailing-slash redirect. The successful run requests /repo-rodeo-bug/ directly."
+      },
+      {
+        "result": "editor-startup/mainbrella/attempt-2/result.json",
+        "sha256": "4e5c722938bfe9377dc3883e67322eb5ab1b447faa10852c46ee9fbd295f6a84",
+        "status": "failed",
+        "cleanupConfirmed": true,
+        "reason": "First copy was automatically listening; the verifier rejected the app route’s canonical trailing-slash redirect. The successful run requests /repo-rodeo-bug/ directly."
+      }
+    ],
+    "limitation": "Later startup-only check of the same pinned editor app; no patches or browser repair controls rerun."
+  },
   "validation": {
-    "sealedPrivateFilesChecked": 5988,
+    "sealedPrivateFilesChecked": 10099,
     "workerVerdictsRecomputed": true,
     "retainedCredentialScanPassed": true
   },
@@ -406,7 +432,19 @@
     "restore-launch/mainbrella/inputs/src/restore-launch-experiment.ts": "21d89239c254fd49274ba3cc90a5506769167f5bffb4501ea3111c2c033c6b9a",
     "restore-launch/mainbrella/inputs/src/worker-verifier.ts": "348b2ae577bb856fd2fc8b0ee088c3ce31e70bded2fa17dbd47b9f0dcc876d8b",
     "restore-launch/mainbrella/result.json": "b3c1820679e9656b88a0564592e10c295eb823668932c71ca6d3ecbcfad59ffb",
-    "restore-launch/mainbrella/result.sha256": "93353ef00091f395a5d210be123232783b4f661cc377a35a4ddef6f5371b9ad4"
+    "restore-launch/mainbrella/result.sha256": "93353ef00091f395a5d210be123232783b4f661cc377a35a4ddef6f5371b9ad4",
+    "editor-startup/mainbrella/inputs/src/app-restore-launch-experiment.ts": "8be85b5429047e5b60b986d37db1f5d781b0fd28dac3d99910eef9bab5ea205e",
+    "editor-startup/mainbrella/inputs/src/guest/launch.mjs": "a1a2cc769146be3cc6ce3f9a79c0ca8ec2bd6c577dfd70c3db5acaede6a41a69",
+    "editor-startup/mainbrella/inputs/src/guest/inspect.mjs": "a60d72fca972c0093b6b986895387ede4802ff269de07188c4141fc4afc20f18",
+    "editor-startup/mainbrella/inputs/src/experiment-source.ts": "6b2a13671d6dd3621eae9ace91be2c79fe91dc618c85865c93d22c9e2b148ce9",
+    "editor-startup/mainbrella/result.json": "18725ffd12116cc035adb6b3eaabb1eb98583a6aae94a4a4856ac489575d1d52",
+    "editor-startup/mainbrella/result.sha256": "923b72153f70d84037b8b74bb8a80ae354198f67351c1478527d40180f8c5d0e",
+    "editor-startup/mainbrella/attempt-1/result.json": "b3613029702892dc4ca3361b567c537e2e08ba9f5eb0d52bd08d8bd03da19b1b",
+    "editor-startup/mainbrella/attempt-1/result.sha256": "2ab09e48517dbfa00171986e34b78bb2d56bcd36148ef25616cabe4270a8a33c",
+    "editor-startup/mainbrella/attempt-1/runner.ts": "e59c451eed4c3c92580d25909837d0712fc98ba70b427abefa9281af68456f72",
+    "editor-startup/mainbrella/attempt-2/result.json": "4e5c722938bfe9377dc3883e67322eb5ab1b447faa10852c46ee9fbd295f6a84",
+    "editor-startup/mainbrella/attempt-2/result.sha256": "ef3d64d21570cc41eb57fe3cd1b56331e70f83932bdb4c0247e7540c072625cc",
+    "editor-startup/mainbrella/attempt-2/runner.ts": "abd13d3c009b5105a726b51abf2d08db93debfce80339b240195d4dbf36c41c6"
   },
   "limitation": "These are reported observations with locally verified hashes, not independent attestations. Public editor bundles cannot replay the original strict verification without private browser traces and screenshots. No cleanup record establishes physical storage reclamation."
 }

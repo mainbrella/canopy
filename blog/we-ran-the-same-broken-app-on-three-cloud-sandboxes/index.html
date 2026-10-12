@@ -76,23 +76,14 @@
         <p>A PID alone can't establish that: a fresh process can reuse a number. Our launcher generates a random nonce once at startup and serves it from an uncached endpoint. It never loads the nonce from disk. A branch answering with the source's nonce and PID before we launch anything has inherited that process state.</p>
         <p>All three providers gave us listening copies, through different startup paths. Mainbrella's row below comes from a <a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/editor-startup/mainbrella/result.json">later production check</a> of the same pinned app with a saved launch recipe. We restored three unpatched copies without rerunning the browser repair controls. E2B and Daytona use the original editor runs.</p>
         <!-- process-table:start -->
-        <div class="rodeo-table-scroll" tabindex="0" role="region" aria-label="Source and branch process observations; scroll horizontally if needed">
+        <div class="rodeo-table-scroll" tabindex="0" role="region" aria-label="Listening servers and startup methods; scroll horizontally if needed">
           <table class="rodeo-results rodeo-process-table">
-            <caption class="sr-only">Presence of the original source process, checked by listener, PID and nonce before any branch launch or patch. All branches listen after an explicit start or restart, with fresh nonces. Source rows provide the reference process and have no branch launch. Files column counts matching tracked file hashes; dependencies, permissions, marker and symlink were also checked.</caption>
-            <thead><tr><th scope="col">Provider · copy</th><th scope="col">Original process present</th><th scope="col">Initial PID</th><th scope="col">Initial nonce</th><th scope="col">Files</th><th scope="col">After branch launch</th></tr></thead>
+            <caption class="sr-only">Three listening copies per provider, after the startup step shown. Mainbrella uses a later startup-only follow-up of the same pinned app; E2B and Daytona use the original editor runs. Fresh processes have new nonces; inherited processes retain the source PID and nonce.</caption>
+            <thead><tr><th scope="col">Provider</th><th scope="col">Listening</th><th scope="col">How it started</th><th scope="col">Process</th></tr></thead>
             <tbody>
-            <tr class="provider-start"><th scope="row">Mainbrella · source, before capture</th><td>Yes</td><td>134</td><td><code>df39c83d</code></td><td>417/417</td><td>n/a</td></tr>
-            <tr><th scope="row">Mainbrella · baseline</th><td>No</td><td>none</td><td>none</td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr><th scope="row">Mainbrella · correct</th><td>No</td><td>none</td><td>none</td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr><th scope="row">Mainbrella · misleading</th><td>No</td><td>none</td><td>none</td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr class="provider-start"><th scope="row">E2B · source, before capture</th><td>Yes</td><td>1627</td><td><code>bc4fdc6d</code></td><td>417/417</td><td>n/a</td></tr>
-            <tr><th scope="row">E2B · baseline</th><td>Yes</td><td>1627</td><td><code>bc4fdc6d</code></td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr><th scope="row">E2B · correct</th><td>Yes</td><td>1627</td><td><code>bc4fdc6d</code></td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr><th scope="row">E2B · misleading</th><td>Yes</td><td>1627</td><td><code>bc4fdc6d</code></td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr class="provider-start"><th scope="row">Daytona · source, before capture</th><td>Yes</td><td>394</td><td><code>0cac9b03</code></td><td>417/417</td><td>n/a</td></tr>
-            <tr><th scope="row">Daytona · baseline</th><td>No</td><td>none</td><td>none</td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr><th scope="row">Daytona · correct</th><td>No</td><td>none</td><td>none</td><td>417/417</td><td>Yes, new nonce</td></tr>
-            <tr><th scope="row">Daytona · misleading</th><td>No</td><td>none</td><td>none</td><td>417/417</td><td>Yes, new nonce</td></tr>
+            <tr><th scope="row">Mainbrella</th><td>Yes, 3/3</td><td>Saved recipe (automatic)</td><td>Fresh</td></tr>
+            <tr><th scope="row">E2B</th><td>Yes, 3/3</td><td>Live fork</td><td>Inherited</td></tr>
+            <tr><th scope="row">Daytona</th><td>Yes, 3/3</td><td>Runner command</td><td>Fresh</td></tr>
             </tbody>
           </table>
         </div>
