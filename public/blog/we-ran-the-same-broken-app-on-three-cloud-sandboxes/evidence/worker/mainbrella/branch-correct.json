@@ -1,0 +1,71 @@
+{
+  "id": "correct",
+  "sandbox": {
+    "id": "c2",
+    "generation": "2026-10-12T11:23:53.620Z"
+  },
+  "inherited": false,
+  "beforeLaunch": {
+    "process": null,
+    "hashes": {
+      "server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+      "processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+      "prepared-marker": "94d7ac7503889b127af7073c5c5ae1ff83c1ff55bb38525df34d39b06e76898f"
+    }
+  },
+  "before": {
+    "nonce": "7ba137d2-645d-407e-aa05-c7fafccd6f63",
+    "pid": 20,
+    "node": "22.22.2",
+    "preparationId": null,
+    "phase": "empty",
+    "pending": 0,
+    "outputCount": 0,
+    "marker": null,
+    "inputFingerprint": null,
+    "stateFingerprint": "36e974931baec75a1ebe878b1629e101f7f107e0577dd5faa60ae57536652644"
+  },
+  "beforeResume": {
+    "nonce": "7ba137d2-645d-407e-aa05-c7fafccd6f63",
+    "pid": 20,
+    "node": "22.22.2",
+    "preparationId": null,
+    "phase": "empty",
+    "pending": 0,
+    "outputCount": 0,
+    "marker": "correct",
+    "inputFingerprint": null,
+    "stateFingerprint": "11407ede21809d77e5c6220201412bf351a46c319e1976efbe516f9312a49ed5"
+  },
+  "after": {
+    "nonce": "7ba137d2-645d-407e-aa05-c7fafccd6f63",
+    "pid": 20,
+    "node": "22.22.2",
+    "preparationId": null,
+    "phase": "completed",
+    "pending": 0,
+    "outputCount": 0,
+    "marker": "correct",
+    "inputFingerprint": null,
+    "stateFingerprint": "46f61c61b5d79921ff82851465d601018fa42708576f7bb2381c9c1f115fb6b4",
+    "claimedCompleted": true,
+    "outputs": []
+  },
+  "verification": {
+    "status": "reproduction-lost",
+    "stateRetained": false,
+    "exactOutputs": false,
+    "expectedCount": 5,
+    "actualCount": 0,
+    "missingIds": [
+      "job-12346-a",
+      "job-12346-b",
+      "job-12346-c",
+      "job-12346-d",
+      "job-12346-e"
+    ],
+    "duplicateIds": [],
+    "unexpectedIds": [],
+    "claimedCompleted": true
+  }
+}

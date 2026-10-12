@@ -23,11 +23,15 @@
 .rodeo-article .rodeo-capabilities th:first-child { width: 24%; }
 .rodeo-article .rodeo-capabilities td { width: 25%; }
 .rodeo-article .rodeo-cleanup-table { min-width: 540px; font-size: 15px; }
+.rodeo-article .rodeo-worker-results { min-width: 640px; font-size: 15px; }
+.rodeo-article .rodeo-worker-results th:first-child { width: 23%; }
+.rodeo-article .rodeo-worker-results td { width: 25%; }
 @media (max-width: 600px) {
   .rodeo-article .rodeo-screenshots { grid-template-columns: minmax(0, 1fr); gap: 20px; margin: 24px 0; }
   .rodeo-article .rodeo-results { font-size: 15px; }
   .rodeo-article .rodeo-results th,
   .rodeo-article .rodeo-results td { padding-right: 12px; }
   .rodeo-article .rodeo-process-figure,
-  .rodeo-article .rodeo-replay-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
+  .rodeo-article .rodeo-replay-figure,
+  .rodeo-article .rodeo-worker-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
 }

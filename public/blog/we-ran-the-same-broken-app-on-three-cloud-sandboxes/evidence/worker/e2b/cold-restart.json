@@ -1,0 +1,71 @@
+{
+  "before": {
+    "process": {
+      "nonce": "9d18512d-fffd-4dd1-8308-a93bb6b40548",
+      "pid": 1530,
+      "node": "22.22.2",
+      "preparationId": "306e392a-889b-492e-af89-b410c8283c59",
+      "phase": "paused",
+      "pending": 5,
+      "outputCount": 0,
+      "marker": null,
+      "inputFingerprint": "c28710afcbec6fe0793a5c810c9f7c116ae6fe31f6e0bedc22947f9610f95e16",
+      "stateFingerprint": "cab32e31067ed5aa9d1936b12dfcbf231c2cc881824a98547976e9e16cd18017"
+    },
+    "hashes": {
+      "server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+      "processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+      "prepared-marker": "8afee1f37a30d68a3e53f3aefaf2261616fbc32ff3b334417ad0e8ed0fc4b685"
+    }
+  },
+  "fresh": {
+    "process": {
+      "nonce": "3bc5726a-69b3-4513-a9cb-a73ea1818b83",
+      "pid": 1629,
+      "node": "22.22.2",
+      "preparationId": null,
+      "phase": "empty",
+      "pending": 0,
+      "outputCount": 0,
+      "marker": null,
+      "inputFingerprint": null,
+      "stateFingerprint": "36e974931baec75a1ebe878b1629e101f7f107e0577dd5faa60ae57536652644"
+    },
+    "hashes": {
+      "server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+      "processor.mjs": "5102fc42d4d365bc9f32af15abb8422943abe13038f2a2cd73007d9884024501",
+      "prepared-marker": "8afee1f37a30d68a3e53f3aefaf2261616fbc32ff3b334417ad0e8ed0fc4b685"
+    }
+  },
+  "after": {
+    "nonce": "3bc5726a-69b3-4513-a9cb-a73ea1818b83",
+    "pid": 1629,
+    "node": "22.22.2",
+    "preparationId": null,
+    "phase": "completed",
+    "pending": 0,
+    "outputCount": 0,
+    "marker": null,
+    "inputFingerprint": null,
+    "stateFingerprint": "0bf39688e66d0d1e200b33e3fd637ab20a19d23d42ec24c64463c9f7d9b02ba4",
+    "claimedCompleted": true,
+    "outputs": []
+  },
+  "verification": {
+    "status": "reproduction-lost",
+    "stateRetained": false,
+    "exactOutputs": false,
+    "expectedCount": 5,
+    "actualCount": 0,
+    "missingIds": [
+      "job-12346-a",
+      "job-12346-b",
+      "job-12346-c",
+      "job-12346-d",
+      "job-12346-e"
+    ],
+    "duplicateIds": [],
+    "unexpectedIds": [],
+    "claimedCompleted": true
+  }
+}
