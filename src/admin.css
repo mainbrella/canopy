@@ -139,15 +139,18 @@ th { color: var(--muted); font-weight: 500; white-space: nowrap; }
 .acquisition-lead-events { display: block; margin-top: 4px; padding: 8px 0; border: 0; color: var(--muted); }
 .acquisition-table details summary { cursor: pointer; min-height: 44px; padding-block: 10px; color: var(--muted); }
 .acquisition-source { margin: 0; max-height: 320px; overflow: auto; color: #d5dae2; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-.email-content { max-width: 640px; margin-top: 24px; }
-.email-send-form, .email-all-send-form { margin-top: 16px; }
+.email-content, .email-custom-content { max-width: 640px; margin-top: 24px; }
+.email-send-form, .email-all-send-form, .email-custom-send-form { margin-top: 16px; }
 .email-fields { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .email-fields label { display: grid; gap: 4px; min-width: 0; font-size: 14px; }
 .email-fields input, .email-fields textarea { width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; color: inherit; background: var(--surface); }
 .email-fields textarea { min-height: 160px; resize: vertical; }
 .email-fields:disabled input, .email-fields:disabled textarea { opacity: .65; }
-.email-send-submit, .email-all-send-submit { justify-self: start; }
+.email-send-submit, .email-all-send-submit, .email-custom-send-submit { justify-self: start; }
 .email-status:not(:empty) { margin-top: 12px; color: var(--muted); }
+.email-custom-help { margin: -8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.email-custom-recipient-error:not(:empty) { margin: -8px 0 0; color: #ffb4ab; font-size: 13px; line-height: 1.5; }
+.email-custom-error:not(:empty) { white-space: pre-line; }
 .email-all-content { max-width: 640px; margin-top: 24px; }
 .email-all-status { margin-top: 8px; color: var(--muted); }
 .email-all-list { display: grid; gap: 2px; margin: 12px 0 0; padding: 0; list-style: none; }
@@ -170,6 +173,7 @@ th { color: var(--muted); font-weight: 500; white-space: nowrap; }
   .ledger-content { margin-top: 16px; }
   .acquisition-content { margin-top: 16px; }
   .email-content { margin-top: 16px; }
+  .email-custom-content { margin-top: 16px; }
   .email-all-content { margin-top: 16px; }
   .email-fields input, .email-fields textarea { font-size: 16px; }
   .acquisition-filters input, .acquisition-filters select { font-size: 16px; }

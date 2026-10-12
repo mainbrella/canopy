@@ -3,6 +3,7 @@ import { createLedgerView } from './ledger.ts';
 import { createAcquisitionView } from './acquisition.ts';
 import { createEmailView } from './email.ts';
 import { createEmailAllView } from './email-all.ts';
+import { createEmailCustomView } from './email-custom.ts';
 import { createUserDetailView } from './user-detail.ts';
 import { isAdminUser, type AdminUser, type User } from './types.ts';
 
@@ -63,6 +64,10 @@ const emailAllPage = requiredElement<HTMLElement>('.email-all-content');
 const emailAllTitle = requiredElement<HTMLHeadingElement>('#email-all-title');
 const emailAllStatus = requiredElement<HTMLElement>('.email-all-status');
 const emailAllError = requiredElement<HTMLElement>('.email-all-error');
+const emailCustomPage = requiredElement<HTMLElement>('.email-custom-content');
+const emailCustomTitle = requiredElement<HTMLHeadingElement>('#email-custom-title');
+const emailCustomStatus = requiredElement<HTMLElement>('.email-custom-status');
+const emailCustomError = requiredElement<HTMLElement>('.email-custom-error');
 const ADMIN_EMAIL = 'oneone@gmail.com';
 const signInPrompt = 'Continue with Google or email and password.';
 
@@ -131,10 +136,23 @@ const emailAll = createEmailAllView({
   list: requiredElement<HTMLUListElement>('.email-all-list'),
   refresh: requiredElement<HTMLButtonElement>('.email-all-refresh'),
 }, () => isAdmin() && !signingOut, handleAdminAuthFailure);
+const emailCustom = createEmailCustomView({
+  page: emailCustomPage,
+  form: requiredElement<HTMLFormElement>('.email-custom-send-form'),
+  fields: requiredElement<HTMLFieldSetElement>('.email-custom-fields'),
+  from: requiredElement<HTMLInputElement>('#email-custom-from'),
+  recipients: requiredElement<HTMLTextAreaElement>('#email-custom-recipients'),
+  subj: requiredElement<HTMLInputElement>('#email-custom-subj'),
+  message: requiredElement<HTMLTextAreaElement>('#email-custom-message'),
+  submit: requiredElement<HTMLButtonElement>('.email-custom-send-submit'),
+  status: emailCustomStatus,
+  error: emailCustomError,
+  recipientError: requiredElement<HTMLElement>('.email-custom-recipient-error'),
+}, () => isAdmin() && !signingOut, handleAdminAuthFailure);
 
 function currentAdminRoute() {
   const path = location.pathname.replace(/\/$/, '');
-  return path === '/users/detail' ? 'user-detail' : path === '/email-all' ? 'email-all' : path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
+  return path === '/users/detail' ? 'user-detail' : path === '/email-all' ? 'email-all' : path === '/email-custom' ? 'email-custom' : path === '/email' ? 'email' : path === '/acquisition' ? 'acquisition' : path === '/ledger' ? 'ledger' : 'users';
 }
 
 function isAdmin() {
@@ -172,6 +190,8 @@ async function showCurrentState() {
   acquisition.setActive(false);
   email.setActive(false);
   emailAll.setActive(false);
+  emailCustom.setActive(false);
+  emailCustom.clear();
   emailAll.clear();
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
@@ -185,6 +205,7 @@ async function showCurrentState() {
   acquisitionPage.hidden = true;
   emailPage.hidden = true;
   emailAllPage.hidden = true;
+  emailCustomPage.hidden = true;
   page.hidden = false;
   loginTitle.textContent = 'Log in';
   clearError();
@@ -210,8 +231,10 @@ function showAccessDenied() {
   acquisition.setActive(false);
   email.setActive(false);
   emailAll.setActive(false);
+  emailCustom.setActive(false);
   email.clear();
   emailAll.clear();
+  emailCustom.clear();
   adminNav.hidden = true;
   appShell.classList.remove('is-admin');
   usersPage.hidden = true;
@@ -220,6 +243,7 @@ function showAccessDenied() {
   acquisitionPage.hidden = true;
   emailPage.hidden = true;
   emailAllPage.hidden = true;
+  emailCustomPage.hidden = true;
   usersRows.replaceChildren();
   usersTable.hidden = true;
   page.hidden = false;
@@ -247,17 +271,19 @@ function showAdminRoute() {
   acquisitionPage.hidden = route !== 'acquisition';
   emailPage.hidden = route !== 'email';
   emailAllPage.hidden = route !== 'email-all';
+  emailCustomPage.hidden = route !== 'email-custom';
   ledger.setActive(route === 'ledger');
   acquisition.setActive(route === 'acquisition');
   email.setActive(route === 'email');
   emailAll.setActive(route === 'email-all');
+  emailCustom.setActive(route === 'email-custom');
   userDetail.setUser(route === 'user-detail' ? new URLSearchParams(location.search).get('id') ?? '' : null);
   if (route === 'users') {
     usersTitle.focus({ preventScroll: true });
     void loadUsers();
   } else {
     usersRequest++;
-    (route === 'user-detail' ? userDetailTitle : route === 'email-all' ? emailAllTitle : route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
+    (route === 'user-detail' ? userDetailTitle : route === 'email-all' ? emailAllTitle : route === 'email-custom' ? emailCustomTitle : route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
   }
 }
 
@@ -275,7 +301,7 @@ document.addEventListener('click', (event) => {
   const target = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-admin-route]') : null;
   if (!target || target.origin !== location.origin || target.target || target.hasAttribute('download')) return;
   const route = target.dataset.adminRoute;
-  if (route !== 'users' && route !== 'user-detail' && route !== 'ledger' && route !== 'acquisition' && route !== 'email' && route !== 'email-all') return;
+  if (route !== 'users' && route !== 'user-detail' && route !== 'ledger' && route !== 'acquisition' && route !== 'email' && route !== 'email-all' && route !== 'email-custom') return;
   event.preventDefault();
   const nextPath = route === 'user-detail' ? '/users/detail' : `/${route}`;
   const currentRoute = currentAdminRoute();
@@ -454,10 +480,11 @@ signOutButton.addEventListener('click', async () => {
   acquisition.setActive(false);
   email.setActive(false);
   emailAll.setActive(false);
+  emailCustom.setActive(false);
   signOutButton.disabled = true;
   page.setAttribute('aria-busy', 'true');
   const currentStatus = page.hidden ? usersStatus : status;
-  const currentPageStatus = !userDetailPage.hidden ? userDetailStatus : !emailAllPage.hidden ? emailAllStatus : !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
+  const currentPageStatus = !userDetailPage.hidden ? userDetailStatus : !emailCustomPage.hidden ? emailCustomStatus : !emailAllPage.hidden ? emailAllStatus : !emailPage.hidden ? emailStatus : !acquisitionPage.hidden ? acquisitionStatus : ledgerPage.hidden ? currentStatus : ledgerStatus;
   currentPageStatus.textContent = 'Signing out…';
   clearError();
   let restoreAdminRoute = false;
@@ -466,6 +493,7 @@ signOutButton.addEventListener('click', async () => {
     await auth.signOut();
     email.clear();
     emailAll.clear();
+    emailCustom.clear();
     user = null;
     await showCurrentState();
     emailInput.focus();
@@ -494,12 +522,13 @@ window.addEventListener('auth-change', (event) => {
   if (event.detail?.user !== null || !user || signingOut) return;
   email.clear();
   emailAll.clear();
+  emailCustom.clear();
   user = null;
   showCurrentState();
 });
 
 function showError(cause: unknown) {
-  const target = page.hidden ? (!userDetailPage.hidden ? userDetailError : !emailAllPage.hidden ? emailAllError : !emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
+  const target = page.hidden ? (!userDetailPage.hidden ? userDetailError : !emailCustomPage.hidden ? emailCustomError : !emailAllPage.hidden ? emailAllError : !emailPage.hidden ? emailError : !acquisitionPage.hidden ? acquisitionError : ledgerPage.hidden ? usersError : ledgerError) : error;
   target.textContent = cause instanceof Error ? cause.message : 'Something went wrong. Please try again.';
   target.hidden = false;
 }
@@ -519,6 +548,8 @@ function clearError() {
   emailError.hidden = true;
   emailAllError.textContent = '';
   emailAllError.hidden = true;
+  emailCustomError.textContent = '';
+  emailCustomError.hidden = true;
 }
 
 function loadGoogleIdentityScript() {

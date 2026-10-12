@@ -25,6 +25,7 @@
         <a href="/acquisition" data-admin-route="acquisition">Acquisition Review</a>
         <a href="/email" data-admin-route="email">Email</a>
         <a href="/email-all" data-admin-route="email-all">Email All</a>
+        <a href="/email-custom" data-admin-route="email-custom">EmailCustom</a>
       </nav>
       <main id="main" tabindex="-1">
         <section class="login-content" aria-labelledby="login-title" aria-busy="true">
@@ -211,6 +212,30 @@
           <p class="email-all-status" role="status" aria-live="polite">Loading marketing users…</p>
           <div class="email-all-error users-error" role="alert" hidden></div>
           <ul class="email-all-list" aria-label="Marketing users" hidden></ul>
+        </section>
+        <section class="email-custom-content" aria-labelledby="email-custom-title" hidden>
+          <h1 id="email-custom-title" tabindex="-1">EmailCustom</h1>
+          <form class="email-custom-send-form">
+            <fieldset class="email-fields email-custom-fields">
+              <label for="email-custom-recipients">Recipients
+                <textarea id="email-custom-recipients" name="recipients" rows="8" maxlength="100000" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="email-custom-recipient-help email-custom-recipient-error" required></textarea>
+              </label>
+              <p id="email-custom-recipient-help" class="email-custom-help">One address per line. Add an optional full name after the address, for example: foo@bar.com John Smith.</p>
+              <p id="email-custom-recipient-error" class="email-custom-recipient-error" role="alert" hidden></p>
+              <label for="email-custom-from">From
+                <input id="email-custom-from" name="from" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="512" value="Andrew Arrow &lt;andrew@mainbrella.com&gt;" placeholder="Name &lt;name@mainbrella.com&gt;" required />
+              </label>
+              <label for="email-custom-subj">Subject
+                <input id="email-custom-subj" name="subj" type="text" maxlength="998" value="testing" required />
+              </label>
+              <label for="email-custom-message">Message
+                <textarea id="email-custom-message" name="message" rows="10" maxlength="100000" required>the quick brown fox jumps over the lazy brella.</textarea>
+              </label>
+              <button class="primary email-custom-send-submit" type="submit">Send to all</button>
+            </fieldset>
+            <p class="email-custom-status email-status" role="status" aria-live="polite"></p>
+            <div class="email-custom-error users-error" role="alert" hidden></div>
+          </form>
         </section>
       </main>
     </div>
