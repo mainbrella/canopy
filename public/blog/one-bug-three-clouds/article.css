@@ -16,9 +16,6 @@
 .rodeo-article .rodeo-process-figure img { display: block; }
 .rodeo-article .rodeo-console-crop { position: relative; display: block; overflow: hidden; background: #000; }
 .rodeo-article .rodeo-console-crop img { position: absolute; max-width: none; height: auto; }
-.rodeo-article .rodeo-e2b-figure { max-width: 420px; }
-.rodeo-article .crop-e2b-logs { aspect-ratio: 635 / 610; }
-.rodeo-article .crop-e2b-logs img { width: 539.213%; left: -152.756%; top: -152.459%; }
 .rodeo-article .rodeo-daytona-figure { max-width: 540px; }
 .rodeo-article .rodeo-console-scroll { overflow-x: auto; }
 .rodeo-article .crop-daytona-details { min-width: 500px; aspect-ratio: 900 / 920; }
@@ -30,6 +27,8 @@
 .rodeo-article .crop-e2b-concurrency img { width: 664.854%; left: -534.369%; top: -402.174%; }
 .rodeo-article .crop-e2b-terminal { min-width: 780px; aspect-ratio: 1660 / 610; }
 .rodeo-article .crop-e2b-terminal img { width: 206.265%; left: -39.157%; top: -155.738%; }
+.rodeo-article .crop-daytona-snapshot { aspect-ratio: 1300 / 177; }
+.rodeo-article .crop-daytona-snapshot img { width: 263.385%; left: -104.615%; top: -374.011%; }
 @media (max-width: 600px) {
   .rodeo-article .rodeo-screenshots { grid-template-columns: minmax(0, 1fr); gap: 20px; margin: 24px 0; }
   .rodeo-article .rodeo-results { font-size: 15px; }
@@ -37,7 +36,8 @@
   .rodeo-article .rodeo-results td { padding-right: 12px; }
   .rodeo-article .rodeo-process-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
   .rodeo-article .rodeo-replay-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
-  .rodeo-article .rodeo-e2b-figure,
+  .rodeo-article .crop-daytona-snapshot { aspect-ratio: 650 / 177; }
+  .rodeo-article .crop-daytona-snapshot img { width: 526.769%; left: -306.154%; }
   .rodeo-article .rodeo-daytona-figure,
   .rodeo-article .rodeo-profile-figure { margin-right: auto; margin-left: auto; }
 }
