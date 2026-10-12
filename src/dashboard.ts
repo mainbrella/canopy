@@ -12,17 +12,9 @@ if (buildURL) window.location.replace(buildURL);
 else initializeDashboard();
 
 function initializeDashboard() {
-  const main = document.querySelector<HTMLElement>('#main')!;
   let lastContainerBilling: ContainerData['billing'] = null;
   const view = dashboardView(location.search);
-  main.setAttribute('data-view', view);
-  document.querySelector<HTMLElement>('#dashboard-title')!.textContent = view === 'overview' ? 'Overview' : view === 'production' ? 'Production' : 'Ad Hoc';
   document.querySelector<HTMLElement>('#dashboard-overview')!.hidden = view !== 'overview';
-  for (const link of document.querySelectorAll<HTMLAnchorElement>('.app-navigation a')) {
-    if (new URL(link.href).pathname !== '/dashboard/') continue;
-    if (dashboardView(new URL(link.href).search) === view) link.setAttribute('aria-current', 'page');
-    else link.removeAttribute('aria-current');
-  }
   document.querySelector<HTMLElement>('#dashboard-resources')!.hidden = view === 'overview';
   const overview = view === 'overview' ? createOverviewFeed({ onUnauthenticated: goToLogin,
     onBalance(balance) { account.updateBalance(balance); },

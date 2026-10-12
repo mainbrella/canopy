@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { runInNewContext } from 'node:vm';
 import { siteChromePlugin } from '../scripts/site-chrome-plugin.ts';
 
 const hook = siteChromePlugin().transformIndexHtml;
@@ -40,6 +41,80 @@ test('critical shared CSS supports the builder stylesheet URL', async () => {
   const critical = html.indexOf('<style data-critical-css>');
   const shared = html.indexOf('<link rel="stylesheet" href="/public/mainbrella.css"');
   assert.ok(critical >= 0 && critical < shared);
+});
+
+test('dashboard critical CSS follows shared critical CSS and precedes the full app stylesheet', async () => {
+  const html = await transform('dashboard/index.html', '/dashboard/index.html');
+  const shared = html.indexOf('<link rel="stylesheet" href="/mainbrella.css"');
+  const appCritical = html.indexOf('<style data-critical-app-css>');
+  const app = html.indexOf('<link rel="stylesheet" href="/app.css"');
+  assert.ok(shared >= 0 && shared < appCritical && appCritical < app);
+  assert.match(html.slice(appCritical, app), /\.app-navigation\s*\{/);
+  assert.match(html.slice(appCritical, app), /@media \(max-width: 700px\)/);
+  assert.ok(html.indexOf('<script data-dashboard-view-bootstrap>') < shared);
+
+  const builderHtml = await transform('build/index.html', '/build/index.html');
+  const builderAppCritical = builderHtml.indexOf('<style data-critical-app-css>');
+  const builderApp = builderHtml.indexOf('<link rel="stylesheet" href="/public/app.css"');
+  assert.ok(builderAppCritical >= 0 && builderAppCritical < builderApp);
+});
+
+test('dashboard view bootstrap sets the matching title, main view, and active link before disconnecting', async () => {
+  const html = await readFile(new URL('../dashboard/index.html', import.meta.url), 'utf8');
+  const script = html.match(/<script data-dashboard-view-bootstrap>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script);
+
+  for (const [search, expectedView, expectedTitle] of [
+    ['?view=production', 'production', 'Production'],
+    ['?view=ad-hoc', 'ad-hoc', 'Ad Hoc'],
+    ['', 'overview', 'Overview'],
+    ['?view=unknown', 'overview', 'Overview'],
+  ]) {
+    const title = { textContent: 'Overview' };
+    const status = {};
+    const main = { attributes: new Map<string, string>(), setAttribute(name: string, value: string) { this.attributes.set(name, value); } };
+    const links = ['/dashboard/', '/dashboard/?view=production', '/dashboard/?view=ad-hoc'].map(href => ({
+      href: `https://mainbrella.com${href}`,
+      attributes: new Map<string, string>(),
+      setAttribute(name: string, value: string) { this.attributes.set(name, value); },
+      removeAttribute(name: string) { this.attributes.delete(name); },
+    }));
+    let observer: { fire: () => void; disconnected: boolean } | undefined;
+    class FakeMutationObserver {
+      disconnected = false;
+      constructor(private callback: () => void) { observer = this; }
+      observe() {}
+      disconnect() { this.disconnected = true; }
+      fire() { this.callback(); }
+    }
+    const readyNodes = new Map<string, unknown>();
+    runInNewContext(script!, {
+      location: { search, href: 'https://mainbrella.com/dashboard/' },
+      URL,
+      URLSearchParams,
+      document: {
+        documentElement: {},
+        querySelector(selector: string) { return readyNodes.get(selector) ?? null; },
+        querySelectorAll() { return links; },
+      },
+      MutationObserver: FakeMutationObserver,
+    });
+    assert.ok(observer);
+    observer!.fire();
+    assert.equal(observer!.disconnected, false, 'bootstrap waits until the title and status have parsed');
+    readyNodes.set('#dashboard-title', title);
+    readyNodes.set('#dashboard-status', status);
+    readyNodes.set('#main', main);
+    observer!.fire();
+    assert.equal(title.textContent, expectedTitle);
+    assert.equal(main.attributes.get('data-view'), expectedView);
+    assert.deepEqual(links.map(link => link.attributes.get('aria-current') ?? null), [
+      expectedView === 'overview' ? 'page' : null,
+      expectedView === 'production' ? 'page' : null,
+      expectedView === 'ad-hoc' ? 'page' : null,
+    ]);
+    assert.equal(observer!.disconnected, true);
+  }
 });
 
 test('isolated exception pages bypass CSS inlining unchanged', async () => {

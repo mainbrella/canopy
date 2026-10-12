@@ -3,16 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A disappearing button, a patch we know is wrong, and the first Mainbrella, E2B, and Daytona setup results. Building Repo Rodeo around evidence we can inspect." />
+    <meta name="description" content="A disappearing button and a patch that only looks fixed. Mainbrella and E2B pass the cloud controls; Daytona's snapshot outlives our deadline. Building Repo Rodeo before adding repair agents." />
     <meta name="theme-color" content="#181a1b" />
     <link rel="canonical" href="https://mainbrella.com/blog/one-bug-three-clouds/" />
     <meta property="og:title" content="One Bug, Three Clouds: Building Repo Rodeo · Mainbrella" />
-    <meta property="og:description" content="The editor said Saved. Reloading lost the button. Building an experiment that can tell a repair from a convincing demo." />
+    <meta property="og:description" content="The editor said Saved. Reloading lost the button. Two completed cloud runs, a timed-out snapshot, and an experiment that can reject a convincing bad repair." />
     <meta property="og:url" content="https://mainbrella.com/blog/one-bug-three-clouds/" />
     <meta property="og:type" content="article" />
     <meta property="og:image" content="https://mainbrella.com/images/blog/one-bug-three-clouds/before-reload.png" />
     <meta property="og:image:alt" content="The broken editor still displays Join the waitlist after saving. Reloading drops that button." />
     <meta property="article:published_time" content="2026-10-11T00:00:00-07:00" />
+    <meta property="article:modified_time" content="2026-10-12" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/images/favicon.png" type="image/png" />
     <link rel="stylesheet" href="/mainbrella.css" />
@@ -27,13 +28,14 @@
       <article>
         <a class="article-back" href="/blog/">← Engineering blog</a>
         <h1>One Bug, Three Clouds: Building Repo Rodeo</h1>
-        <p class="article-meta"><time datetime="2026-10-11">October 11, 2026</time> · Andrew Arrow</p>
+        <p class="article-meta"><time datetime="2026-10-11">October 11, 2026</time> · Andrew Arrow · Updated <time datetime="2026-10-12">October 12</time></p>
 
         <p>Move “Join the waitlist” to the top of the editor, hit Save, and everything looks fine. The button is still there. The editor says “Saved.” Reload the page and the button disappears. Three blocks went in; two came back.</p>
         <p>You can <a href="/repo-rodeo-bug/">try the broken editor</a> without an account. We planted this bug deliberately. It gives <a href="https://github.com/mainbrella/repo-rodeo">Repo Rodeo</a> a small, repeatable failure while we build the machinery for handling somebody else’s GitHub issue.</p>
         <p>The product we want takes an issue and a reproduction recipe, prepares the application, then gives independent coding agents their own copies to repair. A maintainer should be able to open the broken app, open a proposed repair, repeat the same actions, and inspect the diff. Getting both apps into the browser would be useful even when every agent fails.</p>
-        <p>The three clouds in the title are E2B, Daytona, and Mainbrella. So far, the deterministic controls work in a manual local Mainbrella run and an automated E2B cloud run. Daytona reproduced the baseline bug, then ran into snapshot and cleanup problems. A completed three-provider comparison and AI repair attempts are still ahead of us. Before adding agents, we need to know that the experiment can reject a bad repair.</p>
+        <p>Before adding agents, we need to know that the experiment can reject a bad repair. The same deterministic controls now pass in production Mainbrella and E2B: the correct patch preserves the document, and the misleading one still loses a block. Daytona reproduced the baseline, but its snapshot outlived our capture deadline and none of its restored controls ran. The failures in getting there have been at least as useful as the passing runs.</p>
 
+        <h2>A patch that looks fixed</h2>
         <p>The editor holds the current document in memory and saves a serialized copy to <code>localStorage</code>. Its serializer assigns positions from the array index, then filters them:</p>
         <pre class="docs-code" tabindex="0" role="region" aria-label="The deliberately broken serializer"><code>blocks
   .map((block, position) =&gt; ({ ...block, position }))
@@ -72,6 +74,7 @@
         </table>
 
         <p>Five failures count as reproduction only when they show the specified loss. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/src/verifier.ts">verifier</a> checks that the document was intact before reload and that afterward it contains exactly the expected document minus its first block. A timeout, HTTP error, missing test, or unrelated assertion produces an unverified result. An unverified baseline stops the experiment before either candidate runs.</p>
+        <h2>Saved files, fresh servers</h2>
         <p>This mattered in the first Mainbrella run. We archived a pinned checkout of this website, uploaded it through the file API, installed its dependencies in a container, and started Vite. The browser reached the protected preview and got HTTP 403. The experiment hadn’t reproduced the bug. It hadn’t even reached the editor.</p>
         <p>Mainbrella forwarded the guest Host header as <code>container</code>, which Vite didn’t allow. Adding that exact host to the run’s launcher got us to the application. The launcher also set the local API address explicitly so the copied website wouldn’t default to the production API. Those were changes to the experimental launch setup; the host checkout stayed untouched. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/notes/2026-10-11-local-mainbrella.md">run notes</a> retain the failed attempt along with the working one.</p>
 
@@ -83,19 +86,29 @@
         <figure class="article-figure rodeo-process-figure">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/one-bug-three-clouds/saved-workspace-mobile.svg" width="360" height="544" />
-            <img src="/images/blog/one-bug-three-clouds/saved-workspace.svg" width="800" height="430" alt="Schematic of the observed local saved-workspace run. The source server keeps running through capture. Saved files fan out to baseline, correct, and misleading branches. Each branch initially has no listener, then starts a server with a new process nonce. The source process does not continue into the restores." loading="lazy" decoding="async" />
+            <img src="/images/blog/one-bug-three-clouds/saved-workspace.svg" width="800" height="430" alt="Schematic of the observed local and production Mainbrella restores. The source server keeps running through capture. Saved files fan out to baseline, correct, and misleading branches. Each branch initially has no listener, then starts a server with a new process nonce. The source process does not continue into the restores." loading="lazy" decoding="async" />
           </picture>
         </figure>
 
         <p>For this bug, a fresh process works fine. The interesting state is code on disk and a document the external browser can reconstruct. A bug involving a half-processed in-memory queue would need a different experiment. Calling both operations “copy the environment” would hide precisely the difference we’re trying to measure.</p>
         <p>The same six browser checks ran outside all the containers, through each branch’s protected preview, with a fresh browser context per test. The restored baseline and misleading patch reproduced the loss. The correct patch passed, including all twelve reloads in the seeded holdout. The <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/notes/evidence/mainbrella-local-20261011-01/manifest.json">public observation bundle</a> lets you inspect the recorded documents. Raw traces and screenshots remain private because the preview URLs carry bearer credentials; the public bundle alone can’t rerun the verifier’s full decision.</p>
 
-        <p>A repair attempt will also need to outlive the page watching it. In the manual run, we submitted an eight-second managed job, attached to its output, and closed the browser after the first message. A new browser recovered the same execution ID, both messages, and exit status zero. Reattaching didn’t restart the job. That’s a useful result for the eventual agent workflow, though the job itself was a deterministic command.</p>
-        <p>Cleanup gave us a less tidy result. All four fixture previews returned 404 after revocation. Deleting their exact container generations and the two saved workspaces left the fixture account with no containers, no workspaces, and no live reserved workspace bytes. Two Docker snapshot images still existed, with no attached containers. An API receipt saying “deleted” hadn’t reclaimed those images. The original account also retained a separate baseline container for inspection.</p>
-        <p>The cleanup record keeps those facts separate. We still need to measure physical snapshot retention. This is also why there’s no price or speed ranking here: the run used local OrbStack, and Docker inspection showed no matching per-container CPU or memory limits for the requested Small configuration. Those timings wouldn’t make a fair cloud comparison.</p>
+        <h2>Taking the same experiment to production</h2>
+        <p>Turning that manual recipe into a tracked adapter didn’t make its result carry over. The adapter’s first <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/examples/mainbrella-preflight-result.json">local preflight</a> found the same exhausted workspace quota and stopped before provisioning. We then ran the tracked command against <code>api.mainbrella.com</code>, where the account had room for the source, three branches and one saved workspace. No synthetic trial or entitlement was needed.</p>
+        <p>The <a href="/blog/one-bug-three-clouds/mainbrella-production/result.json">production run</a> used the same pinned web revision and random seed as the E2B and Daytona cloud workloads. One dependency install supplied all three restores. The source server kept its nonce and PID through capture; the restored servers each started fresh. Baseline and misleading repair reproduced the five specific failures, while the correct repair passed all six checks, including twelve holdout reloads. After every branch finished, its marker and expected source hashes still matched, and the source remained unchanged.</p>
+        <p>Then we deliberately threw away a successful capture response. The runner had already saved the exact request body and idempotency key to disk. It waited for successful HTTP headers, discarded the response body, and retried with that same body and key. A further replay returned the same workspace again. Three requests had produced one workspace and one capture reservation.</p>
+        <p>The figure follows those three requests. The discarded body is the part that would have told the client which workspace it had just saved; the retries recover that identity without creating another workspace.</p>
+        <figure class="article-figure rodeo-replay-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/one-bug-three-clouds/capture-replay-mobile.svg" width="360" height="540" />
+            <img src="/images/blog/one-bug-three-clouds/capture-replay.svg" width="800" height="440" alt="Schematic of the observed production capture replay. The first request with key K creates workspace W. HTTP 200 headers reach the client, but it discards the response body. A retry and a further replay use the same key and body, and both recover W. Only one workspace is created." loading="lazy" decoding="async" />
+          </picture>
+        </figure>
+        <p>This tests a completed save whose response body was lost. It doesn’t establish recovery from a disconnect while the provider is still capturing. The earlier manual test aborted a client after 150 milliseconds without proving admission; successful headers gave this run an observable point at which to lose the reply.</p>
+        <p>A repair attempt also needs to outlive the client watching it. In the manual run, a new browser recovered an eight-second managed job after we closed the original browser. Production exercised the API version: disconnect the SSE stream after the first message, create a new client, recover the same execution ID and exit status zero, then read the remaining output from its saved cursor. Production login and dashboard session recovery weren’t part of that check.</p>
+        <p>Recovery also needs to know what it’s allowed to delete. The Mainbrella adapter binds its journal to the authenticated account and API origin, and records each container’s creation timestamp as well as its slot. That keeps a later cleanup from deleting a replacement that happens to reuse the slot. A rotated key for the same account can recover the run; a different account cannot adopt its records. These are adapter safeguards, with separate tests, rather than additional production scenarios we ran.</p>
 
-        <p>A <a href="https://github.com/mainbrella/repo-rodeo/commit/0248e94e6a890135ed0bcf3be2955f5962b303ed">subsequent commit</a> turns the manual recipe into a tracked Mainbrella adapter. Its full capture-and-restore path still needs a live run. Its first recorded <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/examples/mainbrella-preflight-result.json">preflight</a> encountered the original account’s quota problem and stopped before creating anything. The earlier manual result doesn’t automatically qualify the new implementation.</p>
-
+        <h2>E2B kept the running server</h2>
         <p>E2B gave us another way to reach a running machine without reaching a reproduced bug. Its console showed a running sandbox and process start and exit messages during setup. These are the Level and Message columns from that console capture:</p>
         <figure class="article-figure rodeo-e2b-figure">
           <a class="rodeo-console-crop crop-e2b-logs" href="/images/blog/one-bug-three-clouds/e2b-process-logs.png" aria-label="View the full original E2B console screenshot">
@@ -110,8 +123,8 @@
             </a>
           </div>
         </figure>
-        <p>Authenticated HTTP readiness eventually returned 200, but Chromium followed a redirect and received 403. Our browser helper had authenticated the first request without handling the redirect chain correctly. The <a href="https://github.com/mainbrella/repo-rodeo/blob/c89fb6023066c3abadc399d1d0df4b47201748f4/examples/e2b-cloud-preview-failure/result.json">first retained cloud result</a> stopped before capture or repair attempts.</p>
-        <p>After fixing authenticated redirects, the <a href="/blog/one-bug-three-clouds/e2b-followup/result.json">follow-up run</a> got through the baseline and made one native fork request for three branches. Each branch inherited a listening server, the source’s process nonce, and its PID. We stopped those inherited servers and started fresh ones for patch verification. That lets us test <a href="https://docs.e2b.dev/sandbox/fork">E2B’s memory-preserving fork</a> while keeping the repair checks repeatable.</p>
+        <p>Authenticated HTTP readiness eventually returned 200, but Chromium followed a redirect and received 403. Our browser helper had authenticated the first request without handling the redirect chain correctly. The <a href="https://github.com/mainbrella/repo-rodeo/blob/c89fb6023066c3abadc399d1d0df4b47201748f4/examples/e2b-cloud-preview-failure/result.json">first retained cloud result</a> stopped before capture or repair attempts. The helper now follows a bounded number of same-origin redirects and keeps the preview token scoped to that origin. Giving the browser a token for every host would have fixed one failure by introducing a credential leak.</p>
+        <p>After fixing authenticated redirects, the <a href="/blog/one-bug-three-clouds/e2b-followup/result.json">follow-up run</a> got through the baseline and made one native fork request for three branches, each with an explicit thirty-minute lifetime. Each branch inherited a listening server, the source’s process nonce, and its PID. We stopped those inherited servers and started fresh ones for patch verification. That lets us test <a href="https://docs.e2b.dev/sandbox/fork">E2B’s memory-preserving fork</a> while keeping the repair checks repeatable. Our external browser wasn’t forked; it reconstructed the document in a fresh context for each test.</p>
         <p>The terminal capture belongs to that run’s source sandbox. Its header shows four concurrent sandboxes while <code>htop</code> is open: the prepared source and the three branches were alive together.</p>
         <figure class="article-figure rodeo-terminal-figure">
           <a class="rodeo-console-crop crop-e2b-concurrency" href="/images/blog/one-bug-three-clouds/e2b-four-sandboxes-terminal.png" aria-label="View the full screenshot showing four concurrent E2B sandboxes">
@@ -123,8 +136,11 @@
             </a>
           </div>
         </figure>
-        <p>The verifier then got the same answers as the local controls: the baseline and misleading patch lost the first block, and the correct patch passed all six checks, including twelve holdout reloads. Each branch kept its own marker and expected source hashes after the others finished. A new SDK client also recovered the same background command and its output after a stream disconnect. Cleanup confirmed all four sandbox IDs absent from the API and the applications unavailable through their previews. This run used the deterministic patches throughout; no repair agent participated.</p>
+        <p>The verifier then got the same answers as the local controls: the baseline and misleading patch lost the first block, and the correct patch passed all six checks, including twelve holdout reloads. Each branch kept its own marker and expected source hashes after the others finished. A new SDK client also recovered the same background command and its retained guest output after a stream disconnect. Its saved position is a byte offset in that log, rather than Mainbrella’s SSE event cursor.</p>
+        <p>Cleanup produced a status code we hadn’t accepted: every deleted E2B preview returned 502, with or without its traffic token. Calling any 502 a successful deletion would be a lousy test. We first confirmed the exact sandbox IDs absent from the API, then made three probes of every preview, spaced two seconds apart, both with and without the token. All 24 follow-up requests returned 502. The <a href="/blog/one-bug-three-clouds/e2b-followup/cleanup-probes.json">probe record</a> supports a provider-specific check that application access ended; it doesn’t establish that the token was independently revoked.</p>
+        <p>We didn’t run the lost-capture-response test on E2B. Its adapter has no documented keyed replay guarantee, so an uncertain create or fork isn’t reissued. Daytona has the same restriction. Recovery for both currently requires the original API key; rotated-key recovery is unimplemented. Keeping those limitations explicit beats turning a cached local result into supposed evidence that the cloud deduplicated a request.</p>
 
+        <h2>Daytona’s capture outlived our deadline</h2>
         <p>Daytona’s setup makes the sandbox class worth checking before asking it to fork. The details panel in this capture identifies a <strong>Container</strong>, with one vCPU, 1 GiB of memory, 3 GiB of disk, and private preview access. Its lifecycle settings are visible alongside those resources.</p>
         <figure class="article-figure rodeo-daytona-figure">
           <div class="rodeo-console-scroll" tabindex="0" role="region" aria-label="Daytona container settings screenshot; scroll horizontally on small screens to inspect the values">
@@ -133,17 +149,47 @@
             </a>
           </div>
         </figure>
-        <p>Daytona’s audit log records a successful create, a fork rejected with HTTP 422, and a successful delete for the same sandbox. Its action and outcome fields read:</p>
-        <pre class="docs-code" tabindex="0" role="region" aria-label="Action and outcome fields transcribed from the Daytona audit-log screenshot"><code>create   200   Success
-fork     422   Error
-delete   200   Success</code></pre>
-        <p>That rejection gives us a reason to keep filesystem snapshots and memory forks separate in the adapter. <a href="https://www.daytona.io/docs/en/snapshots/">Daytona documents filesystem captures for containers and memory captures for VMs</a>. The <a href="https://github.com/mainbrella/repo-rodeo/blob/8613eed073e9adbce6e0b9ed91a1950a08bac23b/notes/2026-10-11-daytona.md">separate snapshot run</a> reproduced the baseline bug, but capture exceeded its original three-minute deadline. A later inventory showed the snapshot active. Deleting it returned 403 because the key lacked snapshot deletion permission. The failed result remains failed: none of the restored controls ran, and cleanup is still unconfirmed.</p>
+        <p>Our early container fork request was rejected with HTTP 422. The class-specific guides matter: <a href="https://www.daytona.io/docs/en/sandboxes/#fork-sandboxes">container forks are unsupported</a>, while a <a href="https://www.daytona.io/docs/en/snapshots/#create-snapshot-from-sandbox">container snapshot captures files and requires a stopped source</a>. VM memory capture is a different experiment. We stopped trying to make the container path impersonate it.</p>
+        <p>The separate snapshot run installed the app, passed its type check and reproduced the five expected browser failures. Capture then exceeded our original three-minute deadline while the API reported <code>snapshotting</code>. Deleting the source at that point returned 409. A later inventory showed an active snapshot, but deleting that returned 403: the key could create and delete sandboxes without having permission to delete the persistent snapshot. The source’s thirty-minute lifetime didn’t apply to its snapshot.</p>
+        <p>The <a href="/blog/one-bug-three-clouds/daytona-snapshot/review-inventory-reconciliation.json">later read-only reconciliation</a> found both exact resource IDs absent from the API and from complete inventories. It didn’t establish why they disappeared, and it didn’t recheck preview access or physical storage. We kept the original failed result unchanged. A snapshot eventually becoming active, then disappearing, supplies none of the three restore results we were trying to collect.</p>
+        <p>The adapter now checks <a href="https://www.daytona.io/docs/api-keys/#permissions--scopes">write and delete scopes for both sandboxes and snapshots</a> before creating anything. It records the exact snapshot name before submission, submits once, and polls that name separately, within a ten-minute capture window. An expired capture stays uncertain; later inventory observations go into another record. That revised workflow hasn’t had a new cloud run.</p>
+        <p>We also went back to the <a href="/blog/one-bug-three-clouds/daytona-snapshot/prepared-baseline-reverification.json">retained baseline report</a> and rechecked its artifacts. The five first-block-loss failures and passing reset check were valid, even though the capture failed afterward. New results retain that prepared baseline immediately, and mark source integrity as unchecked until the final comparison runs. A partial run shouldn’t throw away the part we learned, or label a check it never reached as a failure.</p>
+
+        <h2>What cleanup released</h2>
+        <p>Production Mainbrella removed all four test generations and the one workspace. Their old bearer previews returned 404. A separate <a href="/blog/one-bug-three-clouds/mainbrella-production/post-run-inventory.json">read-only inventory check</a> confirmed the deletions and that the account’s pre-existing container was still there. The raw evidence stayed on the host. Public files contain structured document observations; traces, screenshots and request receipts remain private because they can contain preview credentials.</p>
+        <p>API cleanup and physical reclamation are separate observations. In the earlier local run, deleting the fixture’s containers and two saved workspaces released its live quota, but two unattached Docker snapshot images remained. We haven’t established when those images are reclaimed. Production supplied another distinction: its capture reported 258,985,091 bytes, roughly 259 MB, while reserving the full requested 8 GB disk.</p>
+        <table class="rodeo-results rodeo-accounting">
+          <caption class="sr-only">Production Mainbrella API accounting before capture, after one capture, and after deleting the saved workspace; GB are decimal</caption>
+          <thead><tr><th scope="col">API counter</th><th scope="col">Before</th><th scope="col">Captured</th><th scope="col">Deleted</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Saved workspaces</th><td>0</td><td>1</td><td>0</td></tr>
+            <tr><th scope="row">Live disk reservation</th><td>0 GB</td><td>8 GB</td><td>0 GB</td></tr>
+            <tr><th scope="row">Monthly saves</th><td>3</td><td>4</td><td>4</td></tr>
+            <tr><th scope="row">Monthly capture reservation</th><td>6 GB</td><td>14 GB</td><td>14 GB</td></tr>
+            <tr><th scope="row">Retained-capture counter</th><td>6 GB</td><td>14 GB</td><td>14 GB</td></tr>
+          </tbody>
+        </table>
+        <p>Deleting the workspace returned the live reservation to zero without refunding those capture counters. None of the counters tells us unique physical bytes or the actual bill. The <a href="/blog/one-bug-three-clouds/mainbrella-production/result.json">result</a> retains the measured capture size and the accounting values separately.</p>
+        <p>We preserve a copy of the request journal before sealing a run’s evidence. Cleanup retries can extend the live journal without invalidating that original copy or rewriting the result. The <a href="/blog/one-bug-three-clouds/mainbrella-production/evidence-validation.json">production evidence check</a> rechecked the retained file hashes and browser reports after deletion. It also matched the experiment inputs to the runner commit; the application revision is recorded separately. A Git SHA is useful provenance, but a dirty checkout can contain code that SHA never described.</p>
+
+        <h2>Two completed cloud runs, one unfinished</h2>
+        <table class="rodeo-results">
+          <caption class="sr-only">Observed cloud experiments with the same pinned application, deterministic patches and external verifier</caption>
+          <thead><tr><th scope="col">Cloud run</th><th scope="col">State in the branches</th><th scope="col">Browser controls</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Mainbrella production</th><td>Saved files; fresh servers</td><td>All three matched expectations</td></tr>
+            <tr><th scope="row">E2B</th><td>Files, listener, PID and nonce inherited</td><td>All three matched expectations</td></tr>
+            <tr><th scope="row">Daytona container</th><td>Restore not reached</td><td>Prepared baseline only</td></tr>
+          </tbody>
+        </table>
+        <p>This is a comparison of observed state and control outcomes. It isn’t a speed or price ranking. E2B reported two vCPUs and 512 MiB of memory; Mainbrella requested half a vCPU and 4 GiB. Guest images also differed: production Mainbrella used Node 24.21.0, while E2B and Daytona used 22.22.2. Resource enforcement and actual charges weren’t measured. The local OrbStack timings are even less comparable: Docker inspection found no matching per-container CPU or memory limits.</p>
+        <p>Volumes, warm pools, E2B pause/resume and VM memory snapshots remain separate unrun experiments. No coding agents or pull-request publication took place. Daytona’s pinned SDK also has an <a href="https://github.com/advisories/GHSA-vfj7-8cjw-p6xm">unresolved high-severity dependency advisory</a>; this run used archive uploads and container snapshots, not its glob-based image builder. Passing our planted bug doesn’t qualify the harness for arbitrary untrusted repositories.</p>
         <p>You can run the standalone controls now from the <a href="https://github.com/mainbrella/repo-rodeo/blob/0248e94e6a890135ed0bcf3be2955f5962b303ed/README.md">repository</a>, using its pinned Node version:</p>
         <pre class="docs-code" tabindex="0" role="region" aria-label="Run the standalone Repo Rodeo experiment"><code>npm ci
 npx playwright install chromium
 npm run experiment -- --seed 12345</code></pre>
-        <p>The command writes a new evidence directory with the inputs, patches, document observations, traces, screenshots, and cleanup record. Its temporary working copies are a local test arrangement, not security sandboxes for untrusted repositories.</p>
-        <p>Daytona still needs the three restores and their control results. Before another run, its preflight needs to check that the credential can delete the persistent snapshot as well as create and delete the source container.</p>
+        <p>The command writes a new evidence directory with the inputs, patches, document observations, traces, screenshots and cleanup record. It contacts no cloud provider. The <a href="https://github.com/mainbrella/repo-rodeo">provider run guide</a> has the commands for repeating the cloud workloads with your own credentials.</p>
+        <p>Daytona still owes us the three restores. After that, the next bug should come from a repository we don’t control. A missing background worker or a half-processed in-memory queue will make the choice between saved files and a running process much less forgiving.</p>
       </article>
     </main>
     <!-- site-footer -->

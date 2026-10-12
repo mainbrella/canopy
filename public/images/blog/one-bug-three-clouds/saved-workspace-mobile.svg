@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="544" viewBox="0 0 360 544" role="img" aria-labelledby="title desc">
   <title id="title">Saved files, fresh servers</title>
-  <desc id="desc">Mobile schematic of the observed local experiment. The source keeps its process nonce through capture. Saved files fan out to the baseline, correct, and misleading branches. Each branch has no listener until its server is started with a fresh nonce.</desc>
+  <desc id="desc">Mobile schematic of the observed local and production Mainbrella experiments. The source keeps its process nonce through capture. Saved files fan out to the baseline, correct, and misleading branches. Each branch has no listener until its server is started with a fresh nonce.</desc>
   <defs>
     <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#55616c" stroke-width="1.4"/></marker>
     <g id="files" fill="#f7f4ec" stroke="#55616c" stroke-width="2"><path d="M0 3h12l4 5h19v28H0z"/><path d="M6 15h23M6 23h23M6 31h15"/></g>
@@ -8,7 +8,7 @@
   <style>text{font-family:Helvetica,Arial,sans-serif;fill:#263238;font-size:17px}.small{font-size:15px;fill:#55616c}.heading{font-size:23px;font-weight:600}.label{font-weight:600}.file-path{fill:none;stroke:#55616c;stroke-width:2;marker-end:url(#arrow)}.process{fill:none;stroke:#397b5c;stroke-width:4}.absent{fill:none;stroke:#55616c;stroke-width:2;stroke-dasharray:5 6}</style>
   <rect width="360" height="544" rx="4" fill="#f7f4ec"/>
   <text x="20" y="36" class="heading">Saved files, fresh servers</text>
-  <text x="20" y="60" class="small">Local Mainbrella run · schematic</text>
+  <text x="20" y="60" class="small">Local + production · schematic</text>
   <text x="20" y="96" class="label">Source server keeps running</text>
   <path d="M20 113H336" class="process"/>
   <circle cx="55" cy="113" r="5" fill="#397b5c"/>

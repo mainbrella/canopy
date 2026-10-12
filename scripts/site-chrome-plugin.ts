@@ -12,9 +12,9 @@ const navigation: [string, string][] = [
   ['About', '/about/'],
 ];
 
-function extractCriticalCss(css: string) {
+function extractCriticalCss(css: string, filename: string) {
   const blocks = [...css.matchAll(/\/\* critical:start \*\/([\s\S]*?)\/\* critical:end \*\//g)];
-  if (blocks.length === 0) throw new Error('No critical CSS blocks found in public/mainbrella.css');
+  if (blocks.length === 0) throw new Error(`No critical CSS blocks found in ${filename}`);
   return blocks.map(([, block]) => block.trim()).join('\n');
 }
 
@@ -28,9 +28,14 @@ async function inlineCriticalStyles(html: string) {
     const href = tag.match(/\bhref=["']([^"']+)["']/)?.[1];
     if (!href) continue;
     if (href === '/mainbrella.css' || href === '/public/mainbrella.css') {
-      criticalStylesheet ??= readFile(new URL('../public/mainbrella.css', import.meta.url), 'utf8').then(extractCriticalCss);
+      criticalStylesheet ??= readFile(new URL('../public/mainbrella.css', import.meta.url), 'utf8')
+        .then(css => extractCriticalCss(css, 'public/mainbrella.css'));
       const css = await criticalStylesheet;
       html = html.replace(tag, `<style data-critical-css>\n${css}\n</style>\n    ${tag}`);
+    } else if (href === '/app.css' || href === '/public/app.css') {
+      const css = await readFile(new URL('../public/app.css', import.meta.url), 'utf8')
+        .then(contents => extractCriticalCss(contents, 'public/app.css'));
+      html = html.replace(tag, `<style data-critical-app-css>\n${css}\n</style>\n    ${tag}`);
     } else if (/^\/blog\/[a-z0-9-]+\/article\.css$/.test(href)) {
       let stylesheet = articleStylesheets.get(href);
       if (!stylesheet) {

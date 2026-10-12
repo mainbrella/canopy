@@ -8,6 +8,29 @@
     <meta name="robots" content="noindex" />
     <link rel="canonical" href="https://mainbrella.com/dashboard/" />
     <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <script data-dashboard-view-bootstrap>
+      (() => {
+        const requested = new URLSearchParams(location.search).get('view');
+        const view = requested === 'production' || requested === 'ad-hoc' ? requested : 'overview';
+        const observer = new MutationObserver(() => {
+          const title = document.querySelector('#dashboard-title');
+          const status = document.querySelector('#dashboard-status');
+          if (!title || !status) return;
+          title.textContent = view === 'overview' ? 'Overview' : view === 'production' ? 'Production' : 'Ad Hoc';
+          document.querySelector('#main')?.setAttribute('data-view', view);
+          for (const link of document.querySelectorAll('.app-navigation a')) {
+            const url = new URL(link.href, location.href);
+            if (url.pathname !== '/dashboard/') continue;
+            const linkedView = new URLSearchParams(url.search).get('view');
+            const normalized = linkedView === 'production' || linkedView === 'ad-hoc' ? linkedView : 'overview';
+            if (normalized === view) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
+          }
+          observer.disconnect();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
     <link rel="stylesheet" href="/mainbrella.css" />
     <link rel="stylesheet" href="/app.css" />
     <title>Dashboard · Mainbrella</title>

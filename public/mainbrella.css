@@ -389,6 +389,7 @@ button:disabled { opacity: .65; cursor: wait; }
 .profile-details { margin: 0 0 16px; }
 .profile-details dt { color: var(--muted); font-size: 14px; }
 .profile-details dd { margin: 0 0 16px; overflow-wrap: anywhere; }
+/* critical:start */
 .dashboard-main { flex: 1; width: 100%; max-width: 848px; margin: 0 auto; padding: 40px 24px; }
 .dashboard-main h1 { font-size: 32px; line-height: 1.2; letter-spacing: -.025em; }
 .dashboard-main h2 { font-size: 20px; }
@@ -409,6 +410,7 @@ button:disabled { opacity: .65; cursor: wait; }
 .dashboard-main .button:disabled { background: var(--line); color: var(--muted); }
 .dashboard-retry { min-height: 44px; margin-top: 8px; padding: 8px 16px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font: inherit; }
 .dashboard-retry:hover { background: var(--surface); }
+/* critical:end */
 .container-list { margin: 16px 0 0; padding: 0; list-style: none; }
 .container-pagination { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 14px; }
 .container-pagination[hidden] { display: none; }
