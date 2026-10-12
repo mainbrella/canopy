@@ -4,7 +4,13 @@ interface CustomRecipient {
   row: string;
   email: string;
   name: string;
+  first: string;
   line: number;
+}
+
+interface ParsedRecipients {
+  recipients: CustomRecipient[];
+  error: string | null;
 }
 
 interface EmailCustomElements {
@@ -21,13 +27,46 @@ interface EmailCustomElements {
   recipientError: HTMLElement;
 }
 
-function parseRecipients(value: string): CustomRecipient[] {
-  return value.split(/\r?\n/).flatMap((line, index) => {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseRecipients(value: string): ParsedRecipients {
+  const recipients: CustomRecipient[] = [];
+  const lines = value.split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
     const row = line.trim();
-    if (!row) return [];
-    const [email, ...nameParts] = row.split(/\s+/);
-    return [{ row, email, name: nameParts.join(' '), line: index + 1 }];
-  });
+    if (!row) continue;
+
+    let value: unknown;
+    try {
+      value = JSON.parse(row);
+    } catch {
+      return { recipients, error: `Line ${index + 1}: enter a JSON object with a string "email", optional string "name" and "first".` };
+    }
+    if (!isRecord(value)) {
+      return { recipients, error: `Line ${index + 1}: enter a JSON object with a string "email", optional string "name" and "first".` };
+    }
+    if (typeof value.email !== 'string' || !value.email.trim()) {
+      return { recipients, error: `Line ${index + 1}: include a nonempty string "email" value.` };
+    }
+    if ((Object.hasOwn(value, 'name') && typeof value.name !== 'string')
+      || (Object.hasOwn(value, 'first') && typeof value.first !== 'string')) {
+      return { recipients, error: `Line ${index + 1}: "name" and "first" must be strings when provided.` };
+    }
+    recipients.push({
+      row,
+      email: value.email.trim(),
+      name: typeof value.name === 'string' ? value.name : '',
+      first: typeof value.first === 'string' ? value.first : '',
+      line: index + 1,
+    });
+  }
+  return { recipients, error: null };
+}
+
+function personalize(value: string, recipient: CustomRecipient): string {
+  return value.replace(/\{\{(name|first)\}\}/g, (_match, field: string) => field === 'name' ? recipient.name : recipient.first);
 }
 
 function isValidEmail(value: string): boolean {
@@ -87,9 +126,17 @@ export function createEmailCustomView(
     }
     if (!elements.form.reportValidity()) return;
 
-    const recipients = parseRecipients(elements.recipients.value);
+    const parsed = parseRecipients(elements.recipients.value);
+    if (parsed.error) {
+      elements.recipients.setCustomValidity(parsed.error);
+      elements.recipientError.textContent = parsed.error;
+      elements.recipientError.hidden = false;
+      elements.recipients.reportValidity();
+      return;
+    }
+    const recipients = parsed.recipients;
     if (!recipients.length) {
-      const message = 'Enter at least one email address.';
+      const message = 'Enter at least one JSON object with an email address.';
       elements.recipients.setCustomValidity(message);
       elements.recipientError.textContent = message;
       elements.recipientError.hidden = false;
@@ -127,8 +174,8 @@ export function createEmailCustomView(
           const result = await sendMarketingEmail({
             ...input,
             to: recipient.email,
-            subj: input.subj.replaceAll('{{name}}', () => recipient.name),
-            message: input.message.replaceAll('{{name}}', () => recipient.name),
+            subj: personalize(input.subj, recipient),
+            message: personalize(input.message, recipient),
           });
           if (id !== requestID) return;
           if (result === 401 || result === 403) {

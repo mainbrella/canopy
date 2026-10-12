@@ -74,15 +74,17 @@ lost. The send endpoint also checks the recipient's current email preferences;
 addresses that opted out are silently unchecked. Navigation preserves the draft
 and selections; Refresh reloads recipients.
 
-EmailCustom accepts one address per line at `/email-custom`, with an optional
-full name after each address. It trims rows, ignores blank lines, and validates
-every address before sending. It sends to each bare address sequentially through
-`POST /api/send-marketing-email`. Use `{{name}}` in the subject or message to
-insert that row's full name; a missing name becomes an empty string. Confirmed
-or opted-out recipients are removed silently, while failed and unattempted rows
-stay for review or retry. A full success clears the rows, subject, and message.
-If the backend cannot check preferences, it fails closed and reports that no
-email was sent.
+EmailCustom accepts one JSON object per line at `/email-custom`, for example
+`{"email":"foo@bar.com","name":"John Smith","first":"John"}`. Each
+nonblank line needs a nonempty string `email`; optional `name` and `first` fields
+must be strings when present. Blank lines are ignored, and all addresses are
+validated before sending. Email is sent sequentially to each bare address through
+`POST /api/send-marketing-email`. Use `{{name}}` or `{{first}}` in the subject or
+message to insert the matching value; omitted fields become empty strings.
+Confirmed or opted-out recipients are removed silently, while failed and
+unattempted original rows stay for review or retry. A full success clears the
+rows, subject, and message. If the backend cannot check preferences, it fails
+closed and reports that no email was sent.
 
 The backend needs migration `033` for address-level email preferences and
 unsubscribe support. Every send checks both account and address preferences,
