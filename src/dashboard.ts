@@ -20,6 +20,7 @@ function initializeDashboard() {
     onBalance(balance) { account.updateBalance(balance); },
   }) : null;
   const containers = view !== 'overview' ? createContainersDashboard({ onUnauthenticated: goToLogin,
+    getAccountId: () => account.user?.id ?? null,
     lifecycle: view === 'production' ? 'production' : 'ad_hoc',
     onData(data) {
       if (account.user && data.billing !== lastContainerBilling && typeof data.billing?.balanceCents === 'number') {

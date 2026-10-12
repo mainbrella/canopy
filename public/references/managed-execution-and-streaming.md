@@ -9,9 +9,37 @@ and `outputTruncated`. New jobs also report `stdinEnabled`, `stdinClosed`, `stdi
 
 Matching key and all creation-option retries within the same generation return the retained
 execution. Changed options return 409 `idempotency_key_conflict`. Retention lasts
-one hour from admission, with 32 records per container; when full, a new job returns
-429 `execution_history_limit`. After retention expires, a key can launch new work.
-Preserve the key and never retry an old operation beyond its retention window.
+one hour from admission for both identity/state and complete retained output.
+Each physical container slot has separate limits of 512 compact execution records,
+32 MiB of raw output bytes and 16,384 output events, shared by all retained
+generations in that slot. These are reported by `execution.maxRetainedExecutions`,
+`maxRetainedOutputBytes`, `maxRetainedEvents` and `retentionScope: "container-slot"`
+in `/capabilities`. They are separate from the four active-operation limit.
+
+An active managed job reserves its complete 1 MiB and 512-event allowance before
+launch. On completion it charges only the bytes and events actually retained;
+small commands therefore do not consume a full retained-output slot. No unexpired
+identity or output is evicted to admit another job. Prior generations still count
+toward the slot budgets, but reads, cancellation and idempotency remain bound to
+the exact generation. Matching-key retries return their retained result even when
+a history budget is full; changed options still conflict.
+
+New admissions return 429 `execution_history_limit`,
+`execution_output_history_limit` or `execution_event_history_limit` when the
+corresponding budget is exhausted. The response includes `retryAfterSeconds` and
+`Retry-After`. A history hint uses the earliest retained expiry; active jobs may
+release unused reservation earlier, and a retry hint does not reserve or guarantee
+capacity. The shared active-operation error is `execution_limit` with a one-second
+hint. After retention expires, a key can launch new work. Preserve the key and never
+retry an old operation beyond its retention window.
+
+The output limit measures raw command bytes, not physical storage or billable
+bytes. UTF-8 replacement, event encoding and record metadata add storage overhead.
+The event and identity caps bound that overhead. The address space contains at
+most 500 slots (`small`, `c1`–`c499`), giving a hard account-wide ceiling of 256,000
+identities, 15.625 GiB of raw output and 8,192,000 events across all slots. These are
+upper bounds derived from per-slot limits, not a pooled account quota; account
+entitlements can permit fewer slots.
 
 Shell commands run `/bin/sh -lc`; alternatively pass `{"argv":["executable","literal argument"]}` without shell expansion. Supply exactly one of command/argv. Optional `cwd` is an absolute path without dot/parent segments; optional `env` has up to 64 POSIX variable names, 4096 UTF-8 bytes per value and 16 KiB of JSON. The provider inherits only PATH. Values are sent to the guest and may appear in its output; they are not a secrets vault. Jobs default to 30 seconds, allow up to 15 minutes,
 and remain bounded by the hard container deadline. They share four active
@@ -28,7 +56,7 @@ Client disconnect does not cancel the job. Images require GNU timeout. Cancellat
   `id` equal to `sequence`. Resume with the last received sequence as `cursor`.
   A cursor ahead of retained output returns 400 `invalid_cursor`.
 
-`GET /containers/executions?id=<id>&createdAt=<generation>` lists up to 32 retained managed-job summaries for that exact generation, including terminal records. It is not a guest-wide OS process table. `commands.attach(id)` reconnects SDK controls and output to a known retained job; attaching does not start or replay it.
+`GET /containers/executions?id=<id>&createdAt=<generation>` lists up to 512 retained managed-job summaries for that exact generation, including terminal records. It is not a guest-wide OS process table. `commands.attach(id)` reconnects SDK controls and output to a known retained job; attaching does not start or replay it.
 
 Start with `stdin:true` to accept raw input; otherwise stdin closes immediately. `POST /containers/executions/<execution-id>/stdin?...` sends `application/octet-stream`, up to 64 KiB per request, 1 MiB accepted per job and 256 KiB pending. Writes are ordered and respect pipe backpressure. Input is not retained or replayed. Ambiguous accepted bytes remain counted. A 30-second response bound or disconnect does not undo an accepted write; reconcile application state before sending again. `DELETE` at that stdin URL closes input after accepted writes. For a plain pipe this sends EOF; PTY closure can hang up the terminal. Closing input is not a cancellation request.
 

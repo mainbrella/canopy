@@ -167,6 +167,12 @@
             <p id="containers-error" class="dashboard-error" role="alert" hidden></p>
           </div>
           <section id="saved-workspaces" role="tabpanel" aria-labelledby="workspaces-tab" hidden>
+            <dl class="workspace-usage" data-workspace-usage aria-label="Workspace storage and capture usage"></dl>
+            <p class="dashboard-status workspace-usage-note" data-workspace-usage-note></p>
+            <div class="workspace-pending" data-workspace-pending hidden>
+              <p class="dashboard-status" data-workspace-pending-message></p>
+              <div class="container-actions"><button type="button" class="dashboard-retry" data-workspaces-retry>Retry original request</button><button type="button" class="dashboard-retry" data-workspaces-forget>Discard saved request</button></div>
+            </div>
             <div class="network-filters">
               <label for="workspace-search">Search saved workspaces</label>
               <input id="workspace-search" type="search" placeholder="Workspace name" autocomplete="off" aria-controls="workspace-list">
@@ -174,7 +180,7 @@
             <ul id="workspace-list" class="container-list" aria-label="Saved workspaces"></ul>
             <p class="dashboard-status" role="status"></p>
             <p class="dashboard-error" role="alert" hidden></p>
-            <div class="container-actions"><button type="button" class="dashboard-retry" data-workspaces-refresh>Refresh workspaces</button><button type="button" class="dashboard-retry" data-workspaces-retry hidden>Retry save</button></div>
+            <div class="container-actions"><button type="button" class="dashboard-retry" data-workspaces-refresh>Refresh workspaces</button></div>
           </section>
           <section id="sandbox-secrets" role="tabpanel" aria-labelledby="secrets-tab" hidden>
             <div class="container-actions"><button type="button" class="dashboard-retry" data-secrets-refresh>Refresh secrets</button><button type="button" class="button button-small" data-secrets-new>New secret</button></div>
@@ -327,6 +333,23 @@ WORKDIR /workspace</textarea>
             <input id="workspace-name" type="text" maxlength="80" required autocomplete="off">
             <label class="workspace-stop-choice"><input type="checkbox"> Stop container after saving</label>
             <p class="dashboard-status">Pause file writes before saving. Files are saved; running processes do not resume on restore.</p>
+            <fieldset class="workspace-launch-settings" data-workspace-launch hidden>
+              <legend>Application on restore</legend>
+              <label class="workspace-stop-choice"><input type="checkbox" data-workspace-launch-enabled> Start the application when restored</label>
+              <div class="workspace-launch-fields" data-workspace-launch-fields hidden>
+                <label for="workspace-launch-command">Startup command</label>
+                <input id="workspace-launch-command" type="text" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start">
+                <label for="workspace-launch-cwd">Working directory</label>
+                <input id="workspace-launch-cwd" type="text" maxlength="1024" value="/workspace" autocomplete="off" spellcheck="false">
+                <div class="workspace-launch-grid">
+                  <div><label for="workspace-launch-port">HTTP readiness port</label><input id="workspace-launch-port" type="number" min="1024" max="65535" step="1" inputmode="numeric" placeholder="3000"></div>
+                  <div><label for="workspace-launch-timeout">Wait up to (seconds)</label><input id="workspace-launch-timeout" type="number" min="1" max="60" step="1" value="30" inputmode="numeric"></div>
+                </div>
+                <label for="workspace-launch-path">HTTP readiness path</label>
+                <input id="workspace-launch-path" type="text" maxlength="1024" value="/" autocomplete="off" spellcheck="false">
+                <p class="dashboard-status">The command runs once per restored machine. HTTP readiness is checked separately from whether the machine is running.</p>
+              </div>
+            </fieldset>
             <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
             <div class="container-actions"><button type="submit" class="button button-small">Save workspace</button><button type="button" class="dashboard-retry" data-workspace-cancel>Cancel</button></div>
           </form>

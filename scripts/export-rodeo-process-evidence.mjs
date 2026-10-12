@@ -21,6 +21,8 @@ for (const [provider, directory, publicResult] of runs) {
   const root = join(repository, 'artifacts', directory, 'run');
   const resultBytes = await readFile(join(root, 'result.json'));
   const result = JSON.parse(resultBytes);
+  assert.equal(hash(await readFile(join(web, 'public', publicResult))), hash(resultBytes),
+    `Public result differs from the sealed run: ${provider}`);
   assert.equal(result.checks.filesystem.status, 'verified');
   assert.equal(result.checks.processes.status, 'verified');
   const records = new Map();

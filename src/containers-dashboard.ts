@@ -46,7 +46,7 @@ export function imageSelection(value: string) {
     : value ? { imageId: value } : null;
 }
 
-export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_hoc', overview = false, onData, onLoadError }: { onUnauthenticated: () => void; lifecycle?: Lifecycle; overview?: boolean; onData?: (data: ContainerData) => void; onLoadError?: () => void }) {
+export function createContainersDashboard({ onUnauthenticated, getAccountId, lifecycle = 'ad_hoc', overview = false, onData, onLoadError }: { onUnauthenticated: () => void; getAccountId: () => string | null; lifecycle?: Lifecycle; overview?: boolean; onData?: (data: ContainerData) => void; onLoadError?: () => void }) {
   const production = lifecycle === 'production';
   const startupCommand = document.querySelector<HTMLInputElement>('#container-startup-command')!;
   document.querySelector<HTMLElement>('#production-launch-settings')!.hidden = !production;
@@ -122,7 +122,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
   const forkError = forkDialog.querySelector<HTMLElement>('[role="alert"]')!;
   const forkStatus = forkDialog.querySelector<HTMLElement>('[role="status"]')!;
   let forkSource: Container | null = null;
-  const workspaces = createWorkspacesDashboard({onUnauthenticated:()=>{dispose();onUnauthenticated();},onChanged:()=>load()});
+  const workspaces = createWorkspacesDashboard({getAccountId,onUnauthenticated:()=>{dispose();onUnauthenticated();},onChanged:()=>load()});
   const observations = createContainerObservations({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
   const previews = createContainerPreviews({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
   const security = createSandboxSecurity({ onUnauthenticated: () => { dispose(); onUnauthenticated(); } });
@@ -354,9 +354,23 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
         stop.dataset.action = 'delete';
         stop.setAttribute('aria-label', `Delete ${container.name || container.id}`);
         stop.addEventListener('click', () => {
-          if (window.confirm(`Delete ${container.name || container.id}? Its filesystem and saved stop state will be permanently removed.${production ? ' Automatic recovery will be disabled.' : ''}`)) mutate('DELETE', container.id, container.createdAt);
+          if (window.confirm(`Delete ${container.name || container.id}? This stops the machine and revokes access to its files and saved stop state. Separately saved workspaces remain available. Provider snapshot data may remain until retention expires.${production ? ' Automatic recovery will be disabled.' : ''}`)) mutate('DELETE', container.id, container.createdAt);
         });
         details.append(heading, state);
+        if (container.readiness) {
+          const appState = document.createElement('p'); appState.className = 'dashboard-status';
+          appState.textContent = container.readiness.status === 'ready' ? 'Application ready'
+            : container.readiness.status === 'starting' ? 'Application starting; checking HTTP readiness…'
+            : 'Application did not become ready. Open the terminal to inspect or restart it.';
+          details.append(appState);
+          if (container.readiness.status === 'failed') {
+            const logs = document.createElement('details'); logs.className = 'workspace-launch-logs';
+            const summary = document.createElement('summary'); summary.textContent = 'Startup log';
+            const log = document.createElement('pre'); log.tabIndex = 0;
+            log.textContent = `${container.readiness.logTail ? `${container.readiness.logTail}\n\n` : ''}Full log: ${container.readiness.logPath}`;
+            logs.append(summary, log); details.append(logs);
+          }
+        }
         const actions = document.createElement('div');
         actions.className = 'container-actions';
         const connect = document.createElement('button');
@@ -572,6 +586,7 @@ export function createContainersDashboard({ onUnauthenticated, lifecycle = 'ad_h
         egressPolicies: capabilities?.networking?.egressPolicies === true, secrets: capabilities?.secrets?.vault === true });
       observations.configure(observability);
       data = result;
+      workspaces.updateContainers(result.containers);
       privateServices.configure(capabilities?.networking?.privateServices === true);
       render();
       error.hidden = true;

@@ -16,6 +16,7 @@ export interface Container extends ContainerIdentity {
   workspaceId?: string;
   persistenceExpiresAt?: number;
   internet?: boolean;
+  readiness?: { status: 'starting' | 'ready' | 'failed'; port: number; path: string; logPath: string; checkedAt?: string; error?: string; logTail?: string };
 }
 export interface MachineSize {
   id: string; name: string; cpuVcpu: number; diskGB: number;
@@ -72,7 +73,7 @@ export interface ContainerData {
   imageCatalog?: { id: string; name: string }[];
 }
 export interface ObservabilityCapabilities { lifecycleEvents?: boolean; metrics?: boolean; webhooks?: boolean }
-export interface PersistenceCapabilities { workspaces?: boolean; snapshots?: boolean; filesystemAfterStop?: boolean; filesystemFork?: boolean }
+export interface PersistenceCapabilities { workspaces?: boolean; snapshots?: boolean; filesystemAfterStop?: boolean; filesystemFork?: boolean; restoreLaunch?: boolean }
 export interface ClientOptions { fetcher?: typeof fetch; onUnauthenticated?: () => void; signal?: AbortSignal }
 export interface ImageData {
   buildsEnabled: boolean;
