@@ -113,6 +113,7 @@ export function createEmailCustomView(
     };
     const id = ++requestID;
     const accepted = new Set<number>();
+    const skipped = new Set<number>();
     const failures: string[] = [];
     clearFeedback();
     sending = true;
@@ -123,12 +124,16 @@ export function createEmailCustomView(
         if (!canAccess()) break;
         elements.status.textContent = `Sending ${index + 1} of ${recipients.length}…`;
         try {
-          const authStatus = await sendMarketingEmail({ ...input, to: recipient.email });
+          const result = await sendMarketingEmail({ ...input, to: recipient.email });
           if (id !== requestID) return;
-          if (authStatus !== null) {
+          if (result === 401 || result === 403) {
             elements.status.textContent = '';
-            onAuthFailure(authStatus);
+            onAuthFailure(result);
             return;
+          }
+          if (result === 'unsubscribed') {
+            skipped.add(index);
+            continue;
           }
           accepted.add(index);
         } catch (cause) {
@@ -138,19 +143,22 @@ export function createEmailCustomView(
         }
       }
 
-      const remaining = recipients.filter((_, index) => !accepted.has(index));
+      const remaining = recipients.filter((_, index) => !accepted.has(index) && !skipped.has(index));
       elements.recipients.value = remaining.map((recipient) => recipient.row).join('\n');
+      const eligibleCount = recipients.length - skipped.size;
       if (failures.length) {
-        elements.status.textContent = `${accepted.size} of ${recipients.length} emails accepted for sending; ${failures.length} could not be confirmed.`;
+        elements.status.textContent = `${accepted.size} of ${eligibleCount} emails accepted for sending; ${failures.length} could not be confirmed.`;
         elements.error.textContent = failures.join('\n');
         elements.error.hidden = false;
-      } else if (accepted.size === recipients.length) {
+      } else if (accepted.size + skipped.size === recipients.length) {
         elements.subj.value = '';
         elements.message.value = '';
-        elements.status.textContent = `${accepted.size} email${accepted.size === 1 ? '' : 's'} accepted for sending.`;
+        elements.status.textContent = accepted.size
+          ? `${accepted.size} email${accepted.size === 1 ? '' : 's'} accepted for sending.`
+          : 'No email was sent.';
       } else {
-        const unattempted = recipients.length - accepted.size;
-        elements.status.textContent = `${accepted.size} of ${recipients.length} emails accepted for sending. ${unattempted} recipient${unattempted === 1 ? '' : 's'} remain in the list.`;
+        const unattempted = eligibleCount - accepted.size;
+        elements.status.textContent = `${accepted.size} of ${eligibleCount} emails accepted for sending. ${unattempted} recipient${unattempted === 1 ? '' : 's'} remain in the list.`;
       }
     } finally {
       if (id === requestID) {

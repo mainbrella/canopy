@@ -164,6 +164,7 @@ export function createEmailAllView(
     };
     const id = ++sendRequestID;
     let accepted = 0;
+    let skipped = 0;
     let failed = 0;
     let firstError = '';
     clearSendFeedback();
@@ -175,12 +176,17 @@ export function createEmailAllView(
         if (!canAccess()) break;
         elements.sendStatus.textContent = `Sending ${index + 1} of ${recipients.length} emails…`;
         try {
-          const authStatus = await sendMarketingEmail({ ...input, to: recipient.value });
+          const result = await sendMarketingEmail({ ...input, to: recipient.value });
           if (id !== sendRequestID) return;
-          if (authStatus !== null) {
+          if (result === 401 || result === 403) {
             elements.sendStatus.textContent = '';
-            onAuthFailure(authStatus);
+            onAuthFailure(result);
             return;
+          }
+          if (result === 'unsubscribed') {
+            skipped++;
+            recipient.checked = false;
+            continue;
           }
           accepted++;
           recipient.checked = false;
@@ -190,12 +196,17 @@ export function createEmailAllView(
           if (!firstError) firstError = `${recipient.value}: ${marketingEmailErrorMessage(cause)}`;
         }
       }
-      elements.sendStatus.textContent = `${accepted} of ${recipients.length} emails accepted for sending.`;
+      const eligibleCount = recipients.length - skipped;
+      elements.sendStatus.textContent = skipped === 0
+        ? `${accepted} of ${recipients.length} emails accepted for sending.`
+        : eligibleCount === 0
+          ? 'No email was sent.'
+          : `${accepted} of ${eligibleCount} emails accepted for sending.`;
       if (failed) {
         elements.error.textContent = `${failed} email${failed === 1 ? '' : 's'} could not be confirmed. ${firstError}`;
         elements.error.hidden = false;
       }
-      if (accepted === recipients.length) {
+      if (accepted + skipped === recipients.length) {
         elements.subj.value = '';
         elements.message.value = '';
       }

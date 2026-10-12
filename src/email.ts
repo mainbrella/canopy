@@ -55,11 +55,15 @@ export function createEmailView(elements: EmailElements, canAccess: () => boolea
     setSending(true);
     elements.status.textContent = 'Sending…';
     try {
-      const authStatus = await sendMarketingEmail(input);
+      const result = await sendMarketingEmail(input);
       if (id !== requestID) return;
-      if (authStatus !== null) {
+      if (result === 401 || result === 403) {
         elements.status.textContent = '';
-        onAuthFailure(authStatus);
+        onAuthFailure(result);
+        return;
+      }
+      if (result === 'unsubscribed') {
+        elements.status.textContent = 'No email was sent.';
         return;
       }
       elements.to.value = '';

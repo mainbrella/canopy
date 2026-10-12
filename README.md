@@ -70,14 +70,22 @@ Email; Send emails sends a separate `POST /api/send-marketing-email` for each
 checked address, one at a time. Users without an email address cannot be selected.
 Accepted recipients are unchecked, and any failures preserve the draft and
 remaining selections. Sending stops if the admin session expires or access is
-lost. Navigation preserves the draft and selections; Refresh reloads recipients.
+lost. The send endpoint also checks the recipient's current email preferences;
+addresses that opted out are silently unchecked. Navigation preserves the draft
+and selections; Refresh reloads recipients.
 
 EmailCustom accepts one address per line at `/email-custom`, with an optional
 full name after each address. It trims rows, ignores blank lines, and validates
 every address before sending. It sends to each bare address sequentially through
 `POST /api/send-marketing-email`; names remain in the textarea and are not sent
-to the API. Confirmed recipients are removed, while failed and unattempted rows
-stay for review or retry. A full success clears the rows, subject, and message.
+to the API. Confirmed or opted-out recipients are removed silently, while failed
+and unattempted rows stay for review or retry. A full success clears the rows,
+subject, and message. If the backend cannot check preferences, it fails closed
+and reports that no email was sent.
+
+The backend needs migration `033` for address-level email preferences and
+unsubscribe support. Every send checks both account and address preferences,
+including for recipients who do not have an account.
 
 Google sign-in also requires the admin origin (`https://raindrop.mainbrella.com`,
 or `http://localhost:5174` for development) in the existing Google OAuth client's
