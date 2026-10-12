@@ -59,8 +59,8 @@ test('every page entry includes one working consent dialog before tracking can l
     const html: unknown = await hook.handler.call(pluginContext, await readFile(filename, 'utf8'), { path, filename });
     assert.equal(typeof html, 'string');
     if (typeof html !== 'string') throw new Error('Expected rendered HTML');
-    // Public opt-out confirmations intentionally omit consent and tracking.
-    if (path === '/unsubscribe/index.html') {
+    // Unsubscribe confirmations and the isolated Repo Rodeo fixture omit consent and tracking.
+    if (path === '/unsubscribe/index.html' || path === '/repo-rodeo-bug/index.html') {
       assert.doesNotMatch(html, /id="cookie-consent"|src="\/src\/acquisition\.ts"/, path);
       continue;
     }

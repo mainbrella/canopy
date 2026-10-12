@@ -75,8 +75,8 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
     transformIndexHtml: {
       order: 'pre',
       async handler(html, context) {
-        // The public opt-out must show its confirmation without a cookie dialog.
-        if (/^\/unsubscribe\/(?:index\.html)?$/.test(context.path)) return html;
+        // Unsubscribe and the isolated Repo Rodeo fixture run without shared chrome or a cookie dialog.
+        if (/^\/(?:unsubscribe|repo-rodeo-bug)\/(?:index\.html)?$/.test(context.path)) return html;
         if (html.includes('<!-- agent-setup -->')) {
           const setup = await readFile(new URL('../partials/agent-setup.html', import.meta.url), 'utf8');
           html = html.replace('<!-- agent-setup -->', setup)
