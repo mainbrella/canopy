@@ -232,6 +232,61 @@ for (const [path, digest] of Object.entries(launch.result.inputHashes)) {
 await put('restore-launch/mainbrella/result.json', launch.bytes);
 await put('restore-launch/mainbrella/result.sha256', await readFile(join(launchRoot, 'result.sha256')));
 
+const appLaunchRoot = join(repository, 'artifacts/mainbrella-app-restore-launch-2026-10-12T13-21-44-060Z');
+const appLaunch = await checkResult(appLaunchRoot);
+assert.equal(appLaunch.result.experiment, 'mainbrella-article-app-automatic-startup');
+assert.equal(appLaunch.result.status, 'completed');
+assert.equal(appLaunch.result.source.commit, '3eb5f1d144324793492bed765d94bc6463614ef3');
+const originalEditor = await json(join(web, 'public/blog/one-bug-three-clouds/mainbrella-production/result.json'));
+assert.equal(appLaunch.result.source.archiveSha256, originalEditor.source.archiveSha256);
+assert.equal(appLaunch.result.source.fileCount, 417);
+assert.equal(appLaunch.result.cleanup.confirmed, true);
+const originalApp = appLaunch.result.source.beforeCapture;
+assert.equal(originalApp.process.serverReachable, true);
+assert.equal(Object.keys(originalApp.hashes).length, 417);
+assert.deepEqual(appLaunch.result.copies.map(copy => copy.id), ['copy-1', 'copy-2', 'copy-3']);
+for (const copy of appLaunch.result.copies) {
+  assert.equal(copy.readiness.status, 'ready');
+  assert.equal(copy.clientSideLaunchCommands, 0);
+  assert.equal(copy.previewHttpStatus, 200);
+  assert.equal(copy.observation.process.serverReachable, true);
+  assert.notEqual(copy.observation.process.nonce, originalApp.process.nonce);
+  for (const field of ['hashes', 'dependencyHash', 'prepared', 'mode', 'link']) {
+    assert.deepEqual(copy.observation[field], originalApp[field]);
+  }
+}
+assert.equal(new Set(appLaunch.result.copies.map(copy => copy.observation.process.nonce)).size, 3);
+for (const state of [appLaunch.result.source.afterCapture, appLaunch.result.source.afterRestores]) {
+  assert.equal(state.process.serverReachable, true);
+  assert.equal(state.process.nonce, originalApp.process.nonce);
+  assert.equal(state.process.pid, originalApp.process.pid);
+}
+for (const [path, digest] of Object.entries(appLaunch.result.inputHashes)) {
+  assert.equal(hash(await readFile(join(appLaunchRoot, 'private/inputs', path))), digest);
+}
+for (const path of ['src/app-restore-launch-experiment.ts', 'src/guest/launch.mjs',
+  'src/guest/inspect.mjs', 'src/experiment-source.ts']) {
+  await put(`editor-startup/mainbrella/inputs/${path}`, await readFile(join(appLaunchRoot, 'private/inputs', path)));
+}
+await put('editor-startup/mainbrella/result.json', appLaunch.bytes);
+await put('editor-startup/mainbrella/result.sha256', await readFile(join(appLaunchRoot, 'result.sha256')));
+const appLaunchHistory = [];
+for (const [attempt, directory] of [
+  ['attempt-1', 'mainbrella-app-restore-launch-2026-10-12T13-17-13-044Z'],
+  ['attempt-2', 'mainbrella-app-restore-launch-2026-10-12T13-19-16-255Z'],
+]) {
+  const root = join(repository, 'artifacts', directory);
+  const prior = await checkResult(root);
+  assert.equal(prior.result.status, 'failed');
+  assert.equal(prior.result.cleanup.confirmed, true);
+  const path = `editor-startup/mainbrella/${attempt}`;
+  await put(`${path}/result.json`, prior.bytes);
+  await put(`${path}/result.sha256`, await readFile(join(root, 'result.sha256')));
+  await put(`${path}/runner.ts`, await readFile(join(root, 'private/inputs/src/app-restore-launch-experiment.ts')));
+  appLaunchHistory.push({ result: `${path}/result.json`, sha256: prior.sha256, status: 'failed', cleanupConfirmed: true,
+    reason: 'First copy was automatically listening; the verifier rejected the app route’s canonical trailing-slash redirect. The successful run requests /repo-rodeo-bug/ directly.' });
+}
+
 // Scan once more after collecting credentials from every selected/history run.
 for (const path of Object.keys(files)) scan(await readFile(join(output, path)));
 await putJson('followups.json', { schemaVersion: 1, worker: { seed: 12346, guestNode: '22.22.2',
@@ -241,6 +296,10 @@ await putJson('followups.json', { schemaVersion: 1, worker: { seed: 12346, guest
   automaticRestoreLaunch: { provider: 'mainbrella', result: 'restore-launch/mainbrella/result.json',
     sha256: launch.sha256, listening: true, clientSideLaunchCommands: 0, memoryPreserved: false,
     limitation: 'Separate production qualification of saved launch recipes, not a matched provider comparison.' },
+  editorAutomaticStartup: { provider: 'mainbrella', result: 'editor-startup/mainbrella/result.json',
+    sha256: appLaunch.sha256, copies: 3, listening: 3, clientSideLaunchCommands: 0, memoryPreserved: false,
+    history: appLaunchHistory,
+    limitation: 'Later startup-only check of the same pinned editor app; no patches or browser repair controls rerun.' },
   validation: { sealedPrivateFilesChecked: sealedFilesChecked,
     workerVerdictsRecomputed: true, retainedCredentialScanPassed: true }, files,
   limitation: 'These are reported observations with locally verified hashes, not independent attestations. Public editor bundles cannot replay the original strict verification without private browser traces and screenshots. No cleanup record establishes physical storage reclamation.' });

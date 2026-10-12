@@ -1,0 +1,8 @@
+Homepage globe asset
+
+Output: public/images/home-globe.webp
+Generated with the built-in image generation tool, then compressed to WebP.
+The existing Mainbrella logo is reused separately; no logo or UI is baked into the image.
+
+Prompt:
+Use case: stylized-concept. Asset type: atmospheric website hero background. A premium developer infrastructure illustration: Earth at night, large globe filling the right two thirds, partially cropped on the right and bottom, Europe and Africa visible, fine electric blue coastlines and scattered tiny cyan network nodes linked by delicate curved arcs. Dark navy almost black space (#030b15), no stars, soft vivid blue atmospheric rim on upper left of globe. Large calm near-black negative space on left third for a terminal overlay. Glossy realistic 3D orbital photography aesthetic, restrained neon cyan and cobalt, not cartoon. Landscape 1536x1024. No text, no labels, no logos, no UI, no frames, no panels, no watermark.

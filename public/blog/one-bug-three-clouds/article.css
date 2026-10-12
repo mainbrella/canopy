@@ -15,11 +15,9 @@
 .rodeo-article .rodeo-table-scroll { max-width: 100%; overflow-x: auto; margin: 28px 0; }
 .rodeo-article .rodeo-table-scroll .rodeo-results { margin: 0; }
 .rodeo-article .rodeo-table-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
-.rodeo-article .rodeo-process-table { min-width: 720px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.rodeo-article .rodeo-process-table { font-size: 15px; font-variant-numeric: tabular-nums; }
 .rodeo-article .rodeo-process-table th,
-.rodeo-article .rodeo-process-table td { padding-top: 8px; padding-bottom: 8px; white-space: nowrap; }
-.rodeo-article .rodeo-process-table thead th { white-space: normal; }
-.rodeo-article .rodeo-process-table .provider-start:not(:first-child) > * { padding-top: 20px; }
+.rodeo-article .rodeo-process-table td { padding-top: 12px; padding-bottom: 12px; }
 .rodeo-article .rodeo-capabilities { min-width: 650px; font-size: 15px; }
 .rodeo-article .rodeo-capabilities th:first-child { width: 24%; }
 .rodeo-article .rodeo-capabilities td { width: 25%; }

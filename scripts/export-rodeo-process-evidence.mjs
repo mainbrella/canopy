@@ -107,26 +107,50 @@ const bytes = JSON.stringify({
 }, null, 2) + '\n';
 await writeFile(join(output, 'process-state.json'), bytes);
 await writeFile(join(output, 'process-state.sha256'), `${hash(bytes)}  process-state.json\n`);
-const rows = exported.flatMap(run => run.observations.filter(observation =>
-  observation.stage === 'before capture' || observation.stage === 'before launch or patch')
-  .map((observation, index) => {
-    const { process, filesystem } = observation;
-    const copy = observation.copy === 'source' ? 'source, before capture' : observation.copy;
-    const original = run.observations.find(value => value.stage === 'before capture').process;
-    const originalPresent = process.serverReachable && process.pid === original.pid && process.nonce === original.nonce;
-    const started = observation.copy === 'source' ? null : run.observations.find(value =>
-      value.copy === observation.copy && value.stage === 'after patch and explicit restart');
-    if (started) {
-      assert.equal(started.process.serverReachable, true);
-      assert.notEqual(started.process.nonce, run.observations.find(value => value.stage === 'before capture').process.nonce);
+// Keep historical observations intact. The compact table compares the startup
+// paths that produced listeners, including Mainbrella's later recipe follow-up.
+const followups = JSON.parse(await readFile(join(output, 'followups.json'), 'utf8'));
+const startupBytes = await readFile(join(output, followups.editorAutomaticStartup.result));
+assert.equal(hash(startupBytes), followups.editorAutomaticStartup.sha256);
+const startup = JSON.parse(startupBytes);
+assert.equal(startup.status, 'completed');
+assert.equal(startup.cleanup.confirmed, true);
+assert.equal(startup.source.commit, exported[0].sourceCommit);
+assert.equal(startup.source.fileCount, 417);
+assert.equal(startup.copies.length, 3);
+const rows = exported.map(run => {
+  const original = run.observations.find(value => value.stage === 'before capture').process;
+  let method;
+  if (run.provider === 'Mainbrella') {
+    for (const copy of startup.copies) {
+      assert.equal(copy.clientSideLaunchCommands, 0);
+      assert.equal(copy.readiness.status, 'ready');
+      assert.equal(copy.previewHttpStatus, 200);
+      assert.equal(copy.observation.process.serverReachable, true);
+      assert.notEqual(copy.observation.process.nonce, startup.source.beforeCapture.process.nonce);
     }
-    return `            <tr${index === 0 ? ' class="provider-start"' : ''}><th scope="row">${run.provider} · ${copy}</th><td>${originalPresent ? 'Yes' : 'No'}</td><td>${process.pid ?? 'none'}</td><td>${process.nonce ? `<code>${process.nonce.slice(0, 8)}</code>` : 'none'}</td><td>${filesystem.checkedFiles}/${filesystem.checkedFiles}</td><td>${started ? 'Yes, new nonce' : 'n/a'}</td></tr>`;
-  })).join('\n');
+    method = 'Saved recipe (automatic)';
+  } else {
+    const inherited = run.provider === 'E2B';
+    const stage = inherited ? 'before launch or patch' : 'after patch and explicit restart';
+    for (const name of ['baseline', 'correct', 'misleading']) {
+      const copy = run.observations.find(value => value.copy === name && value.stage === stage);
+      assert.equal(copy.process.serverReachable, true);
+      assert.equal(copy.filesystem.checkedFiles, 417);
+      if (inherited) {
+        assert.equal(copy.process.pid, original.pid);
+        assert.equal(copy.process.nonce, original.nonce);
+      } else assert.notEqual(copy.process.nonce, original.nonce);
+    }
+    method = inherited ? 'Live fork' : 'Runner command';
+  }
+  return `            <tr><th scope="row">${run.provider}</th><td>Yes, 3/3</td><td>${method}</td><td>${run.provider === 'E2B' ? 'Inherited' : 'Fresh'}</td></tr>`;
+}).join('\n');
 const table = `<!-- process-table:start -->
-        <div class="rodeo-table-scroll" tabindex="0" role="region" aria-label="Source and branch process observations; scroll horizontally if needed">
+        <div class="rodeo-table-scroll" tabindex="0" role="region" aria-label="Listening servers and startup methods; scroll horizontally if needed">
           <table class="rodeo-results rodeo-process-table">
-            <caption class="sr-only">Presence of the original source process, checked by listener, PID and nonce before any branch launch or patch. All branches listen after an explicit start or restart, with fresh nonces. Source rows provide the reference process and have no branch launch. Files column counts matching tracked file hashes; dependencies, permissions, marker and symlink were also checked.</caption>
-            <thead><tr><th scope="col">Provider · copy</th><th scope="col">Original process present</th><th scope="col">Initial PID</th><th scope="col">Initial nonce</th><th scope="col">Files</th><th scope="col">After branch launch</th></tr></thead>
+            <caption class="sr-only">Three listening copies per provider, after the startup step shown. Mainbrella uses a later startup-only follow-up of the same pinned app; E2B and Daytona use the original editor runs. Fresh processes have new nonces; inherited processes retain the source PID and nonce.</caption>
+            <thead><tr><th scope="col">Provider</th><th scope="col">Listening</th><th scope="col">How it started</th><th scope="col">Process</th></tr></thead>
             <tbody>
 ${rows}
             </tbody>
