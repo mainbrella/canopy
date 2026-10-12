@@ -200,17 +200,8 @@
 .home-wordmark img { grid-row: span 2; width: 96px; height: 96px; object-fit: contain; }
 .home-wordmark > span { font-size: 46px; font-weight: 700; letter-spacing: -.03em; }
 .home-wordmark small { grid-column: 1 / -1; margin-top: 8px; color: #a9bbce; font-size: 11px; text-align: center; }
-.home-build-page > .site-footer { max-width: 1280px; padding-top: 24px; }
-.home-build-page > .home-footer { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px 28px; padding: 18px 0; color: #a8bbce; }
 .home-launch-badge { display: flex; justify-content: center; padding: 16px 16px 24px; }
 .home-launch-badge img { display: block; max-width: 100%; height: auto; }
-.home-footer .footer-brand { display: inline-flex; align-items: center; gap: 8px; color: #e5effa; font-size: 16px; font-weight: 650; text-decoration: none; }
-.home-footer .footer-brand img { width: 36px; height: 36px; object-fit: contain; }
-.home-footer .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; }
-.home-footer .footer-links a, .home-footer .home-footer-legal a { display: inline-flex; align-items: center; min-height: 44px; color: #a8bbce; font-size: 12px; text-decoration: none; }
-.home-footer .footer-links a:hover, .home-footer .home-footer-legal a:hover { color: #8cddff; }
-.home-footer .home-footer-note { color: #8298ae; font-size: 10px; white-space: nowrap; }
-.home-footer .home-footer-legal { display: flex; flex-wrap: wrap; justify-content: flex-end; grid-column: 2 / -1; gap: 0 16px; }
 
 @keyframes home-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .home-build-page *, .home-build-page *::before, .home-build-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
@@ -354,10 +345,6 @@
   .home-wordmark img { width: 44px; height: 44px; }
   .home-wordmark > span { font-size: 26px; }
   .home-wordmark small { grid-column: 1 / -1; margin-top: 6px; font-size: 10px; text-align: left; }
-  .home-build-page > .site-footer { padding: 20px 16px; }
-  .home-build-page > .home-footer { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; }
-  .home-footer .footer-links { justify-content: flex-start; grid-column: 1 / -1; gap: 0 13px; }
-  .home-footer .home-footer-legal { grid-column: 1 / -1; justify-content: flex-start; gap: 0 13px; }
 }
 
 @media (max-width: 360px) {
