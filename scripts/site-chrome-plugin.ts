@@ -12,6 +12,38 @@ const navigation: [string, string][] = [
   ['About', '/about/'],
 ];
 
+function extractCriticalCss(css: string) {
+  const blocks = [...css.matchAll(/\/\* critical:start \*\/([\s\S]*?)\/\* critical:end \*\//g)];
+  if (blocks.length === 0) throw new Error('No critical CSS blocks found in public/mainbrella.css');
+  return blocks.map(([, block]) => block.trim()).join('\n');
+}
+
+async function inlineCriticalStyles(html: string) {
+  let criticalStylesheet: Promise<string> | undefined;
+  const articleStylesheets = new Map<string, Promise<string>>();
+  const links = [...html.matchAll(/<link\b[^>]*>/g)];
+  for (const [tag] of links) {
+    const rel = tag.match(/\brel=["']([^"']+)["']/)?.[1].split(/\s+/);
+    if (!rel?.includes('stylesheet')) continue;
+    const href = tag.match(/\bhref=["']([^"']+)["']/)?.[1];
+    if (!href) continue;
+    if (href === '/mainbrella.css' || href === '/public/mainbrella.css') {
+      criticalStylesheet ??= readFile(new URL('../public/mainbrella.css', import.meta.url), 'utf8').then(extractCriticalCss);
+      const css = await criticalStylesheet;
+      html = html.replace(tag, `<style data-critical-css>\n${css}\n</style>\n    ${tag}`);
+    } else if (/^\/blog\/[a-z0-9-]+\/article\.css$/.test(href)) {
+      let stylesheet = articleStylesheets.get(href);
+      if (!stylesheet) {
+        stylesheet = readFile(new URL(`../public${href}`, import.meta.url), 'utf8');
+        articleStylesheets.set(href, stylesheet);
+      }
+      const css = await stylesheet;
+      html = html.replace(tag, `<style data-article-css="${href}">\n${css}\n</style>`);
+    }
+  }
+  return html;
+}
+
 function link([label, href]: [string, string], path: string) {
   const current = href.endsWith('/') && (path === `${href}index.html`
     || (['/blog/', '/projects/'].includes(href) && path.startsWith(href)));
@@ -77,6 +109,7 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
       async handler(html, context) {
         // Unsubscribe and the isolated Repo Rodeo fixture run without shared chrome or a cookie dialog.
         if (/^\/(?:unsubscribe|repo-rodeo-bug)\/(?:index\.html)?$/.test(context.path)) return html;
+        html = await inlineCriticalStyles(html);
         if (html.includes('<!-- agent-setup -->')) {
           const setup = await readFile(new URL('../partials/agent-setup.html', import.meta.url), 'utf8');
           html = html.replace('<!-- agent-setup -->', setup)
