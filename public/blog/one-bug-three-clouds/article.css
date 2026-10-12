@@ -2,8 +2,9 @@
 .rodeo-article .rodeo-screenshots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 28px 0; }
 .rodeo-article .rodeo-screenshots .article-figure { margin: 0; min-width: 0; }
 .rodeo-article .rodeo-image-label { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
-.rodeo-article .rodeo-screenshots a { display: block; }
-.rodeo-article .rodeo-screenshots img { display: block; }
+.rodeo-article .rodeo-screenshots a,
+.rodeo-article .rodeo-screenshots img,
+.rodeo-article .rodeo-process-figure img { display: block; }
 .rodeo-article .rodeo-results { width: 100%; margin: 28px 0; border-collapse: collapse; font-size: 17px; line-height: 1.5; }
 .rodeo-article .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .rodeo-article .rodeo-results th,
@@ -11,34 +12,22 @@
 .rodeo-article .rodeo-results tr > :last-child { padding-right: 0; }
 .rodeo-article .rodeo-results thead th { color: var(--muted); font-weight: 500; }
 .rodeo-article .rodeo-results tbody th { font-weight: 500; }
-.rodeo-article .rodeo-ranking tr > :nth-child(-n + 2) { width: 1%; white-space: nowrap; }
-.rodeo-article .rodeo-accounting th:first-child { width: 46%; }
-.rodeo-article .rodeo-accounting td { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rodeo-article .rodeo-process-figure img { display: block; }
-.rodeo-article .rodeo-console-crop { position: relative; display: block; overflow: hidden; background: #000; }
-.rodeo-article .rodeo-console-crop img { position: absolute; max-width: none; height: auto; }
-.rodeo-article .rodeo-daytona-figure { max-width: 540px; }
-.rodeo-article .rodeo-console-scroll { overflow-x: auto; }
-.rodeo-article .crop-daytona-details { min-width: 500px; aspect-ratio: 900 / 920; }
-.rodeo-article .crop-daytona-details img { width: 380.444%; left: -268%; top: -80.652%; }
-.rodeo-article .rodeo-profile-figure { max-width: 680px; }
-.rodeo-article .crop-e2b-profile { min-width: 600px; aspect-ratio: 1320 / 825; }
-.rodeo-article .crop-e2b-profile img { width: 259.394%; left: -147.879%; top: -95.758%; }
-.rodeo-article .crop-e2b-concurrency { width: min(100%, 340px); aspect-ratio: 515 / 92; margin-bottom: 16px; }
-.rodeo-article .crop-e2b-concurrency img { width: 664.854%; left: -534.369%; top: -402.174%; }
-.rodeo-article .crop-e2b-terminal { min-width: 780px; aspect-ratio: 1660 / 610; }
-.rodeo-article .crop-e2b-terminal img { width: 206.265%; left: -39.157%; top: -155.738%; }
-.rodeo-article .crop-daytona-snapshot { aspect-ratio: 1300 / 177; }
-.rodeo-article .crop-daytona-snapshot img { width: 263.385%; left: -104.615%; top: -374.011%; }
+.rodeo-article .rodeo-table-scroll { max-width: 100%; overflow-x: auto; margin: 28px 0; }
+.rodeo-article .rodeo-table-scroll .rodeo-results { margin: 0; }
+.rodeo-article .rodeo-table-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.rodeo-article .rodeo-process-table { min-width: 560px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.rodeo-article .rodeo-process-table th,
+.rodeo-article .rodeo-process-table td { padding-top: 8px; padding-bottom: 8px; white-space: nowrap; }
+.rodeo-article .rodeo-process-table .provider-start:not(:first-child) > * { padding-top: 20px; }
+.rodeo-article .rodeo-capabilities { min-width: 650px; font-size: 15px; }
+.rodeo-article .rodeo-capabilities th:first-child { width: 24%; }
+.rodeo-article .rodeo-capabilities td { width: 25%; }
+.rodeo-article .rodeo-cleanup-table { min-width: 540px; font-size: 15px; }
 @media (max-width: 600px) {
   .rodeo-article .rodeo-screenshots { grid-template-columns: minmax(0, 1fr); gap: 20px; margin: 24px 0; }
   .rodeo-article .rodeo-results { font-size: 15px; }
   .rodeo-article .rodeo-results th,
   .rodeo-article .rodeo-results td { padding-right: 12px; }
-  .rodeo-article .rodeo-process-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
+  .rodeo-article .rodeo-process-figure,
   .rodeo-article .rodeo-replay-figure { max-width: 400px; margin-right: auto; margin-left: auto; }
-  .rodeo-article .crop-daytona-snapshot { aspect-ratio: 650 / 177; }
-  .rodeo-article .crop-daytona-snapshot img { width: 526.769%; left: -306.154%; }
-  .rodeo-article .rodeo-daytona-figure,
-  .rodeo-article .rodeo-profile-figure { margin-right: auto; margin-left: auto; }
 }

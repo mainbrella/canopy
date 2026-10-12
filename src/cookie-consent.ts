@@ -50,23 +50,38 @@ function loadTracking() {
 
 if (dialog) {
   let returnFocus: HTMLElement | null;
+  let dismissible = false;
+  const closeButton = document.querySelector<HTMLButtonElement>('[data-cookie-close]');
   function openDialog(trigger?: HTMLElement) {
+    dismissible = Boolean(trigger);
+    if (closeButton) closeButton.hidden = !dismissible;
     returnFocus = trigger || document.querySelector<HTMLAnchorElement>('.brand')!;
     document.documentElement.classList.add('cookie-consent-open');
     if (!dialog.open) dialog.showModal();
   }
 
-  // Native modal behavior traps focus and makes the rest of the page inert.
-  dialog.addEventListener('cancel', (event) => event.preventDefault());
-  dialog.addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-consent]');
-    if (!button || !dialog.open) return;
-    const choice = button.dataset.consent;
-    if (choice !== 'accepted' && choice !== 'rejected') return;
-    saveConsent(choice);
+  function closeDialog() {
     dialog.close();
     document.documentElement.classList.remove('cookie-consent-open');
     returnFocus?.focus({ preventScroll: true });
+  }
+
+  // Native modal behavior traps focus and makes the rest of the page inert.
+  dialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    if (dismissible) closeDialog();
+  });
+  dialog.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-consent], button[data-cookie-close]');
+    if (!button || !dialog.open) return;
+    if ('cookieClose' in button.dataset) {
+      if (dismissible) closeDialog();
+      return;
+    }
+    const choice = button.dataset.consent;
+    if (choice !== 'accepted' && choice !== 'rejected') return;
+    saveConsent(choice);
+    closeDialog();
     if (choice === 'accepted') loadTracking();
     window.dispatchEvent(new CustomEvent('cookie-consent-change', { detail: { choice } }));
   });
@@ -76,5 +91,5 @@ if (dialog) {
 
   const savedChoice = readConsent();
   if (savedChoice === 'accepted') loadTracking();
-  else if (!savedChoice) openDialog();
+  else if (!savedChoice && dialog.dataset.consentPrompt !== 'optional') openDialog();
 }

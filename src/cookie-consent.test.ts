@@ -18,11 +18,15 @@ function visit({ local = new Map(), session = new Map(), blockedLocal = false, b
   const scripts: string[] = [];
   const scriptElements: { src: string; id?: string; async?: boolean }[] = [];
   const cookieWrites: string[] = [];
+  const focused: string[] = [];
+  const classes = new Set<string>();
   const listeners = new Map();
   const settingsListeners = new Map();
-  const settings = { addEventListener: (name: string, callback: (...args: any[]) => unknown) => settingsListeners.set(name, callback), focus() {} };
+  const settings = { addEventListener: (name: string, callback: (...args: any[]) => unknown) => settingsListeners.set(name, callback), focus() { focused.push('settings'); } };
+  const closeButton = { hidden: true };
   const dialog = {
     open: false,
+    dataset: { consentPrompt: html.includes('data-consent-prompt="optional"') ? 'optional' : undefined },
     addEventListener: (name: string, callback: (...args: any[]) => unknown) => listeners.set(name, callback),
     showModal() { this.open = true; },
     close() { this.open = false; },
@@ -33,18 +37,21 @@ function visit({ local = new Map(), session = new Map(), blockedLocal = false, b
   });
   const window = { localStorage: storage(local, blockedLocal), sessionStorage: storage(session, blockedSession), dispatchEvent() {} };
   const document = {
-    querySelector: (selector: string) => selector === '#cookie-consent' ? (html.includes('id="cookie-consent"') ? dialog : null) : { focus() {} },
+    querySelector: (selector: string) => selector === '#cookie-consent' ? (html.includes('id="cookie-consent"') ? dialog : null)
+      : selector === '[data-cookie-close]' ? closeButton : { focus() { focused.push('brand'); } },
     querySelectorAll: () => [settings],
-    documentElement: { classList: { add() {}, remove() {} } },
+    documentElement: { classList: { add(value: string) { classes.add(value); }, remove(value: string) { classes.delete(value); } } },
     createElement: (tag: string) => ({ tag }),
     getElementById: (id: string) => scriptElements.find(script => script.id === id) ?? null,
     head: { append(script: { src: string; id?: string; async?: boolean }) { scripts.push(script.src); scriptElements.push(script); } },
     set cookie(value: string) { cookieWrites.push(value); },
   };
   const methods: { readConsent: () => string | null; needsSignInCookies: () => boolean } = runInNewContext(source + '\n({ readConsent, needsSignInCookies });', { window, document, CustomEvent: class { detail: unknown; constructor(public type: string, options: { detail: unknown }) { this.detail = options.detail; } } });
-  return { ...methods, dialog, scripts, scriptElements, cookieWrites, window: window as typeof window & Pick<Window, "_tfa" | "gtag" | "oaiq" | "clarity">, local, session,
+  return { ...methods, dialog, closeButton, focused, classes, scripts, scriptElements, cookieWrites, window: window as typeof window & Pick<Window, "_tfa" | "gtag" | "oaiq" | "clarity">, local, session,
     reopen() { settingsListeners.get('click')(); },
     choose(choice: string) { listeners.get('click')({ target: { closest: () => ({ dataset: { consent: choice } }) } }); },
+    escape() { listeners.get('cancel')({ preventDefault() {} }); },
+    dismiss() { listeners.get('click')({ target: { closest: () => ({ dataset: { cookieClose: '' } }) } }); },
   };
 }
 
@@ -68,11 +75,17 @@ test('every page entry includes one working consent dialog before tracking can l
     assert.match(html, /src="\/src\/acquisition\.ts"/, path);
     assert.match(html, /data-consent="accepted"/, path);
     assert.match(html, /data-consent="rejected"/, path);
+    if (path.startsWith('/blog/')) {
+      assert.match(html, /data-consent-prompt="optional"/, path);
+      assert.match(html, /data-cookie-settings[^>]*>Cookie settings<\/button>/, path);
+      assert.match(html, /data-cookie-close/, path);
+    }
 
     const first = visit({ html });
-    assert.equal(first.dialog.open, true, path);
+    assert.equal(first.dialog.open, !path.startsWith('/blog/'), path);
     assert.deepEqual(first.scripts, [], path);
     assert.deepEqual(first.cookieWrites, [], path);
+    if (!first.dialog.open) first.reopen();
     first.choose('rejected');
     const returning = visit({ html, local: first.local });
     assert.equal(returning.dialog.open, false, path);
@@ -85,6 +98,58 @@ test('every page entry includes one working consent dialog before tracking can l
     assert.equal(accepted.dialog.open, false, path);
     assert.equal(accepted.scripts.length, 4, path);
   }
+});
+
+for (const blockedStorage of [false, true]) {
+  test(`blog reading stays uninterrupted with storage ${blockedStorage ? 'blocked' : 'available'}, and dismissing preferences preserves consent`, () => {
+    const html = '<dialog id="cookie-consent" data-consent-prompt="optional">';
+    const first = visit({ html, blockedLocal: blockedStorage, blockedSession: blockedStorage });
+    assert.equal(first.dialog.open, false);
+    assert.equal(first.classes.has('cookie-consent-open'), false);
+    assert.equal(first.readConsent(), null);
+    assert.deepEqual(first.scripts, []);
+    assert.deepEqual(first.cookieWrites, []);
+
+    for (const dismiss of [() => first.escape(), () => first.dismiss()]) {
+      first.reopen();
+      assert.equal(first.dialog.open, true);
+      assert.equal(first.closeButton.hidden, false);
+      assert.equal(first.classes.has('cookie-consent-open'), true);
+      dismiss();
+      assert.equal(first.dialog.open, false);
+      assert.equal(first.classes.has('cookie-consent-open'), false);
+      assert.equal(first.focused.at(-1), 'settings');
+      assert.equal(first.readConsent(), null);
+      assert.equal(first.needsSignInCookies(), true);
+      assert.deepEqual(first.scripts, []);
+      assert.deepEqual(first.cookieWrites, []);
+    }
+
+    first.reopen();
+    first.choose('rejected');
+    first.reopen();
+    first.escape();
+    assert.equal(first.readConsent(), 'rejected');
+    assert.deepEqual(first.scripts, []);
+    first.reopen();
+    first.choose('accepted');
+    assert.equal(first.scripts.length, 4);
+    assert.equal(first.needsSignInCookies(), false);
+  });
+}
+
+test('non-blog first-visit prompt still waits for a choice', () => {
+  const first = visit();
+  assert.equal(first.dialog.open, true);
+  assert.equal(first.closeButton.hidden, true);
+  first.escape();
+  first.dismiss();
+  assert.equal(first.dialog.open, true);
+  assert.equal(first.readConsent(), null);
+  assert.deepEqual(first.scripts, []);
+  first.choose('rejected');
+  assert.equal(first.dialog.open, false);
+  assert.equal(first.focused.at(-1), 'brand');
 });
 
 test('first visit and Reject All never load trackers or write cookies, including after reload', () => {

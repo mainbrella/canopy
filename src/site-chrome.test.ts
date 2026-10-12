@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
-import { siteChromePlugin } from '../scripts/site-chrome-plugin.ts';
+import { siteChrome, siteChromePlugin } from '../scripts/site-chrome-plugin.ts';
 
 const hook = siteChromePlugin().transformIndexHtml;
 assert.ok(hook && typeof hook === 'object' && 'handler' in hook);
@@ -16,6 +16,20 @@ async function transform(filename: string, path: string) {
   if (typeof result !== 'string') throw new Error('Expected transformed HTML');
   return result;
 }
+
+test('blog chrome keeps reading navigation compact and cookie preferences reachable', () => {
+  for (const path of ['/blog/index.html', '/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html']) {
+    const { header, footer } = siteChrome(path);
+    assert.match(header, /class="site-header blog-header wrap"/);
+    assert.match(header, /href="\/blog\/"[^>]*>Engineering blog<\/a>/);
+    assert.doesNotMatch(header, /Start building|Sign in|platform-navigation/);
+    assert.match(footer, /data-cookie-settings aria-haspopup="dialog" aria-controls="cookie-consent">Cookie settings<\/button>/);
+  }
+  const { header } = siteChrome('/docs/index.html');
+  assert.match(header, /class="site-header platform-header wrap"/);
+  assert.match(header, /Start building/);
+  assert.match(header, /Sign in/);
+});
 
 test('article CSS is inlined in source order after critical shared styles', async () => {
   const html = await transform('blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html', '/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html');
