@@ -229,8 +229,9 @@
                 <input id="email-custom-subj" name="subj" type="text" maxlength="998" value="testing" required />
               </label>
               <label for="email-custom-message">Message
-                <textarea id="email-custom-message" name="message" rows="10" maxlength="100000" required>the quick brown fox jumps over the lazy brella.</textarea>
+                <textarea id="email-custom-message" name="message" rows="10" maxlength="100000" aria-describedby="email-custom-name-help" required>the quick brown fox jumps over the lazy brella.</textarea>
               </label>
+              <p id="email-custom-name-help" class="email-custom-help">Use {{name}} in the subject or message to insert each recipient’s name.</p>
               <button class="primary email-custom-send-submit" type="submit">Send to all</button>
             </fieldset>
             <p class="email-custom-status email-status" role="status" aria-live="polite"></p>

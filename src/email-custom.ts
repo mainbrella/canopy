@@ -124,7 +124,12 @@ export function createEmailCustomView(
         if (!canAccess()) break;
         elements.status.textContent = `Sending ${index + 1} of ${recipients.length}…`;
         try {
-          const result = await sendMarketingEmail({ ...input, to: recipient.email });
+          const result = await sendMarketingEmail({
+            ...input,
+            to: recipient.email,
+            subj: input.subj.replaceAll('{{name}}', () => recipient.name),
+            message: input.message.replaceAll('{{name}}', () => recipient.name),
+          });
           if (id !== requestID) return;
           if (result === 401 || result === 403) {
             elements.status.textContent = '';

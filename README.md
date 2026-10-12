@@ -77,11 +77,12 @@ and selections; Refresh reloads recipients.
 EmailCustom accepts one address per line at `/email-custom`, with an optional
 full name after each address. It trims rows, ignores blank lines, and validates
 every address before sending. It sends to each bare address sequentially through
-`POST /api/send-marketing-email`; names remain in the textarea and are not sent
-to the API. Confirmed or opted-out recipients are removed silently, while failed
-and unattempted rows stay for review or retry. A full success clears the rows,
-subject, and message. If the backend cannot check preferences, it fails closed
-and reports that no email was sent.
+`POST /api/send-marketing-email`. Use `{{name}}` in the subject or message to
+insert that row's full name; a missing name becomes an empty string. Confirmed
+or opted-out recipients are removed silently, while failed and unattempted rows
+stay for review or retry. A full success clears the rows, subject, and message.
+If the backend cannot check preferences, it fails closed and reports that no
+email was sent.
 
 The backend needs migration `033` for address-level email preferences and
 unsubscribe support. Every send checks both account and address preferences,
