@@ -14,7 +14,7 @@
 .rodeo-article .rodeo-table-scroll { max-width: 100%; overflow-x: auto; margin: 28px 0; }
 .rodeo-article .rodeo-table-scroll .rodeo-results { margin: 0; }
 .rodeo-article .rodeo-table-scroll:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
-.rodeo-article .rodeo-process-table { font-size: 15px; font-variant-numeric: tabular-nums; }
+.rodeo-article .rodeo-process-table { font-size: 15px; font-variant-numeric: tabular-nums; overflow-wrap: normal; }
 .rodeo-article .rodeo-process-table th,
 .rodeo-article .rodeo-process-table td { padding-top: 12px; padding-bottom: 12px; }
 .rodeo-article .rodeo-capabilities { min-width: 650px; font-size: 15px; }
