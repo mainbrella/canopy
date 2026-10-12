@@ -300,7 +300,7 @@
     "worker/mainbrella-incomplete/result.sha256": "f36d51c6aada8ff853b5b75714bff83b031c50489eb5059242454570eee86cf6",
     "worker/run-history.json": "d5974fe202d912c835402adcdc8a9b3d33e9484b3cebb4d8ad63a39f5f862b7f",
     "worker/source.tar.gz": "adb8961a66963846e28f4baee51b27480a2ad24fa303f1f65d5e5e453260fae9",
-    "worker/source-manifest.json": "594c59992298120398010ad775ffedba4be4b79479fdb7128671ff50f29e2a75",
+    "worker/source-manifest.json": "b36c2033aa9dc4fe944f0c35295f9bb59d5fd8b61b4c7be8e0178b9c92ca40e1",
     "matched/mainbrella/result.json": "4e008e880b78a9a47418cdf7b2adeaf5aefc966fe1fe89700b3dde7509d223ae",
     "matched/mainbrella/result.sha256": "1042319b4ac2cb559aba3d06f117aff33cb9638c0a9debeb3b2538eef3624776",
     "matched/mainbrella/followup.json": "8d6799e6ee9c6cf1b0bd18bc3d9c2a259b75cc45ad4983a68d3d05fd4f28bf37",

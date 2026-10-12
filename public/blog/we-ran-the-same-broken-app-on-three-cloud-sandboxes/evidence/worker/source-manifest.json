@@ -44,5 +44,9 @@
   },
   "localCheck": "npm ci && node --test tests/worker-experiment.test.ts",
   "localLimitation": "Local checks validate deterministic controls and restart loss. They do not emulate a cloud memory fork.",
-  "archiveSha256": "adb8961a66963846e28f4baee51b27480a2ad24fa303f1f65d5e5e453260fae9"
+  "archiveSha256": "adb8961a66963846e28f4baee51b27480a2ad24fa303f1f65d5e5e453260fae9",
+  "packagingFiles": {
+    "README.md": "413ab233d56f956c73c6628e50e943acaf76c498abf2c360f4c50c7e2a27824a",
+    "SOURCE-MANIFEST.json": "1c17941bc60d17840c8d0224cd67b62c88a137be4b2378b8193f8879a0fe2d19"
+  }
 }
