@@ -13,7 +13,7 @@ const navigation: [string, string][] = [
 ];
 
 const homeNavigation: [string, string][] = [
-  ['Product', '#product'], ['Developers', '#architecture'], ['Pricing', '/pricing/'],
+  ['Product', '#product'], ['Pricing', '/pricing/'],
   ['Docs', '/docs/'], ['Compare', '#compare'], ['Blog', '/blog/'],
 ];
 
