@@ -173,6 +173,7 @@ export function createEmailCustomView(
         try {
           const result = await sendMarketingEmail({
             ...input,
+            fancy: false,
             to: recipient.email,
             subj: personalize(input.subj, recipient),
             message: personalize(input.message, recipient),

@@ -5,6 +5,7 @@ interface MarketingEmailInput {
   to: string;
   subj: string;
   message: string;
+  fancy?: boolean;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
