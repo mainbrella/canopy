@@ -18,6 +18,15 @@ export function isAdminUser(value: unknown): value is AdminUser {
     && (!('email' in value) || value.email === null || typeof value.email === 'string');
 }
 
+export interface AdminUserWithBalance extends AdminUser {
+  balanceCents: number | null;
+}
+
+export function isAdminUserWithBalance(value: unknown): value is AdminUserWithBalance {
+  return isAdminUser(value) && 'balanceCents' in value
+    && (value.balanceCents === null || (typeof value.balanceCents === 'number' && Number.isSafeInteger(value.balanceCents)));
+}
+
 export interface AuthSession {
   user: User;
 }

@@ -5,7 +5,7 @@ import { createEmailView } from './email.ts';
 import { createEmailAllView } from './email-all.ts';
 import { createEmailCustomView } from './email-custom.ts';
 import { createUserDetailView } from './user-detail.ts';
-import { isAdminUser, type AdminUser, type User } from './types.ts';
+import { isAdminUserWithBalance, type AdminUserWithBalance, type User } from './types.ts';
 
 const auth = createAuthClient();
 function requiredElement<T extends Element>(selector: string): T {
@@ -159,9 +159,9 @@ function isAdmin() {
   return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
 }
 
-function isAdminUsersResponse(value: unknown): value is { users: AdminUser[] } {
+function isAdminUsersResponse(value: unknown): value is { users: AdminUserWithBalance[] } {
   return typeof value === 'object' && value !== null && 'users' in value
-    && Array.isArray(value.users) && value.users.every(isAdminUser);
+    && Array.isArray(value.users) && value.users.every(isAdminUserWithBalance);
 }
 
 start();
@@ -347,12 +347,14 @@ async function loadUsers() {
       const row = document.createElement('tr');
       row.className = 'user-row';
       const created = new Date(item.created_at);
-      const values = [item.name || '—', item.email || '—', item.plan[0].toUpperCase() + item.plan.slice(1),
+      const values = [item.name || '—', item.email || '—',
+        item.balanceCents === null ? 'Unavailable' : (item.balanceCents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' }),
         Number.isFinite(created.getTime()) ? created.toLocaleString(undefined, {
           year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
         }) : item.created_at || '—', item.id];
       for (const [index, value] of values.entries()) {
         const cell = document.createElement('td');
+        if (index === 2) cell.className = 'user-balance';
         if (index === 0) {
           const link = document.createElement('a');
           link.className = 'user-link';

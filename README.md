@@ -3,9 +3,10 @@
 Mainbrella user administration. `/` shows the login form, then the users table
 for the authenticated account `oneone@gmail.com`. Both the UI and backend
 enforce the email restriction. Users are listed by `created_at DESC, id DESC`.
-The Plan column shows None, Builder, Pro, or Scale from the backend's last synced
-active subscription or an unexpired trial. It is an administrative snapshot;
-paid access is still verified separately with Stripe.
+The Balance column shows each user's current total prepaid wallet balance in USD,
+including reserved funds. A failed wallet lookup shows “Unavailable” while the
+rest of the list remains usable. The backend reads wallets with limited
+concurrency and makes no Stripe requests.
 
 Each user row opens `/users/detail?id=<user-id>`. The detail page shows the
 user's profile, total/available/reserved wallet balance, and funding history,

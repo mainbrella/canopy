@@ -71,6 +71,7 @@ th, td { padding: 12px 16px 12px 0; border-bottom: 1px solid var(--line); vertic
 th { color: var(--muted); font-weight: 500; white-space: nowrap; }
 .users-table-wrap td { overflow-wrap: anywhere; min-width: 140px; max-width: 320px; }
 .users-table-wrap td:nth-child(3) { min-width: 80px; white-space: nowrap; }
+.user-balance { text-align: right; font-variant-numeric: tabular-nums; }
 .users-table-wrap td:nth-child(4) { min-width: 180px; }
 .users-table-wrap td:last-child { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; min-width: 200px; }
 .users-table-wrap th:last-child, .users-table-wrap td:last-child { padding-right: 0; }
