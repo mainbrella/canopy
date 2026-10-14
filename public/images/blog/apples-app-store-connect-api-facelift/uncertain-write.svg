@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="430" viewBox="0 0 720 430">
+  <title>Planned recovery from a lost write response</title>
+  <desc>Time moves downward. Parsequerade saves an intent, dispatches a write, and loses Apple's reply. Its durable record has an unknown outcome. A fresh read can help reconcile what Apple applied.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="#58626c" stroke-width="1.3"/></marker>
+    <marker id="read-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="#496b86" stroke-width="1.3"/></marker>
+  </defs>
+  <rect width="720" height="430" rx="4" fill="#f5f2ea"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#263238">
+    <text x="28" y="33" font-size="15" fill="#58626c">Planned write handling</text>
+    <text x="232" y="72" font-size="22" font-weight="600" text-anchor="middle">Parsequerade</text>
+    <text x="541" y="72" font-size="22" font-weight="600" text-anchor="middle">Apple</text>
+    <g stroke="#c0c4c5" stroke-width="2"><path d="M232 89v306"/><path d="M541 89v306"/></g>
+    <path d="M43 91v302" stroke="#a5abae" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="25" y="245" font-size="15" fill="#58626c" text-anchor="middle" transform="rotate(-90 25 245)">Time</text>
+    <rect x="226" y="109" width="12" height="12" fill="#496b86"/>
+    <text x="210" y="122" font-size="17" text-anchor="end">Save intent</text>
+    <path d="M240 154h292" stroke="#58626c" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="387" y="142" font-size="18" text-anchor="middle">Send update</text>
+    <circle cx="541" cy="192" r="7" fill="#4d785d"/>
+    <text x="558" y="198" font-size="17">Applied</text>
+    <path d="M533 231H393" stroke="#a16450" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="m379 224 14 14m0-14-14 14" stroke="#a16450" stroke-width="2.5"/>
+    <text x="459" y="220" font-size="18" text-anchor="middle" fill="#85513f">Reply lost</text>
+    <rect x="226" y="272" width="12" height="12" fill="#a16450"/>
+    <text x="210" y="285" font-size="17" text-anchor="end">Outcome unknown</text>
+    <path d="M240 332h292" stroke="#496b86" stroke-width="2" marker-end="url(#read-arrow)"/>
+    <text x="387" y="320" font-size="18" text-anchor="middle">Fresh read</text>
+    <path d="M533 377H241" stroke="#496b86" stroke-width="2" marker-end="url(#read-arrow)"/>
+    <text x="387" y="401" font-size="18" text-anchor="middle">Current resource</text>
+  </g>
+</svg>
