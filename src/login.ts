@@ -5,7 +5,7 @@ import { createEmailView } from './email.ts';
 import { createEmailAllView } from './email-all.ts';
 import { createEmailCustomView } from './email-custom.ts';
 import { createUserDetailView } from './user-detail.ts';
-import { isAdminUserWithBalance, type AdminUserWithBalance, type User } from './types.ts';
+import { isAdminUser, isAdminUserBalance, type AdminUser, type AdminUserBalance, type User } from './types.ts';
 
 const auth = createAuthClient();
 function requiredElement<T extends Element>(selector: string): T {
@@ -75,6 +75,14 @@ let user: User | null = null;
 let signingIn = false;
 let signingOut = false;
 let usersRequest = 0;
+let usersController: AbortController | null = null;
+
+function invalidateUsers() {
+  usersRequest++;
+  usersController?.abort();
+  usersController = null;
+}
+
 const userDetail = createUserDetailView({
   page: userDetailPage, status: userDetailStatus, error: userDetailError,
   content: requiredElement<HTMLElement>('.user-detail-data'),
@@ -159,9 +167,14 @@ function isAdmin() {
   return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
 }
 
-function isAdminUsersResponse(value: unknown): value is { users: AdminUserWithBalance[] } {
+function isAdminUsersResponse(value: unknown): value is { users: AdminUser[] } {
   return typeof value === 'object' && value !== null && 'users' in value
-    && Array.isArray(value.users) && value.users.every(isAdminUserWithBalance);
+    && Array.isArray(value.users) && value.users.every(isAdminUser);
+}
+
+function isUserBalancesResponse(value: unknown): value is { balances: AdminUserBalance[] } {
+  return typeof value === 'object' && value !== null && 'balances' in value
+    && Array.isArray(value.balances) && value.balances.every(isAdminUserBalance);
 }
 
 start();
@@ -184,7 +197,7 @@ async function start() {
 }
 
 async function showCurrentState() {
-  usersRequest++;
+  invalidateUsers();
   userDetail.setUser(null);
   ledger.setActive(false);
   acquisition.setActive(false);
@@ -226,6 +239,7 @@ async function showCurrentState() {
 }
 
 function showAccessDenied() {
+  invalidateUsers();
   userDetail.setUser(null);
   ledger.setActive(false);
   acquisition.setActive(false);
@@ -282,7 +296,7 @@ function showAdminRoute() {
     usersTitle.focus({ preventScroll: true });
     void loadUsers();
   } else {
-    usersRequest++;
+    invalidateUsers();
     (route === 'user-detail' ? userDetailTitle : route === 'email-all' ? emailAllTitle : route === 'email-custom' ? emailCustomTitle : route === 'email' ? emailTitle : route === 'ledger' ? ledgerTitle : acquisitionTitle).focus({ preventScroll: true });
   }
 }
@@ -315,9 +329,52 @@ window.addEventListener('popstate', () => {
   if (isAdmin()) showAdminRoute();
 });
 
+async function loadUserBalances(cells: Map<string, HTMLTableCellElement>, requestID: number, signal: AbortSignal) {
+  const ids = [...cells.keys()];
+  let next = 0;
+  // Two small batches can fill independently, so one slow wallet doesn't hold up every balance.
+  await Promise.all(Array.from({ length: Math.min(2, Math.ceil(ids.length / 5)) }, async () => {
+    while (next < ids.length && requestID === usersRequest && !signal.aborted) {
+      const batch = ids.slice(next, next + 5);
+      next += 5;
+      const query = new URLSearchParams(batch.map(id => ['id', id]));
+      let balances: AdminUserBalance[] = [];
+      try {
+        const response = await fetch(`${API_ORIGIN}/admin/user-balances?${query}`, {
+          credentials: 'include', headers: { accept: 'application/json' }, signal,
+        });
+        if (requestID !== usersRequest || signal.aborted) return;
+        if (response.status === 401 || response.status === 403) {
+          handleAdminAuthFailure(response.status);
+          return;
+        }
+        const result: unknown = await response.json().catch(() => null);
+        if (!response.ok || !isUserBalancesResponse(result)
+          || result.balances.some(balance => !batch.includes(balance.id))
+          || new Set(result.balances.map(balance => balance.id)).size !== result.balances.length) {
+          throw new Error('balances_unavailable');
+        }
+        balances = result.balances;
+      } catch {
+        // Keep the list usable if this batch's balances cannot be loaded.
+      }
+      if (requestID !== usersRequest || signal.aborted) return;
+      const amounts = new Map(balances.map(balance => [balance.id, balance.balanceCents]));
+      for (const id of batch) {
+        const amount = amounts.get(id);
+        cells.get(id)!.textContent = amount == null ? 'Unavailable'
+          : (amount / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+      }
+    }
+  }));
+}
+
 async function loadUsers() {
   if (!isAdmin() || signingOut) return;
-  const requestID = ++usersRequest;
+  invalidateUsers();
+  const requestID = usersRequest;
+  const controller = new AbortController();
+  usersController = controller;
   usersRefresh.disabled = true;
   usersPage.setAttribute('aria-busy', 'true');
   usersStatus.textContent = 'Loading users…';
@@ -325,8 +382,8 @@ async function loadUsers() {
   usersRows.replaceChildren();
   usersTable.hidden = true;
   try {
-    const response = await fetch(`${API_ORIGIN}/admin/users`, {
-      credentials: 'include', headers: { accept: 'application/json' },
+    const response = await fetch(`${API_ORIGIN}/admin/users?includeBalances=false`, {
+      credentials: 'include', headers: { accept: 'application/json' }, signal: controller.signal,
     });
     if (requestID !== usersRequest) return;
     if (response.status === 401) {
@@ -343,18 +400,21 @@ async function loadUsers() {
     if (requestID !== usersRequest) return;
     if (!response.ok || !isAdminUsersResponse(result)) throw new Error('users_unavailable');
     const rows = document.createDocumentFragment();
+    const balanceCells = new Map<string, HTMLTableCellElement>();
     for (const item of result.users) {
       const row = document.createElement('tr');
       row.className = 'user-row';
       const created = new Date(item.created_at);
-      const values = [item.name || '—', item.email || '—',
-        item.balanceCents === null ? 'Unavailable' : (item.balanceCents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' }),
+      const values = [item.name || '—', item.email || '—', 'Loading…',
         Number.isFinite(created.getTime()) ? created.toLocaleString(undefined, {
           year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
         }) : item.created_at || '—', item.id];
       for (const [index, value] of values.entries()) {
         const cell = document.createElement('td');
-        if (index === 2) cell.className = 'user-balance';
+        if (index === 2) {
+          cell.className = 'user-balance';
+          balanceCells.set(item.id, cell);
+        }
         if (index === 0) {
           const link = document.createElement('a');
           link.className = 'user-link';
@@ -379,6 +439,7 @@ async function loadUsers() {
     usersStatus.textContent = result.users.length
       ? `${result.users.length.toLocaleString()} ${result.users.length === 1 ? 'user' : 'users'} · Newest first`
       : 'No users found.';
+    void loadUserBalances(balanceCells, requestID, controller.signal);
   } catch {
     if (requestID !== usersRequest) return;
     usersStatus.textContent = 'Could not load users.';
@@ -476,7 +537,7 @@ async function signIn(authenticate: () => Promise<{ user: User }>): Promise<void
 signOutButton.addEventListener('click', async () => {
   if (signingOut || signingIn || !user) return;
   signingOut = true;
-  usersRequest++;
+  invalidateUsers();
   userDetail.setUser(null);
   ledger.setActive(false);
   acquisition.setActive(false);

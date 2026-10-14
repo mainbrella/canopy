@@ -18,12 +18,14 @@ export function isAdminUser(value: unknown): value is AdminUser {
     && (!('email' in value) || value.email === null || typeof value.email === 'string');
 }
 
-export interface AdminUserWithBalance extends AdminUser {
+export interface AdminUserBalance {
+  id: string;
   balanceCents: number | null;
 }
 
-export function isAdminUserWithBalance(value: unknown): value is AdminUserWithBalance {
-  return isAdminUser(value) && 'balanceCents' in value
+export function isAdminUserBalance(value: unknown): value is AdminUserBalance {
+  return typeof value === 'object' && value !== null
+    && 'id' in value && typeof value.id === 'string' && 'balanceCents' in value
     && (value.balanceCents === null || (typeof value.balanceCents === 'number' && Number.isSafeInteger(value.balanceCents)));
 }
 

@@ -5,8 +5,11 @@ for the authenticated account `oneone@gmail.com`. Both the UI and backend
 enforce the email restriction. Users are listed by `created_at DESC, id DESC`.
 The Balance column shows each user's current total prepaid wallet balance in USD,
 including reserved funds. A failed wallet lookup shows “Unavailable” while the
-rest of the list remains usable. The backend reads wallets with limited
-concurrency and makes no Stripe requests.
+rest of the list remains usable. The list loads immediately from `GET /admin/users?includeBalances=false`
+without contacting wallet services. Balance cells initially show “Loading…” and
+fill separately through `GET /admin/user-balances?id=…&id=…`, with two batches of
+five users in flight. The backend selects requested IDs using the users' primary
+key index and reads wallets with limited concurrency and no Stripe requests.
 
 Each user row opens `/users/detail?id=<user-id>`. The detail page shows the
 user's profile, total/available/reserved wallet balance, and funding history,
