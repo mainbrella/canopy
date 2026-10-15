@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="I moved DeployerCoaster Studio's App Store Connect reads to Parsequerade. Before-and-after Rust, a 63-to-23-line app loader, and the parts of the migration that still need work." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/app-store-connect-to-parsequerade/" />
+    <meta property="og:title" content="I changed my direct App Store Connect API calls to Parsequerade" />
+    <meta property="og:description" content="Flat JSON simplified the readers and moved Apple JWT signing out of the desktop app. The code diff also shows what the migration costs." />
+    <meta property="og:url" content="https://mainbrella.com/blog/app-store-connect-to-parsequerade/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/app-store-connect-to-parsequerade/save-retry.png" />
+    <meta property="og:image:width" content="1680" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:image:alt" content="Studio keeps a newly created Parsequerade connection in memory when saving it fails, then retries the local save before making the connection available to readers." />
+    <meta property="article:published_time" content="2026-10-15T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/app-store-connect-to-parsequerade/article.css" />
+    <title>I changed my direct App Store Connect API calls to Parsequerade</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella parsequerade-migration">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>I changed my direct App Store Connect API calls to Parsequerade</h1>
+        <p class="article-meta"><time datetime="2026-10-15">October 15, 2026</time> · Andrew Arrow</p>
+
+        <p>My desktop app had a JWT signer so it could show me a list of iOS apps. It also had two pagination implementations and UI code that knew how Apple represents a category relationship. None of that was the part of <a href="https://github.com/andrewarrow/DeployerCoaster/tree/0dc2f2a4347bec10335a73b9bd7121abb2cc6d3d/studio">DeployerCoaster Studio</a> I wanted to spend time on.</p>
+        <p>I moved its App Store Connect reads to <a href="https://parsequerade.mainbrella.com/docs/">Parsequerade</a>, the open-source facade we're building over Apple's API. The app-list loader went from 63 lines to 23. Apple JWT signing left the client entirely. Reading a field now looks like reading a field.</p>
+        <p>The <a href="/blog/apples-app-store-connect-api-facelift/">previous article</a> explained how the facade works. This is what changed in a client using it, including the awkward bits. Parsequerade currently implements core metadata reads; writes and sales reports are still planned. This migration disables Studio's copy/paste and live sales, so it isn't feature parity yet.</p>
+
+        <h2 id="flat-json">The JSON stopped leaking into the UI</h2>
+        <p>Apple wraps ordinary fields inside a typed resource envelope. If Studio wants an app's name, it reads through <code>attributes</code>. A collection puts those resources inside <code>data</code>. Relationships have another shape again. The code is easy enough to write, but the vocabulary follows you from the HTTP response into your view code and test fixtures.</p>
+        <p>Here's the body of Studio's shared string-field helper, before and after:</p>
+        <div class="code-comparison">
+          <div class="code-example">
+            <p class="code-label">Direct Apple API</p>
+            <pre class="docs-code" tabindex="0" role="region" aria-label="Previous string-field helper using Apple's attributes envelope"><code>resource["attributes"][field]
+    .as_str()
+    .unwrap_or_default()</code></pre>
+          </div>
+          <div class="code-example">
+            <p class="code-label">Parsequerade</p>
+            <pre class="docs-code" tabindex="0" role="region" aria-label="Current string-field helper reading a flat object"><code>resource[field]
+    .as_str()
+    .unwrap_or_default()</code></pre>
+          </div>
+        </div>
+        <p>One fewer index isn't much of a refactor on its own. The category renderer is a better example of how the surrounding code changes. It used to read <code>info["relationships"][field]["data"]["id"]</code>, with <code>field</code> set to <code>primaryCategory</code> or <code>secondaryCategory</code>. Now those fields are <code>primaryCategoryId</code> and <code>secondaryCategoryId</code>, and the lookup is just <code>info[field]</code>. The view knows it has a category ID. It can forget Apple's relationship representation.</p>
+        <p>The app-list model needed very little surgery. I kept its existing <code>AppAttributes</code> struct and changed the field annotation to <code>#[serde(flatten)]</code>, so Serde reads those fields from the flat object. The separate <code>AppPage</code> and <code>PageLinks</code> structs went away. Existing display code could keep using the same Rust fields.</p>
+        <p>The <a href="https://github.com/andrewarrow/DeployerCoaster/blob/0dc2f2a4347bec10335a73b9bd7121abb2cc6d3d/studio/src/apple/details/tests.rs">detail fixtures</a> became ordinary objects too. A test about which iOS draft to display can supply an ID, platform, state, and creation date without recreating Apple's envelope. That's a small improvement I get every time I add another case.</p>
+        <p>Parsequerade's <a href="https://github.com/mainbrella/parsequerade/blob/32f4bb48edbb4d7b998722117422bb431b58be90/worker/resources.js">adapter</a> checks the upstream resource type and copies reviewed fields with type checks. It turns supported relationships into named ID fields and preserves nulls. Studio's display helper still renders missing strings as empty, but that is a display choice; the API hasn't collapsed null, missing, and empty into the same value.</p>
+        <p>For a client that wants just one locale, the facade goes further. Its <a href="https://parsequerade.mainbrella.com/docs/reference/get-v1-appstoreversionlocalizations-_id_/">exact-locale route</a>, <code>/apps/{appId}/versions/{versionId}/localizations/en-US</code>, resolves Apple's localization ID and verifies the version belongs to the app. A missing locale stays missing; it won't quietly return another language. Studio currently uses the collection route because its screen shows multiple English localizations. I can choose the collection or the exact read without implementing Apple's ID lookup in either caller.</p>
+
+        <h2 id="pagination">One list reader instead of two</h2>
+        <p>The old app-list loader mixed several jobs: send the request, check the status, decode Apple's page, validate the next-page URL, detect repeated pages, then sort and deduplicate the apps. The detail reader had its own pagination loop.</p>
+        <p>Now both use <code>api::list()</code>. All collections have an <code>items</code> array and a <code>nextCursor</code>, so the app-specific part starts like this. Sorting and deduplication follow this excerpt:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="App-list loader delegates pagination and deserializes flat app objects"><code>let values = api::list(transport, "/apps?limit=200", cancelled)?;
+let mut apps: Vec&lt;AppleApp&gt; = values
+    .into_iter()
+    .map(|value| {
+        serde_json::from_value(value)
+            .map_err(|_| "Parsequerade returned an invalid app list.".to_owned())
+    })
+    .collect::&lt;Result&lt;_, _&gt;&gt;()?;</code></pre>
+        <p>The complete <code>list_apps</code> function is 23 lines, down from 63, counting signatures and blank lines in both versions. It still sorts and deduplicates apps. Those 40 lines left the function because a shared reader now handles pages, not because I dropped the rest of the list behavior. The <a href="https://github.com/andrewarrow/DeployerCoaster/compare/b610659da6d19a259e032bbdf90c7e5b39300fd0...0dc2f2a4347bec10335a73b9bd7121abb2cc6d3d">three-commit diff</a> grew overall: connection migration, validation, and tests add code. This is a reduction in what each caller has to understand.</p>
+        <p>The cursor also gives that shared reader less authority. Studio used to receive Apple's next-page URL and check whether it was safe to follow. Now it rebuilds the same facade route and filters, adding the cursor as query data. Even a cursor that looks like a URL stays a parameter; it never becomes the destination for the bearer token.</p>
+        <p>Parsequerade handles Apple's pagination links behind that interface. Its <a href="https://github.com/mainbrella/parsequerade/blob/32f4bb48edbb4d7b998722117422bb431b58be90/worker/pagination.js">pagination code</a> validates the upstream origin and path and restores the original filters if a next link omits them. The facade cursor is signed and bound to the connection, credentials, permissions, route, and query. Changing the filter means starting a new list.</p>
+        <p>There is still a loop in Studio. It checks cancellation, validates returned IDs, rejects repeated cursors, and stops with an error after 100 pages. Responses are capped at 4 MiB. A simpler contract gives me one place to keep those checks.</p>
+
+        <h2 id="authentication">The desktop app stopped signing Apple JWTs</h2>
+        <p>Previously, Studio kept the issuer ID, key ID, and private key as its working credentials. It parsed the PEM, built ES256 headers and claims, read the system clock, set an expiry, and signed an Apple token. The generic transport called that signer for each request.</p>
+        <p>Now setup exchanges the Apple credentials for a connection ID, base URL, and facade bearer key. A resource read uses the saved key:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="The resource transport authenticates with the Parsequerade key"><code>self.http
+    .get(url)
+    .bearer_auth(&amp;self.credentials.api_key)
+    .header(reqwest::header::ACCEPT, "application/json")</code></pre>
+        <p>The JWT claims struct, signer, and <code>jsonwebtoken</code> dependency are gone from Studio. The <a href="https://github.com/mainbrella/parsequerade/blob/32f4bb48edbb4d7b998722117422bb431b58be90/worker/apple.js">service</a> now reuses short-lived Apple tokens, shares concurrent signing work, and can refresh a rejected token once within its read retry budget. It also handles bounded retries for transient Apple failures. The old desktop transport signed and sent; it didn't have that recovery logic.</p>
+        <p>This moves a credential to a server. Hosted Parsequerade stores the Apple private key encrypted, and Studio saves the facade connection instead. The hosted operator can sign Apple requests, while the facade key grants read access to all apps accessible through that Apple key. That trust is part of choosing the hosted service. Parsequerade can be self-hosted, although this Studio migration pins the hosted origin and would need a configuration change to use another deployment.</p>
+        <p>I'm also adding a network hop. Nested reads can require extra Apple requests to prove that a resource belongs to the selected app. These commits don't establish a latency improvement; a smaller client doesn't imply one.</p>
+
+        <h2 id="migration">A created connection still has to be saved</h2>
+        <p>The two commits after the initial migration tightened the <a href="https://github.com/andrewarrow/DeployerCoaster/blob/0dc2f2a4347bec10335a73b9bd7121abb2cc6d3d/studio/src/apple/settings.rs">settings flow</a>. This is where the integration needed more code. Creating a hosted connection and saving its bearer key locally are separate operations, and either can fail.</p>
+        <p>If creation succeeds but the local save fails, Studio keeps the new connection in <code>pending_save</code> and leaves the previous credentials active. “Retry save connection” retries the disk write using the key it already has. It doesn't create another hosted connection just because the disk failed.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/app-store-connect-to-parsequerade/save-retry-mobile.svg" width="440" height="650" />
+            <img src="/images/blog/app-store-connect-to-parsequerade/save-retry.svg" width="840" height="540" alt="Time moves downward across Parsequerade, Studio, and the local settings file. Connection creation succeeds, but saving its key fails. Studio keeps the pending key and retries only the local save. It makes the new connection available to readers after saving succeeds." decoding="async" loading="lazy" />
+          </picture>
+        </figure>
+        <p>Only after persistence succeeds does Studio publish the replacement credentials and clear the issuer ID, key ID, and private key from its settings fields. The old Apple fields are accepted when reading legacy settings, but marked <code>skip_serializing</code>, so subsequent saves omit them. That removes the stored copy in this settings file; it doesn't delete the original <code>.p8</code> download.</p>
+        <p>The last commit also distinguishes credentials loaded from the old file from credentials someone has just typed. A complete legacy key can start one automatic migration attempt per load. Completing the new-key form doesn't start a background connection by itself. A failed migration isn't retried on every UI poll.</p>
+        <p>Errors became more useful too. The facade distinguishes an invalid facade key from Apple rejecting its own connection credentials. Studio maps <code>upstream_authentication_failed</code> to instructions to check the issuer ID, key ID, and private key and reconnect, without displaying the raw upstream message. Loading a saved connection only validates its local shape and trusted base URL; it doesn't prove Apple is reachable. The settings text now says “Saved Parsequerade connection.”</p>
+
+        <h2 id="coverage">Writes and sales are still missing</h2>
+        <p>I don't want to pass off feature removal as an API improvement. The <a href="https://parsequerade.mainbrella.com/docs/conventions/#rollout">current service</a> implements twelve core resource GET routes, plus hosted connection setup and revocation. Its much larger reference includes proposed endpoints with implementation labels.</p>
+        <div class="migration-table" tabindex="0" role="region" aria-label="Studio feature coverage after the Parsequerade migration">
+          <table>
+            <thead><tr><th scope="col">Studio feature</th><th scope="col">After this migration</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">App list and metadata</th><td>Read through Parsequerade</td></tr>
+              <tr><th scope="row">Copy App and Paste</th><td>Disabled; copy workflows and writes aren't implemented</td></tr>
+              <tr><th scope="row">Live sales reports</th><td>Unavailable; report support is still planned</td></tr>
+              <tr><th scope="row">Previously cached sales</th><td>Still readable for the matching account, vendor, and period</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The <code>flate2</code> dependency disappeared too, because Studio no longer downloads and decompresses live sales reports. I wouldn't count that as a win for Parsequerade's report handling: there is no replacement report adapter yet. The TSV parser remains for cached reports, and a cache miss reports that live sales are unavailable.</p>
+        <p>For the reads it supports, the facade has made the client much nicer to work on. Studio still chooses the iOS version to display, prefers editable metadata, and selects English localizations with <code>en-US</code> first. Those decisions stay in <code>preferred()</code> and <code>english()</code>. Parsequerade requires an explicit version ID, so it doesn't add a competing guess about which release I meant.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>
