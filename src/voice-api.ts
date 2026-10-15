@@ -27,6 +27,17 @@ export interface VoiceConfig {
   models: { stt: string; llm: string; tts: string };
 }
 
+export interface VoiceNumberSearchInput {
+  country: 'US' | 'CA'; query: string; areaCode?: string;
+  match: 'ends_with' | 'contains' | 'starts_with'; type: 'local' | 'toll-free';
+  locality?: string; region?: string; includeSimilar: boolean; limit: number;
+}
+export interface VoiceNumberSearchResult {
+  search: Omit<VoiceNumberSearchInput, 'includeSimilar'> & { includeSimilar: 'true' | 'false'; digits: string };
+  numbers: Array<{ phoneNumber: string; location: string; exactMatch: boolean;
+    cost: { monthly: string | null; upfront: string | null; currency: string } | null }>;
+}
+
 export class VoiceAPIError extends Error {
   constructor(public readonly status: number, public readonly code: string) {
     const messages: Record<string, string> = {
@@ -45,6 +56,10 @@ export class VoiceAPIError extends Error {
       spend_limit_exceeded: 'Your spending limit has been reached. Update it to continue calling.',
       voice_billing_unavailable: 'Voice billing is temporarily unavailable. Please try again.',
       call_ended: 'This call has ended. Start a new test to continue.',
+      invalid_number_search: 'Check the search filters. Use up to 10 letters or digits, or 7 when specifying an area code.',
+      number_search_rejected: 'These filters could not be searched. Try another area code or a shorter word.',
+      number_search_rate_limited: 'Too many searches. Wait a minute and try again.',
+      number_search_unavailable: 'Number search is temporarily unavailable. Please try again.',
     };
     super(messages[code] ?? (status === 401 ? messages.not_authenticated : status === 429 ? messages.rate_limited
       : status >= 500 ? 'Voice is temporarily unavailable. Please try again.' : 'The request could not be completed. Please try again.'));
@@ -53,15 +68,16 @@ export class VoiceAPIError extends Error {
 }
 
 export function createVoiceAPI(origin: string, fetcher: typeof fetch = fetch) {
-  async function request<T>(path: string, method = 'GET', body?: unknown, keepalive = false): Promise<T> {
+  async function request<T>(path: string, method = 'GET', body?: unknown, keepalive = false, signal?: AbortSignal): Promise<T> {
     let response: Response;
     try {
       response = await fetcher(`${origin}/voice${path}`, {
-        method, credentials: 'include', keepalive,
+        method, credentials: 'include', keepalive, signal,
         headers: { accept: 'application/json', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
-    } catch {
+    } catch (error) {
+      if (signal?.aborted) throw error;
       throw new Error('Could not reach Voice. Check your connection and try again.');
     }
     const data = await response.json().catch(() => null);
@@ -78,6 +94,11 @@ export function createVoiceAPI(origin: string, fetcher: typeof fetch = fetch) {
     call: (id: string) => request<{ call: VoiceCall }>(`/calls/${encodeURIComponent(id)}`),
     start: (channel: 'browser' | 'text') => request<{ call: VoiceCall; websocketUrl: string }>('/calls', 'POST', { channel }),
     end: (id: string, keepalive = false) => request<{ call: VoiceCall }>(`/calls/${encodeURIComponent(id)}/end`, 'POST', {}, keepalive),
+    searchNumbers: (input: VoiceNumberSearchInput, signal?: AbortSignal) => {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(input)) if (value !== undefined && value !== '') query.set(key, String(value));
+      return request<VoiceNumberSearchResult>(`/numbers/search?${query}`, 'GET', undefined, false, signal);
+    },
   };
 }
 

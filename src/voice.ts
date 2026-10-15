@@ -3,6 +3,7 @@ import { API_ORIGIN, createAuthClient } from './auth.ts';
 import { createVoiceAPI, VoiceAPIError, callDuration, channelLabel, voiceSocketURL,
   type Receptionist, type VoiceCall, type VoiceConfig, type VoiceMessage } from './voice-api.ts';
 import { CallTransport } from './voice-transport.ts';
+import { initializeNumberSearch } from './voice-number-search.ts';
 
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const main = element('main');
@@ -59,6 +60,8 @@ let startedAt = 0;
 let clock: ReturnType<typeof setInterval> | undefined;
 let connectAbort: AbortController | null = null;
 let selectedMode: 'browser' | 'text' = 'browser';
+const disposeNumberSearch = initializeNumberSearch(api, { isDisposed: () => disposed,
+  onAuthError: caught => showError(error, caught, 'Sign in again to search numbers.') });
 
 function draft(): Omit<Receptionist, 'id' | 'updatedAt'> {
   return { name: agentName.value.trim(), businessName: business.value.trim(), greeting: greeting.value.trim(),
@@ -459,8 +462,9 @@ async function viewCall(call: VoiceCall) {
 }
 
 function selectTab(value: string) {
-  const tab = ['agent', 'calls', 'phone'].includes(value) ? value : 'agent';
-  ['agent', 'calls', 'phone'].forEach(name => {
+  const sections = ['agent', 'calls', 'phone', 'numbers'];
+  const tab = sections.includes(value) ? value : 'agent';
+  sections.forEach(name => {
     const button = element(`tab-${name}`);
     button.setAttribute('aria-selected', String(name === tab));
     button.tabIndex = name === tab ? 0 : -1;
@@ -503,6 +507,7 @@ window.addEventListener('beforeunload', event => {
   if (!disposed && (!content.hidden && isDirty() || activeCall !== null)) { event.preventDefault(); event.returnValue = ''; }
 });
 window.addEventListener('pagehide', () => {
+  disposeNumberSearch();
   disposed = true;
   const call = activeCall;
   activeCall = null;
@@ -512,6 +517,7 @@ window.addEventListener('pagehide', () => {
 window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
 window.addEventListener('auth-change', event => {
   if (event.detail?.user !== null) return;
+  disposeNumberSearch();
   content.hidden = true;
   signIn.hidden = false;
   disposed = true;
