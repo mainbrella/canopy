@@ -41,7 +41,7 @@
         <figure class="article-figure">
           <picture>
             <source media="(max-width: 600px)" srcset="/images/blog/automate-your-call-center/receptionist-mobile.webp" width="700" height="1482" />
-            <img src="/images/blog/automate-your-call-center/receptionist-desktop.webp" width="1440" height="1100" alt="Mainbrella's receptionist settings with sample Cedar Bicycle Repair details, an AI greeting, business instructions, and a browser test panel ready to start. No call is in progress." decoding="async" fetchpriority="high" />
+            <img src="/images/blog/automate-your-call-center/receptionist-desktop.webp" width="1440" height="1100" alt="Mainbrella's receptionist settings for sample business Cedar Bicycle Repair: Sam's AI greeting, hours and repair services, callback instructions, and the Luna voice." decoding="async" fetchpriority="high" />
           </picture>
         </figure>
 
@@ -50,7 +50,7 @@
 
         <h2 id="call-path">From a ringing phone to a spoken answer</h2>
         <p>A browser call goes over a WebSocket to a <a href="https://github.com/mainbrella/backend/blob/fc4b546e55c73573a1135b96baf2869442b01749/worker/durable-objects/receptionist-call.ts">Durable Object created for that call</a>. That's Cloudflare's application runtime with its own identity and persistent state. Each caller gets a separate conversation history. The shop's receptionist is shared configuration; the conversation belongs to the individual call.</p>
-        <p>Inside that conversation, Deepgram Flux transcribes incoming speech, Llama 3.3 70B generates the reply, and Deepgram Aura-1 turns the reply into audio. All three are invoked through Workers AI. You don't need to rent a GPU or run a separate speech server. The diagram shows where those components run; Twilio remains the external phone carrier.</p>
+        <p>Inside that conversation, Deepgram Flux transcribes incoming speech, Llama 3.3 70B generates the reply, and Deepgram Aura-1 turns the reply into audio. The call agent invokes all three through Workers AI; the arrows below follow the data through that sequence. You don't need to rent a GPU or run a separate speech server. Twilio remains the external phone carrier.</p>
 
         <figure class="article-figure">
           <picture>
@@ -59,12 +59,12 @@
           </picture>
         </figure>
 
-        <p>The phone route has an extra, decidedly unglamorous job. Twilio sends 8 kHz μ-law audio; the voice pipeline uses 16 kHz PCM. Our <a href="https://github.com/mainbrella/backend/blob/fc4b546e55c73573a1135b96baf2869442b01749/worker/lib/voice-telephony.ts">audio bridge</a> converts between them in both directions. It also forwards a playback interruption as a Twilio <code>clear</code> message, so buffered speech can stop when the caller interrupts. A nice LLM response doesn't help much if the phone keeps playing the previous one.</p>
+        <p>The phone route has an extra, decidedly unglamorous job. Twilio sends 8 kHz μ-law audio; the voice pipeline uses 16 kHz PCM. Our <a href="https://github.com/mainbrella/backend/blob/fc4b546e55c73573a1135b96baf2869442b01749/worker/app/voice-twilio.ts">phone bridge</a> converts between them in both directions. It also forwards a playback interruption as a Twilio <code>clear</code> message, so buffered speech can stop when the caller interrupts. A nice LLM response doesn't help much if the phone keeps playing the previous one.</p>
         <p>Call transcripts go to D1, Cloudflare's SQL database, along with the call's status and timing. We don't save raw audio recordings. The temporary per-call state is scheduled for cleanup after the call ends, while the D1 transcript stays in account history. There's no transcript deletion control yet, so a private deployment needs its own retention policy.</p>
         <p>The defaults allow three active calls per account and 100 starts in a rolling day, with a 15-minute or 60-turn limit per call. Those are application limits in the source. Raising a number is easy; qualifying the resulting workload is another job. The automated voice tests use simulated model responses and phone media, so they don't establish live call quality, latency, or large-scale capacity.</p>
 
         <h2 id="cost">What the $5 plan buys</h2>
-        <p>The useful comparison is the bill you take responsibility for. With your own deployment, Cloudflare runs the application and inference, your carrier connects phone calls, and you operate the service. Mainbrella doesn't charge a software license fee for that copy.</p>
+        <p>With your own deployment, Cloudflare runs the application and inference, your carrier connects phone calls, and you operate the service. Mainbrella doesn't charge a software license fee for that copy.</p>
         <p>These are the published Cloudflare rates on October 15, 2026, before free allocations. Inference rates come from <a href="https://developers.cloudflare.com/workers-ai/platform/pricing/">Workers AI's pricing table</a>; the base subscription comes from <a href="https://developers.cloudflare.com/workers/platform/pricing/">Workers pricing</a>.</p>
 
         <div class="voice-cost-table" tabindex="0" role="region" aria-label="Cloudflare base plan and voice model rates">
@@ -84,7 +84,7 @@
         <p><a href="https://www.bland.ai/pricing">Bland's current pricing page</a> lists its Start plan at $0.14 per minute with no platform fee, and Build at $299 a month plus $0.12 per minute. It says those rates include the language model, transcription, and speech generation, with telephony billed separately. A $5 base subscription and an inclusive AI-minute rate measure different things; there's no honest savings percentage without a workload. Self-hosting lets you pay the component costs directly and choose how much operating work to take on.</p>
 
         <h2 id="self-hosting">Running your own copy</h2>
-        <p>Start with the <a href="https://github.com/mainbrella/backend#ai-receptionist">backend's receptionist setup</a> and the <a href="https://github.com/mainbrella/web#development">web repository</a>. These are the same application repositories we work in, with account, authentication, and billing code alongside voice. Setting up a private deployment takes configuration; the production Wrangler files contain our domains, bindings, and resource IDs.</p>
+        <p>Start with the <a href="https://github.com/mainbrella/backend#ai-receptionist">backend's receptionist setup</a> and the <a href="https://github.com/mainbrella/web">web repository</a>. These are the same application repositories we work in, with account, authentication, and billing code alongside voice. Setting up a private deployment takes configuration; the production Wrangler files contain our domains, bindings, and resource IDs.</p>
         <ol class="voice-setup-steps">
           <li>Provision your own Cloudflare resources and apply the backend migrations. Voice uses the AI binding, D1, and the SQLite-backed <code>RECEPTIONIST_CALL</code> Durable Object. Keep the account and wallet bindings required by your checkout.</li>
           <li>Configure authentication, trusted origins, and the frontend's <code>VITE_API_URL</code> for your deployment. The current voice code checks the prepaid wallet before starting calls, so configure funding in your instance or adapt that policy for private use.</li>
