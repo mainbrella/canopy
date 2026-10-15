@@ -48,6 +48,7 @@
 .voice-hint { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .voice-field .voice-hint { margin-top: 6px; }
 .voice-voice-field { max-width: 280px; }
+.voice-logic-field { max-width: 360px; }
 .voice-save-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
 .voice-test { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .voice-test-heading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; }

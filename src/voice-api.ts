@@ -5,9 +5,12 @@ export interface Receptionist {
   greeting: string;
   instructions: string;
   voice: 'asteria' | 'luna' | 'athena';
+  voiceLogic?: VoiceLogic;
   transferNumber: string | null;
   updatedAt: string;
 }
+
+export type VoiceLogic = 'original_no_reply' | 'reply_right_away';
 
 export interface VoiceMessage { role: 'user' | 'assistant'; text: string }
 export interface VoiceCall {
@@ -89,7 +92,7 @@ export function createVoiceAPI(origin: string, fetcher: typeof fetch = fetch) {
   return {
     config: () => request<VoiceConfig>('/config'),
     agent: () => request<{ agent: Receptionist | null }>('/agent'),
-    saveAgent: (agent: Omit<Receptionist, 'id' | 'updatedAt'>) => request<{ agent: Receptionist }>('/agent', 'PUT', agent),
+    saveAgent: (agent: Omit<Receptionist, 'id' | 'updatedAt'> & { voiceLogic: VoiceLogic }) => request<{ agent: Receptionist }>('/agent', 'PUT', agent),
     calls: () => request<{ calls: VoiceCall[] }>('/calls'),
     call: (id: string) => request<{ call: VoiceCall }>(`/calls/${encodeURIComponent(id)}`),
     start: (channel: 'browser' | 'text') => request<{ call: VoiceCall; websocketUrl: string }>('/calls', 'POST', { channel }),

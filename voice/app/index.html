@@ -73,6 +73,14 @@ Never invent opening hours, prices, availability, or account information. Do not
                     <option value="athena">Athena · English</option>
                   </select>
                 </div>
+                <div class="voice-field voice-logic-field">
+                  <label for="voice-logic">Voice logic</label>
+                  <select id="voice-logic" name="voiceLogic" aria-describedby="voice-logic-hint">
+                    <option value="original_no_reply">original_no_reply (Default)</option>
+                    <option value="reply_right_away">reply_right_away (Experimental)</option>
+                  </select>
+                  <p id="voice-logic-hint" class="voice-hint">Reply right away says “1 sec” when the caller finishes, then gives the normal reply.</p>
+                </div>
                 <div class="voice-save-row">
                   <button id="voice-save" class="button button-small" type="submit">Save receptionist</button>
                   <p id="voice-save-status" class="voice-hint" role="status"></p>

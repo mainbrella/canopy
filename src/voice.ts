@@ -1,7 +1,7 @@
 import type { VoiceClient, VoicePipelineMetrics } from '@cloudflare/voice/client';
 import { API_ORIGIN, createAuthClient } from './auth.ts';
 import { createVoiceAPI, VoiceAPIError, callDuration, channelLabel, voiceSocketURL,
-  type Receptionist, type VoiceCall, type VoiceConfig, type VoiceMessage } from './voice-api.ts';
+  type Receptionist, type VoiceCall, type VoiceConfig, type VoiceLogic, type VoiceMessage } from './voice-api.ts';
 import { CallTransport } from './voice-transport.ts';
 import { initializeNumberSearch } from './voice-number-search.ts';
 
@@ -21,6 +21,7 @@ const business = element<HTMLInputElement>('voice-business');
 const greeting = element<HTMLTextAreaElement>('voice-greeting');
 const instructions = element<HTMLTextAreaElement>('voice-instructions');
 const speaker = element<HTMLSelectElement>('voice-speaker');
+const voiceLogic = element<HTMLSelectElement>('voice-logic');
 const mode = element<HTMLFieldSetElement>('voice-test-mode');
 const start = element<HTMLButtonElement>('voice-start');
 const mute = element<HTMLButtonElement>('voice-mute');
@@ -63,9 +64,10 @@ let selectedMode: 'browser' | 'text' = 'browser';
 const disposeNumberSearch = initializeNumberSearch(api, { isDisposed: () => disposed,
   onAuthError: caught => showError(error, caught, 'Sign in again to search numbers.') });
 
-function draft(): Omit<Receptionist, 'id' | 'updatedAt'> {
+function draft(): Omit<Receptionist, 'id' | 'updatedAt' | 'voiceLogic'> & { voiceLogic: VoiceLogic } {
   return { name: agentName.value.trim(), businessName: business.value.trim(), greeting: greeting.value.trim(),
-    instructions: instructions.value.trim(), voice: speaker.value as Receptionist['voice'], transferNumber: null };
+    instructions: instructions.value.trim(), voice: speaker.value as Receptionist['voice'],
+    voiceLogic: voiceLogic.value as VoiceLogic, transferNumber: null };
 }
 
 function isDirty() { return JSON.stringify(draft()) !== savedValue; }
@@ -171,8 +173,12 @@ async function load() {
       greeting.value = agent.greeting;
       instructions.value = agent.instructions;
       speaker.value = agent.voice;
+      voiceLogic.value = agent.voiceLogic === 'reply_right_away' ? 'reply_right_away' : 'original_no_reply';
       savedValue = JSON.stringify(draft());
-    } else savedValue = JSON.stringify(draft());
+    } else {
+      voiceLogic.value = 'original_no_reply';
+      savedValue = JSON.stringify(draft());
+    }
     content.hidden = false;
     signIn.hidden = true;
     renderPhone();

@@ -8,7 +8,8 @@ test('voice mutations use the signed-in session and send only the requested sett
     sent.push({ url: String(url), options: options! });
     return Response.json({ agent: { id: 'agent-1' } });
   }) as typeof fetch);
-  const settings = { name: 'Receptionist', businessName: 'A & B', greeting: 'Hello', instructions: 'Ask about the visit.', voice: 'luna' as const, transferNumber: null };
+  const settings = { name: 'Receptionist', businessName: 'A & B', greeting: 'Hello', instructions: 'Ask about the visit.', voice: 'luna' as const,
+    voiceLogic: 'reply_right_away' as const, transferNumber: null };
   await api.saveAgent(settings);
   assert.equal(sent[0].url, 'https://api.example.com/voice/agent');
   assert.equal(sent[0].options.method, 'PUT');
