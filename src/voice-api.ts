@@ -41,6 +41,9 @@ export class VoiceAPIError extends Error {
       call_limit: 'You have reached the active call limit. End a call before starting another.',
       voice_call_limit: 'Your call limit has been reached. End an active call or try again later.',
       rate_limited: 'Too many requests. Wait a moment and try again.',
+      insufficient_balance: 'Your credits have run out. Add funds to continue calling.',
+      spend_limit_exceeded: 'Your spending limit has been reached. Update it to continue calling.',
+      voice_billing_unavailable: 'Voice billing is temporarily unavailable. Please try again.',
       call_ended: 'This call has ended. Start a new test to continue.',
     };
     super(messages[code] ?? (status === 401 ? messages.not_authenticated : status === 429 ? messages.rate_limited

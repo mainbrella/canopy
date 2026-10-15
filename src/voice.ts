@@ -235,6 +235,13 @@ function waitForConnection(current: VoiceClient, signal: AbortSignal): Promise<v
   });
 }
 
+const billingMessages = [
+  'Your credits have run out. Add funds to continue.',
+  'Your spending limit has been reached.',
+  'Voice billing is unavailable. The call has ended.',
+  'Calling stopped because account credits or billing are unavailable.',
+];
+
 async function beginCall(): Promise<VoiceClient | null> {
   if (starting || ending || !agent || disposed) return null;
   starting = true;
@@ -281,12 +288,12 @@ async function beginCall(): Promise<VoiceClient | null> {
     current.addEventListener('error', message => {
       if (!message || client !== current || disposed || starting || ending) return;
       turnPending = false;
-      showError(testError, new Error('The call encountered a problem. End this test and try again.'), 'The call encountered a problem.');
+      showError(testError, new Error(billingMessages.includes(message) ? message : 'The call encountered a problem. End this test and try again.'), 'The call encountered a problem.');
       controls();
     });
     current.addEventListener('connectionchange', connected => {
       if (connected || client !== current || starting || ending || disposed) return;
-      showError(testError, new Error('The call disconnected. You can start a new test.'), 'The call disconnected.');
+      if (testError.hidden) showError(testError, new Error('The call disconnected. You can start a new test.'), 'The call disconnected.');
       void finishCall();
     });
     await waitForConnection(current, controller.signal);
@@ -306,7 +313,8 @@ async function beginCall(): Promise<VoiceClient | null> {
     duration.textContent = '0:00';
     return current;
   } catch (caught) {
-    const cause = caught instanceof DOMException && caught.name === 'NotAllowedError'
+    const cause = client?.error && billingMessages.includes(client.error) ? new Error(client.error)
+      : caught instanceof DOMException && caught.name === 'NotAllowedError'
       ? new Error('Microphone access was denied. Allow microphone access in your browser, or try a text test.')
       : caught instanceof DOMException && caught.name === 'NotFoundError'
         ? new Error('No microphone was found. Connect one, or try a text test.') : caught;

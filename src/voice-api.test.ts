@@ -19,7 +19,8 @@ test('voice mutations use the signed-in session and send only the requested sett
 
 test('voice requests preserve authentication failures and hide unknown server errors', async () => {
   for (const [status, code, expected] of [[401, 'not_authenticated', /session has expired/], [429, 'voice_call_limit', /call limit/],
-    [503, 'internal_stack_trace_with_sensitive_details', /temporarily unavailable/]] as const) {
+    [402, 'insufficient_balance', /credits have run out/], [402, 'spend_limit_exceeded', /spending limit/],
+    [503, 'voice_billing_unavailable', /billing is temporarily unavailable/], [503, 'internal_stack_trace_with_sensitive_details', /temporarily unavailable/]] as const) {
     const api = createVoiceAPI('https://api.example.com', (async () => Response.json({ error: code }, { status })) as typeof fetch);
     await assert.rejects(api.calls(), caught => caught instanceof VoiceAPIError && caught.status === status && expected.test(caught.message));
   }
