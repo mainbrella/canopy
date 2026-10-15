@@ -75,6 +75,14 @@ links to the dashboard. The authenticated dashboard reads `/billing/balance` and
 shows prepaid funding alongside workloads. Failed status requests
 show an error with retry rather than reporting a zero balance.
 
+**Voice** at `/voice/` saves one AI receptionist per account and supports browser
+voice tests, text tests, call transcripts, and an incoming Twilio webhook. Tests
+use the saved settings; editing during a call affects subsequent calls. Calling
+uses the session-authenticated `/voice` API and Cloudflare's voice client, loaded
+only when a test starts. Apply backend migration `043_voice_receptionist.sql`
+before use. See [the receptionist setup instructions](../backend/README.md#ai-receptionist)
+for Workers AI, phone configuration, limits, and current integration scope.
+
 **Build** at `/build/` connects to the session-authenticated
 `/build` API. Existing `/dashboard/?view=build` bookmarks redirect to `/build/`,
 preserving app IDs, other query parameters, and fragments. Describe a frontend

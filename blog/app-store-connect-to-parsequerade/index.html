@@ -113,6 +113,7 @@ let mut apps: Vec&lt;AppleApp&gt; = values
         </div>
         <p>The <code>flate2</code> dependency disappeared too, because Studio no longer downloads and decompresses live sales reports. I wouldn't count that as a win for Parsequerade's report handling: there is no replacement report adapter yet. The TSV parser remains for cached reports, and a cache miss reports that live sales are unavailable.</p>
         <p>For the reads it supports, the facade has made the client much nicer to work on. Studio still chooses the iOS version to display, prefers editable metadata, and selects English localizations with <code>en-US</code> first. Those decisions stay in <code>preferred()</code> and <code>english()</code>. Parsequerade requires an explicit version ID, so it doesn't add a competing guess about which release I meant.</p>
+        <p>The migration gives Studio less of Apple's API to carry around and leaves more of its code concerned with what to show me about my apps. Parsequerade takes on the response formats, upstream pagination, and signing, along with the responsibility of holding the Apple key. That has worked well for metadata reads, but copy/paste and live sales still need to come back before this is a complete replacement. The next test is whether writes and reports can fit that same interface without pushing Apple's API details back into Studio.</p>
       </article>
     </main>
     <!-- site-footer -->
