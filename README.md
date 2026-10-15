@@ -75,7 +75,12 @@ links to the dashboard. The authenticated dashboard reads `/billing/balance` and
 shows prepaid funding alongside workloads. Failed status requests
 show an error with retry rather than reporting a zero balance.
 
-**Voice** at `/voice/` saves one AI receptionist per account and supports browser
+**Voice** at `/voice/` is the public voice-agent landing page, with the live demo
+at WE-MAIN-1010 (+1-936-246-1010), an illustrative self-hosted cost breakdown,
+and a Bland comparison sourced and dated on the page. The monthly calculator uses
+the unrounded $0.0853 per three-minute call; this is not hosted Mainbrella pricing.
+
+The **Voice workspace** at `/voice/app/` saves one AI receptionist per account and supports browser
 voice tests, text tests, call transcripts, and an incoming Twilio webhook. Tests
 use the saved settings; editing during a call affects subsequent calls. Calling
 uses the session-authenticated `/voice` API and Cloudflare's voice client, loaded
