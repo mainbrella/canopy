@@ -1,165 +1,267 @@
 # Canopy working notes
 
+Handoff updated **2026-10-16**, after reviewing commits `038501a` through
+`604eb12` (`installed`). This is the current implementation handoff; older
+milestone prose in README, STAGING, and Voice installation docs has not yet been
+reconciled with `604eb12`. Follow actual code and the distinctions below.
+
 ## Scope and working rules
 
-- Canopy is a gradual restart of the Mainbrella platform. Move one small,
-  independently verifiable slice at a time.
+- Canopy is a gradual restart of Mainbrella. Move in small, independently
+  verifiable slices; preserve unrelated changes in a dirty worktree.
 - **Write only inside this repository. All sibling directories are read-only**,
-  including `../web`, `../backend`, `../raindrop`, and `../ai-receptionist`.
-  Do not run sibling install, build, test, migration, or deployment commands;
-  those can write generated files or change state. Inspect their source instead.
+  including `../web`, `../backend`, `../raindrop`, `../ai-receptionist`, and
+  `../appflare`. Inspect their source; do not run sibling install, build, test,
+  migration, or deployment commands, which can change files or live state.
 - Existing sibling deployments and customer data remain authoritative. Work here
   does not authorize changing their Workers, databases, OAuth configuration,
   domains, wallets, or other live resources.
-- Inspect current code and Git status before editing. Preserve unrelated changes.
-  Prefer the smallest coherent change and the existing TypeScript/npm/Vite/Worker
-  patterns. Add dependencies only for a concrete need.
-- Keep builds and tests self-contained. No runtime imports or dependency links
+- Inspect code and Git status before editing. Prefer the existing TypeScript,
+  npm, Vite, and Worker patterns. Add dependencies only for a concrete need.
+- Keep builds/tests self-contained with no runtime imports or dependency links
   into sibling repositories. Record copied/adapted source in
-  [migration-sources.json](migration-sources.json), including its actual source
+  [migration-sources.json](migration-sources.json), including actual source
   revision, file hash, destination, and intentional differences.
-- Use compact, accessible product UI: ordinary headings, labeled forms, account
-  rows, useful feedback, and readable spacing. Avoid heroes, decorative cards,
-  marketing copy, and extra controls. Preserve keyboard access and responsive
-  behavior at 390×844, 768×1024, 1280×800, and 1440×900.
-- Validate the affected behavior and report results and limitations. Documentation
-  changes do not require rerunning application tests. Update these handoff notes
-  when a milestone is completed or its scope changes.
+- Use compact, accessible product UI: ordinary headings, labeled forms, rows,
+  useful feedback, and readable spacing. Avoid heroes, decorative cards, and
+  extra controls. Preserve keyboard access and responsive behavior at 390×844,
+  768×1024, 1280×800, and 1440×900.
+- Validate affected behavior and report evidence and limitations. Documentation
+  changes do not require application tests. Update the handoff when scope or
+  implementation changes; do not equate mocks, builds, or commits with deployment.
 
-## Where work stopped
+## Product goal and architectural boundary
 
-Handoff updated **2026-10-16**, with Voice extraction in the working tree after
-commit `3d09706e`. Completed milestones:
+The user wants this repository to support both the comprehensive Mainbrella
+business with all its apps and a hobby operator running core with zero products,
+one product, or a selected set in their own Cloudflare account. Operators must
+also be able to install Appflare apps as products. Products maintained here must
+remain self-contained apps that can themselves be distributed through Appflare.
 
-| Milestone | Commit | Status |
-| --- | --- | --- |
-| Local email/password accounts, sessions, shared contracts/client | `94f620c` | Implemented and locally verified |
-| Optional Google browser sign-in | `922cf30` | Implemented and automatically tested; real provider verification pending |
-| Isolated email/password staging | `394eeb5` | Deployed and verified; deployment record in `STAGING.md` |
-| Dark console theme | `570ffa6` | Deployed to staging and hosted smoke verified; see `STAGING.md` |
-| Product shell, catalog placeholders, account menu | `61180e1` | Deployed to staging and hosted smoke verified; see `STAGING.md` |
-| Fast frontend-only staging deployment command | `2f5956e` | Implemented; staging build and dry run verified |
-| Standalone Voice product extraction | Working tree | Implemented and locally verified; no deployment or console installation |
+Preserve the product separation already established:
 
-**Next implementation milestone: install and open Voice from the Canopy console.**
-Voice's runtime, UI, owner adapter, and independent build/export now exist in
-`products/voice`. No console installation API, persistent installation state,
-provisioning flow, or account handoff exists yet. The console catalog is still
-presentation only. Real Google verification remains pending but does not block
-this next milestone; email/password is available.
-This sequencing supersedes the older next-checkpoint paragraph in the README;
-the README's broader product architecture remains a plan, not completed work.
+- Each product owns its runtime, UI, data, migrations, bindings, and reproducible
+  build/install artifact. It must not require unrelated Mainbrella products or
+  the hosted Mainbrella deployment to function independently.
+- Core owns installation records, identity, permissions, and optional shared
+  services such as billing. Products use explicit authenticated interfaces to
+  those services, not direct access to core tables or wallet storage.
+- Keep standalone and platform-connected behavior as explicit adapters/modes of
+  the same product implementation. Do not fork a second Voice engine.
+- Distinguish catalog visibility, actual installation/readiness, and permission
+  to use a product. Visibility settings are not lifecycle or authorization controls.
+  Operator provisioning authority is separate from customer/product access.
+- Support explicit owner-funded and managed billing policies. In owner-funded
+  mode the operator pays Cloudflare/providers directly and controls access/limits.
+  Managed mode requires usage authorization and metering; unavailable billing
+  authorization must not silently allow free usage. No billing adapter exists yet.
+- Third-party Appflare apps can be installed, registered, and opened without
+  pretending they automatically support Mainbrella login or billing. Record those
+  as supported capabilities only when an integration actually exists.
+- Reuse a supported Appflare install path rather than creating another general
+  marketplace. Declare real product dependencies or supported bundles explicitly.
+  A root workspace install/build may include source dependencies for many apps;
+  that does not require deploying or running all of them.
 
-Last implementation handoff: **2026-10-16**. The first account milestone is in
-commit `94f620c` (`first brella under`). The **Google browser sign-in milestone is
-complete** in commit `922cf30` (`google`), including the optional console control,
-shared client, Worker verification, identity-conflict protection, and automated
-regressions. Real Google login remains an outstanding verification checkpoint.
-The isolated **email/password staging milestone is also deployed and verified**
-on 2026-10-16 at `https://stg.mainbrella.com`, using
-`https://api-stg.mainbrella.com`. See [STAGING.md](STAGING.md) for the deployment
-record, repeatable commands, verification, and teardown.
-The [README](README.md) contains setup instructions, the inspected source
-inventory, and the broader migration plan; distinguish that plan from working code.
+## Current implementation
 
-Console appearance updated on **2026-10-16**: dark theme for sign-in and account
-views, native controls, focus/error states, and the optional Google button.
-Layout and authentication behavior are unchanged. Type checks, local/staging
-console builds, and all 14 local browser tests passed; screenshots were inspected
-across the four target viewport sizes and palette contrast checked. Google UI
-checks still use the stub SDK. This theme is now deployed to staging, with a
-hosted email/session smoke result recorded below and in `STAGING.md`.
-
-Console shell added on **2026-10-16** as the first slice toward a reference
-Mainbrella deployment in an operator's own Cloudflare account. The home lists
-Compute, Builder, and Voice as **Not installed**, with honest placeholder pages,
-a shared Mainbrella header/footer, and a keyboard-accessible account dropdown.
-Public build-time settings in `platform/console/src/console-config.ts` control
-the instance name and catalog visibility. These settings do not provision,
-authorize, disable, or uninstall services. The Appflare catalog is an external
-link only; runtime lifecycle controls and Appflare integration remain deferred.
-Fragment routes preserve the existing static Worker configuration. The shell
-adapts only the old web brand/chrome/disclosure patterns, with provenance in
-`migration-sources.json`. All sibling checkouts remained read-only.
-
-Verification: `npm run check` (23 auth/client tests), `npm run build:staging`, and
-21 local browser tests passed. New checks cover product navigation/reload/history,
-hidden products and an empty catalog, session-service failure, account-menu
-keyboard/outside-click/focus dismissal, and the four target viewport sizes.
-Screenshots were inspected. Google UI checks still use a stub SDK. The hosted
-smoke script follows the new product home and account dropdown and passed against
-the deployed shell on **2026-10-16**. The operator's redeploy from checkout
-`cfb462a7` activated API version `9e9afc94-6f43-45cc-aee2-7fc3efeea59e` and
-console version `1143a1a7-0c6c-4ffc-b45c-b628f8df50e8`; D1 had no pending
-migrations. The deployment log passed all checks and 87 account/client/Voice
-tests. The hosted smoke covered signup, login, reload, logout/revocation, errors,
-cookies, CORS, disabled Google and all four viewports without script errors.
-The smoke script now waits for account details after reload before screenshots.
-See `STAGING.md` for the read-only deployment evidence and production baseline
-comparison. Voice was not deployed and console installation remains unfinished.
-
-Implemented:
-
-| Location | Responsibility |
+| Area | Implemented state at `604eb12` |
 | --- | --- |
-| `platform/accounts/` | Local Cloudflare Worker, email/password and Google browser signup/sign-in, shared sessions/logout, and identity SQL migrations |
-| `platform/console/` | Dark Vite/TypeScript product shell, configurable public catalog, account dropdown, email form, optional Google control with loading/retry, and read-only account details |
-| `packages/contracts/` | Public user/session types and runtime response validation |
-| `packages/platform-client/` | Shared credentialed auth client with injectable fetch and no browser globals |
-| `products/voice/` | Self-contained Voice Worker/UI, single-owner auth, D1/DO lifecycle, speech/telephony, transcript history and independent source export |
-| `scripts/` | Local stack startup/cleanup, restricted Wrangler commands, staging deployment and hosted smoke test |
-| `.github/workflows/ci.yml` | Clean install, type checks, auth tests, local/staging builds, and browser checks; no deployment |
+| Core | Email/password accounts, optional Google browser sign-in, sessions/logout, dark console, account menu and configurable catalog. `npm run dev` starts accounts and console only: zero-product runtime works locally. |
+| Voice extraction | Committed in `038501a`, with test/export fixes in `cfb462a` and `33ee0c1`. Product-local Worker/UI, D1, Durable Objects, owner authentication, browser/text calls, standalone telephony, history and independent source export. |
+| Voice connection | `604eb12` adds installation inventory, CLI provisioning, status/readiness, console Open, one-time login handoff, per-user workspaces, and platform session revocation checks. These are implemented and locally tested, not a completed live installation milestone. |
+| Missing installation flow | No console Install action or server-side installation-start API. The provisioner is a separate operator CLI. General product registration and Appflare integration are absent. |
+| Other products | Compute and Builder are catalog placeholders. Running all Mainbrella apps is a goal, not current capability. |
+| Shared services | Identity integration exists for Voice. Product entitlements and billing integration do not. |
 
-Current API: `POST /auth/email`, `POST /auth/google`, `GET /auth/me`, and
-`POST /auth/logout`.
-An unused email creates a new local account; an existing email authenticates it.
-Session responses retain the backend's `id`, `email`, `name`, `dob`, and
-`created_at` fields. Preserve the existing scrypt parameters, password checks,
-concurrent-signup behavior, hashed session tokens, and 30-day lifetime.
+Key entry points:
 
-Important boundaries and implementation notes:
+- `platform/accounts/src/products.ts`: `GET /products/voice`,
+  `POST /products/voice/open`, and secret-authenticated
+  `POST /internal/voice/session`.
+- `platform/accounts/migrations/013_product_installations.sql`: persisted
+  installation/version/resource inventory and lease fields. It currently enforces
+  `CHECK (product = 'voice')`; it is not a general product registry.
+- `platform/console/src/voice-product.ts`: real status, retry/check, and Open UI.
+  `console-config.ts` controls discovery only; Appflare is still an external link.
+- `scripts/install-voice.mjs`: direct Cloudflare/Wrangler installer; private retry
+  state and inventory live under ignored `.cache/voice-installs/`. Preserve that
+  state; an existing installation cannot currently be resumed from a fresh clone
+  without its private operator state.
+- `products/voice/worker/app/canopy.ts` and `auth-core.ts`: explicit
+  `VOICE_AUTH_MODE=canopy`, hashed single-use handoffs, product-local sessions,
+  and platform session validation. Standalone owner/password mode remains available.
 
-- Local and staging accounts are separate from production Mainbrella accounts.
-  No customer data or production bindings were imported. Only dedicated Canopy
-  staging resources were deployed; production remains unchanged.
-- The three identity migrations (`001`, `002`, `012`) are byte-identical source
-  copies for fresh local or isolated staging identity databases. They are **not**
-  the complete `delta` migration stream. Do not renumber them or apply this subset
-  to production or imported data.
-- Loopback requests with `LOCAL_DEVELOPMENT=true` use `canopy_session` with
-  HttpOnly/SameSite=Lax. This avoids overwriting sibling localhost sessions.
-  Other hosts retain the original Secure/SameSite=None behavior. Do not broaden
-  the development exception or origin allowlist to bypass authentication issues.
-- Worker bindings use explicit types imported from
-  `@cloudflare/workers-types/index.ts`. Loading its global declarations alongside
-  Node types caused a `Buffer` collision; keep the module-based approach.
-- Vite's `/auth` proxy is development-only. The separate staging console build
-  explicitly calls `https://api-stg.mainbrella.com` with credentials. Its API
-  allows exactly `https://stg.mainbrella.com`; production and localhost origins
-  are rejected. The staging cookie is `__Host-canopy_stg_session`, Secure,
-  HttpOnly, host-only, and independent from local and production sessions.
-- Google is optional: set the same explicit test client ID as `GOOGLE_CLIENT_ID`
-  in `platform/accounts/.dev.vars` and `VITE_GOOGLE_CLIENT_ID` in
-  `platform/console/.env.local`. Both files are ignored. With no console client
-  ID, no Google control or script is loaded; with no Worker client ID, the route
-  fails closed. There is no production client fallback or configurable key URL.
-- Google verification uses the source's RS256 signature, issuer, audience,
-  expiry, issued-at and verified-email checks, with strict claim types, email
-  validation, a bounded key-fetch timeout, and private provider errors. Google
-  has a separate 20-attempts/minute/IP limiter; email limits are unchanged.
-- Google subject lookup is stable across email changes. A Google credential
-  cannot claim a password account or another Google subject. Conditional SQL
-  guards concurrent signup/linking; only legacy rows with neither credential
-  may be linked. Both providers use the existing session/cookie/logout code.
-- Native sign-in, password recovery, welcome email, analytics/consent
-  integrations, profile editing, API keys, billing, projects, admin screens,
-  Compute, and Builder are outside the completed milestones. Voice is packaged
-  separately with owner authentication; hosted identity/billing and console
-  installation remain unfinished.
-- At the initial inventory, `backend/docs/source-ownership.md` was untracked and
-  described a source layout absent from the actual tree. Do not assume those
-  moves occurred; inspect current source and the recorded revisions. That file
-  and all sibling working-tree changes were left untouched.
+### Why staging still says Voice is unavailable
+
+Read-only review on **2026-10-16** found the latest console assets deployed at
+`https://stg.mainbrella.com/`. The API at
+`https://api-stg.mainbrella.com/products/voice` returned:
+
+```json
+{"product":"voice","state":"not_installed","version":null,"origin":null}
+```
+
+This means the API has no registered Voice installation. It was not a stale
+frontend or proof of a failing installed runtime. Do not infer the absence of
+all orphaned Cloudflare resources from this status alone.
+
+`npm run deploy:staging` deploys **accounts and console only**.
+`npm run deploy:staging:site` deploys **console only**. Neither installs Voice.
+`604eb12` adds the separate `npm run install:voice:staging` command. Its checked-in
+`config/voice.staging.json` proposes Worker/database `canopy-voice-stg` and
+`https://voice-stg.mainbrella.com`. That configuration is neither deployment
+proof nor authorization to create those resources. No real Voice install was
+performed or verified during the review. Recheck live state before implementation.
+
+## Review findings to address before extending installation
+
+1. **P1 — Installing Voice grants public signups operator-funded inference.**
+   `platform/accounts/src/products.ts` checks only for a valid user before issuing
+   a Voice handoff. `scripts/install-voice.mjs` sets `VOICE_ENABLED=true` globally.
+   Once installed with calling enabled, any new email/password account can use
+   the operator's AI resources; limits in `products/voice/worker/lib/voice.ts`
+   are per user, not per instance.
+   Add explicit owner/invite/product-access policy and appropriate usage limits
+   before enabling this path publicly. Public Mainbrella will additionally need
+   managed billing authorization; a private hobby install must not require it.
+2. **P2 — Custom targets receive a console pointing at Mainbrella staging.**
+   The installer accepts another `accountsOrigin` but always invokes
+   `build:staging`, whose `platform/console/vite.config.ts` hardcodes
+   `https://api-stg.mainbrella.com`. Build the console for the actual target and
+   provide a reproducible own-account core setup. Preserve dedicated staging
+   guards rather than weakening them to accept arbitrary targets.
+3. **P2 — Canopy workspaces cannot use the preserved phone integration.**
+   `products/voice/worker/app/voice.ts` creates random agent IDs in Canopy mode.
+   Twilio/Telnyx configuration, webhook, and media checks in `worker/lib/voice.ts`,
+   `worker/lib/voice-telnyx.ts`, and the carrier handlers still require the fixed
+   standalone `AGENT_ID`. Locally reproduced: valid provider configuration returns
+   true for the standalone ID and false for a Canopy agent. Define carrier/number
+   ownership and route to the authorized workspace; do not simply remove identity
+   checks. Preserve standalone calls, signature verification, and replay protection.
+4. **P2 — Concurrent installers can deploy the wrong installation identity.**
+   In `scripts/install-voice.mjs`, two checkouts can both read no installation;
+   A wins `INSERT OR IGNORE`, then B acquires the lease without an
+   `installation_id` condition or checking the returned identity. B deploys its
+   own identity while the registry retains A's; readiness never matches. This was
+   reproduced with the exact migration/SQL in memory. Make ownership/lease claims
+   atomic, verify identity, and handle expiry/interruption without duplicate or
+   conflicting resources. A host-local lock alone is insufficient.
+
+The installer unit tests currently cover target validation and database creation
+retry, not the full provisioning state machine. Installation browser tests in
+`scripts/test-voice-installation.mjs` seed an already-installed row and use
+simulated AI. Their passing result does not resolve these findings or prove a
+real install. README, STAGING, and Voice docs also retain obsolete statements
+that no inventory or account handoff exists; reconcile them with the next change.
+
+## Next milestone — portable installation and Appflare registration
+
+Prove this complete path: **fresh operator-owned core with zero products → select
+and install Voice → reload and see verified status → open and perform a useful
+action**, then **install/register one suitable non-Voice Appflare app alongside
+Voice**. This is the next architectural proof, before extracting more first-party
+products. Continue from the existing Voice code; do not repeat extraction.
+
+Work in independently verifiable slices:
+
+1. **Define and fix the access boundary.** Record operator authority, allowed
+   product users, instance ownership, usage policy, and required credentials.
+   Self-service signup must not confer provisioning authority or automatic paid
+   product access. Implement the minimal access/usage interface with Voice as a
+   real consumer. Owner-funded mode is sufficient for the first install; preserve
+   a clear managed-billing seam without migrating the authoritative wallet or
+   claiming a managed service works before its adapter exists.
+2. **Make core and Voice portable.** Provide explicit own-account configuration
+   for core origins, resource names/bindings, and product selection. Fix the
+   staging-origin leak and installer race, preserve retry state/resource ownership,
+   and resolve Canopy carrier ownership/routing. Verify both zero-product startup
+   and standalone Voice without core. Preserve existing staging resource isolation.
+3. **Add a small installation registry and operator flow.** Evolve the Voice-only
+   schema with a new migration, retaining existing records. Store product/source
+   identity, version, provisioner/ownership, resource references, origin, lifecycle
+   state, and supported health/open/integration capabilities. Add a compact,
+   server-authorized console installation flow with pending/failure/retry feedback.
+   Keep credentials out of browser code. Readiness must come from supported
+   runtime evidence. Voice and other apps advertising platform identity require
+   an explicit cross-host auth handoff; other apps retain their own authentication.
+4. **Connect one supported Appflare path.** Reinspect `../appflare` source/docs
+   read-only before choosing the adapter. The inspected manager install entry is
+   an admin-authenticated server function, not an established external provisioning
+   API; documented install links require operator review. Use a supported installer
+   flow and register/reconcile its actual result in Canopy. A catalog link alone
+   is insufficient. Select one suitable non-Voice app, record its source/version,
+   ownership and capabilities, and prove it appears and opens after reload.
+5. **Verify distribution and the live path.** Generate an immutable Voice catalog
+   manifest, validate/pack it through the supported toolchain inside Canopy, and
+   retain the independent source-export path. Prepare exact dedicated test targets,
+   resource inventory, secrets requirements, retention and cleanup before seeking
+   any still-needed deployment authorization. Existing staging authorization covers
+   core only; this handoff adds no live-resource authorization. Complete authorized
+   local work first and present a concrete deployment plan if approval is needed.
+
+Acceptance evidence must include:
+
+- Core with zero installed products; Voice alone/standalone; connected Voice plus
+  an Appflare app; each using the configured operator account and API origin.
+- Unauthorized provisioning and product access rejected; duplicate/concurrent
+  requests and interrupted installs recover without adopting unrelated resources.
+- Persisted status after reload; readiness mismatch/unavailability; useful retry;
+  explicit login handoff, user isolation, and logout/revocation.
+- A useful Voice action through the real deployed runtime, plus carrier routing
+  tests for Canopy and standalone modes. Record real AI/phone verification only
+  for explicitly configured and authorized providers; distinguish fixtures.
+- Keyboard behavior and the four target viewports. Third-party apps must not
+  claim shared identity/billing unless implemented and tested.
+- A real authorized install record separate from local tests/dry runs: source and
+  deployed versions, account, Workers, D1/DO resources, origins, verification,
+  partial-install recovery, retention, and cleanup. Never delete core/shared data
+  implicitly when removing a product.
+- Updated AGENTS, README, STAGING/deployment record, and Voice installation/Appflare
+  docs explaining exactly which commands deploy core versus install products.
+
+Defer more first-party extractions, a general installer framework, automatic
+upgrades, production data/wallet migration, and destructive uninstall UI. Do not
+mark this milestone complete based only on a build, seeded registry, or CLI script.
+
+## Boundaries to preserve
+
+- Auth remains `POST /auth/email`, `POST /auth/google`, `GET /auth/me`, and
+  `POST /auth/logout`. Preserve scrypt parameters, password/concurrent-signup
+  checks, hashed tokens, 30-day platform sessions, and public user fields `id`,
+  `email`, `name`, `dob`, `created_at` when adding access policy.
+- Identity migrations `001`, `002`, `012` are unchanged source copies for fresh
+  Canopy databases, not the complete production `delta` stream. Do not renumber
+  them or apply this subset to imported/production data. `013` adds Canopy product
+  inventory. Keep subsequent changes additive.
+- Loopback plus `LOCAL_DEVELOPMENT=true` uses `canopy_session`, HttpOnly and
+  SameSite=Lax. Other hosts retain Secure/SameSite=None. Staging uses host-only
+  `__Host-canopy_stg_session` and allows exactly `https://stg.mainbrella.com`.
+  Do not broaden cookie exceptions or CORS to work around installation problems.
+- Voice's original migrations `0001`–`0003` remain unchanged source copies;
+  `0004_canopy_sessions.sql` adds per-user workspaces and handoff/session storage.
+  All belong only to Voice D1. Preserve `ReceptionistCall`, its DO migration `v1`,
+  provider routes, data retention, call limits, and replay protections.
+- Voice standalone uses an owner password of at least 16 characters and eight-hour
+  hashed sessions. `canopy_voice_session` is separate from platform/older local
+  cookies; HTTPS adds the `__Host-` prefix, Secure, HttpOnly, and SameSite=Strict.
+  Canopy mode uses product-local sessions linked to platform sessions; do not
+  assume cookies cross hosts or restore password fallback in that mode.
+- Voice was adopted from `ai-receptionist` at `7d3e023318f36f7a45e5d155c46d96e3896f9502`,
+  compared against backend `0bc20dec148c1a78b40aa252a76735103d1dbe1f` and web
+  `3dcea8975e2936ec26da95395b5df3f9042fa5f0`. Full provenance is in the manifest.
+  Canopy is the maintained extracted source; sibling releases still use their
+  existing code until an intentional release transition.
+- Voice export preserves its dependency closure/root lock resolutions without
+  platform workspace dependencies. The Appflare template still has a sentinel
+  zero SHA; the manifest generator requires a clean committed pin. The new
+  monorepo pin has not been packed or installed remotely. Appflare source reviewed
+  at `ccafe08b4958d8e2f80299ee310b99a7f5d00eca` supports Voice's D1, same-app DO,
+  AI, and assets; do not assume Container or external Worker bindings are supported
+  for future Compute/Builder packages. Recheck compatibility when implementing.
+- Worker bindings use explicit imports from `@cloudflare/workers-types/index.ts`;
+  avoid mixing global Worker declarations with Node types. Keep Voice's Worker
+  and client type checks separate and preserve process cleanup in test/dev scripts.
 
 ## Run and verify
 
@@ -170,179 +272,51 @@ npm ci
 npm run dev
 ```
 
-Console: `http://127.0.0.1:5175`; accounts Worker: `127.0.0.1:8789`.
-Startup checks both ports, applies local migrations, and starts both processes.
-Ctrl-C stops the stack. Local D1 persists under `platform/accounts/.wrangler/`;
-caches/logs are ignored under `.cache/`. Do not delete local state casually.
+Core runs at `http://127.0.0.1:5175` (console) and `127.0.0.1:8789` (accounts).
+Startup checks ports, applies local migrations, and starts only core. Ctrl-C stops
+both processes. Preserve local D1 under `platform/accounts/.wrangler/` and private
+operator state; logs/caches are ignored. Do not delete state casually.
+
+For standalone Voice, copy `products/voice/.dev.vars.example` to `.dev.vars` in
+that directory, set a private `ADMIN_PASSWORD`, then run:
+
+```sh
+npm run db:migrate:local --workspace @canopy/voice
+npm run dev:voice
+```
+
+Voice runs at `http://127.0.0.1:8791`; normal local development disables calling
+and remote bindings. Use deterministic fixtures for local call verification.
 
 ```sh
 npm run check
+npm run build:staging
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npx playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run test:browser
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run test:browser:voice
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run test:browser:installation
+npm run export:voice
 ```
 
-An installed Chrome/Chromium executable can instead be selected with
-`CANOPY_CHROMIUM_PATH`. Browser tests start their own stack, require both ports
-to be free, and create test accounts in the local development database.
-Screenshots are in ignored `test-results/`.
+`CANOPY_CHROMIUM_PATH` can select installed Chrome/Chromium. Browser tests start
+and stop their own stacks, require free ports, and write ignored `test-results/`.
+Core browser tests create local test accounts; installation fixtures use in-memory
+D1 and simulated AI. Exports require a clean commit, or `-- --allow-dirty` for a
+clearly marked non-release verification export in `products/voice/dist/source`.
 
-Verification recorded for the completed Google milestone:
+Review verification at `604eb12` on **2026-10-16**: type checks, `npm test`
+(**98 tests: 29 accounts/client, 3 installer helpers, 66 Voice**), staging builds
+and Worker dry runs, and **6 installation browser tests** passed. The carrier-ID
+mismatch and installer race were reproduced separately. Earlier extraction
+verification covered standalone Voice browsers and a separate export install,
+build, and tests; those were not rerun in the review. No paid inference, real
+phone call, remote install, or deployment occurred during review. CI configuration
+includes browser/export checks and no deployment; local results do not prove a
+completed remote CI run.
 
-- All TypeScript checks, Worker dry-run build, and console build. No dependencies
-  were added; the initial milestone had also verified a fresh `npm ci`.
-- 22 auth/client tests, including real local RSA signing and signature checks,
-  invalid claims/keys, provider failures, identity conflicts, concurrent
-  signup/linking, plus the existing password/session/origin/rate regressions.
-- 14 browser tests: 6 existing email/session tests against real local D1 and
-  8 Google UI tests with a stubbed SDK/API. These cover configured/absent Google,
-  script timeout/retry, email fallback, duplicate/late callbacks, logout,
-  keyboard controls and all four viewport sizes. Screenshots were inspected;
-  Google screenshots use the test button, not Google's hosted iframe.
-- Source hashes matched the provenance manifest; all three migration copies
-  were unchanged; sibling Git statuses were unchanged.
-- Browser teardown released both ports. Preserve the process-group cleanup and
-  Playwright graceful shutdown from the first milestone. npm may log exit 143
-  when Vite is terminated during teardown; the browser command exits successfully.
+## Existing staging resources and pending Google checkpoint
 
-These are the local Google milestone results, not evidence of Google working
-on the hosted staging deployment or of a completed remote CI run. Google browser
-tests do not authenticate with Google; Worker tests stub Google's key response.
-A real Google smoke test was **not run** because no explicit test OAuth client
-was supplied.
-
-## Completed slice — standalone Voice extraction
-
-The user requested moving Voice from `../backend` and `../web`, using the existing
-standalone extraction as reference. The adopted implementation is in
-`products/voice`, based on `ai-receptionist` at
-`7d3e023318f36f7a45e5d155c46d96e3896f9502`, compared against backend
-`0bc20dec148c1a78b40aa252a76735103d1dbe1f` and web
-`3dcea8975e2936ec26da95395b5df3f9042fa5f0`. Identical hosted speech/telephony helpers,
-browser transport and number-search tests were copied directly where applicable.
-`migration-sources.json` records all copied hashes, actual revisions, adaptations,
-and the hosted comparison inventory. All siblings remained read-only.
-
-The product retains one receptionist, owner password authentication, browser/text
-calls, Twilio/Telnyx webhooks and media bridges, speech/language settings, number
-search, call history, transcript deletion/retention, limits and replay protection.
-Its three standalone SQL migrations are unchanged; they belong to Voice's own D1,
-never the accounts database or `delta`. The class `ReceptionistCall`, Durable Object
-migration `v1`, and provider routes are preserved. The runtime has no sibling
-imports, shared platform database access, hosted wallet, or production bindings.
-
-Use `npm run dev:voice` after setting a private password in
-`products/voice/.dev.vars` and running
-`npm run db:migrate:local --workspace @canopy/voice`. The product runs at
-`http://127.0.0.1:8791`; normal local runs disable remote bindings and calling.
-The `canopy_voice_session` cookie is distinct from Canopy accounts and older
-standalone localhost installs. Worker bindings use an explicit Env module, with
-Worker and client globals checked separately. Runtime SDK dependencies are
-retained; Wrangler/Worker types and the patched Miniflare test runtime align with
-the existing workspace toolchain.
-
-Canopy is the maintained source for this extracted product. `npm run export:voice`
-from a clean commit creates `products/voice/dist/source` with the product source,
-license, provenance, source revision and its own lockfile. It preserves every
-dependency resolution from the root lock and needs no platform workspace to build.
-`-- --allow-dirty` marks verification exports as not releases. This export and the
-monorepo Appflare template distribute the same implementation; no third engine
-or speculative shared package was introduced. Existing sibling deployments still
-use their existing code until an intentional release transition.
-
-Verification: `npm run check` passed 23 account/client tests and 64 Voice tests,
-all type checks and builds. `npm run build:staging` and 21 existing account/console/
-Google browser tests passed. Six new Voice browser tests passed owner login,
-save/reload, a full text turn through the real local call runtime, history,
-transcript deletion, logout, errors/retry, keyboard controls and all four target
-viewports including dialogs. Screenshots were inspected. A product-only export
-passed a separate install, type checks, build and 64 tests. Normal local Wrangler
-startup, migrations and unauthenticated access checks also passed. Tests use
-deterministic AI/carrier fixtures; no paid inference or real phone call was made.
-
-The [installation boundary](products/voice/docs/installation.md) records ownership,
-operator authorization, credentials, retention, direct Wrangler setup and cleanup.
-The [Appflare template](products/voice/docs/appflare.md) targets a future published
-Canopy pin and has not been packed or installed remotely. No target account or live
-Voice resources were selected. Staging commands still deploy only accounts and the
-console. This completes packaging, not the full install/status/open milestone.
-
-## Next milestone — first product installation
-
-The goal is one complete path: an authorized operator chooses a product in Canopy,
-installs it into the operator's Cloudflare account, sees its actual installation
-status after reload, and opens a working product. A catalog link, a configuration
-toggle, or a successful build alone does not complete this milestone.
-
-**Voice is selected and packaged** with the single-owner standalone boundary
-described above. Continue from that code and its installation documentation.
-Recheck the source pin and current Appflare packaging when implementing the adapter.
-Do not repeat the extraction or bundle full hosted/standalone engine convergence
-into the first install unless required by the chosen path. The product source
-export is its independent distribution boundary.
-
-Work in these independently verifiable slices:
-
-1. **Define the install boundary.** Record the chosen product, source/build version,
-   target account, resource ownership, required settings and secrets, and the
-   operator authorization model. Existing self-service signup does not confer
-   permission to provision resources. Inspect Appflare's current supported install
-   path and integration surface before choosing an adapter; the existing external
-   link is not an integration. Reuse a supported installer where practical rather
-   than building a general marketplace. Recheck packaging compatibility before
-   selecting Compute or Builder; do not assume their bindings are supported.
-2. **Package one working product.** Keep its implementation and deploy configuration
-   under `products/<product>`, with only necessary shared contracts. Include its
-   runtime, UI, migrations and explicit resource bindings as needed. Build without
-   sibling imports or installs, record copied/adapted source provenance, and avoid
-   production Mainbrella dependencies. Preserve a supported standalone install
-   boundary; unrelated products and hosted billing must not be prerequisites.
-3. **Connect installation to Canopy.** Add the smallest server-side install/status
-   contract and compact console flow for that product. Keep provisioning credentials
-   out of browser code. Persist the installation identity, version and owned
-   resource references. Enforce operator permissions server-side, handle duplicate
-   requests and interrupted attempts without creating duplicate resources, and show
-   useful pending/failure/retry feedback. Determine readiness from deployed runtime
-   evidence, not catalog visibility or an optimistic client flag. Open the product
-   with an explicit authentication handoff; do not assume cookies cross hosts.
-4. **Prove the complete path.** Test unauthorized access, successful install,
-   duplicate requests, failure/retry, reload, runtime health and opening the product
-   to perform one useful action. Verify the relevant keyboard and viewport behavior.
-   Record a real install into dedicated test resources separately from mocks and
-   dry runs, including installed version, resource inventory and cleanup procedure.
-   Define partial-install cleanup and data retention before exposing removal;
-   deleting shared identity or unrelated resources must never be implicit.
-
-Done means the console can install, report and open that one usable product, the
-product has a reproducible independent build/install path, and the real test
-deployment is recorded. Run the affected checks and auth regressions, then update
-this handoff, README and deployment documentation with what actually works.
-This handoff update authorizes no new deployment or production changes; retain the
-existing staging scope and resource boundaries when planning the test install.
-
-Defer additional products, a general installer framework, automatic upgrades,
-billing/wallet migration, production data migration and destructive uninstall UI.
-The shell/theme staging deployment and hosted smoke are now recorded in
-`STAGING.md`; this verifies the console shell, not product installation.
-
-## Pending checkpoint — real Google smoke test
-
-The implementation milestone is done; do not repeat the Google extraction or
-bundle another product into it. Its sources were reinspected at the revisions
-recorded in `migration-sources.json`.
-
-Use an explicitly supplied separate test Web OAuth client, follow the README
-configuration, and open `http://localhost:5175`. Verify Google account creation,
-repeat login, reload, logout, and rejection of a password account with the same
-email. Record the real provider result separately from the automated tests and
-update these notes. Without that test client, leave this checkpoint pending and
-keep Google optional. Do not change production OAuth origins or use the sibling
-production client as a fallback.
-
-## Completed milestone — isolated staging deployment
-
-The user authorized separate staging hosts before real Google verification;
-Google remains disabled there. Staging uses the same Cloudflare account as
-production, `2b7a9be82bb64187230703b024e25157`, with these dedicated resources:
+Dedicated core staging uses Cloudflare account `2b7a9be82bb64187230703b024e25157`:
 
 | Resource | Staging |
 | --- | --- |
@@ -351,41 +325,25 @@ production, `2b7a9be82bb64187230703b024e25157`, with these dedicated resources:
 | D1 | `canopy-accounts-stg`, UUID `824e7e4b-b015-416a-93ec-f09ad56ef4d9` |
 | Rate-limit namespaces | `2001` (email), `2002` (Google) |
 
-The Worker versions and detailed verification record are in [STAGING.md](STAGING.md).
-Production `mainbrella-web`, `mainbrella-api`, `mainbrella.com`,
-`api.mainbrella.com`, and `delta` are unchanged. Account billing and quotas
-are shared; data, Workers, origins, cookies, and bindings are separate.
+[STAGING.md](STAGING.md) records prior deployed versions, hosted email/session
+smoke results, and teardown. Its older version IDs are historical, not a claim
+about the latest live Worker IDs. `deploy:staging` checks/builds/migrates/deploys
+core; `deploy:staging:site` skips backend/tests/migrations for a frontend-only
+update. The Wrangler wrapper restricts these commands to the dedicated staging
+resources. Do not recreate the staging database. Production `mainbrella-web`,
+`mainbrella-api`, `mainbrella.com`, `api.mainbrella.com`, and `delta` are outside
+this work. Billing/quotas share the CF account; data/bindings/cookies are separate.
+`npm run smoke:staging` creates one disposable staging account per run and writes
+ignored results under `test-results/staging/`; it does not verify Voice installation.
 
-Use `npm run build:staging` for local staging builds and dry runs.
-`npm run deploy:staging` checks, builds, migrates only the staging database,
-and deploys only the staging Workers. The Wrangler wrapper accepts fixed staging
-actions; existing local commands remain restricted. Credentials, logs, snapshots,
-and caches stay inside ignored `.cache/`. Do not recreate the existing staging
-database or migrate production data. CI includes staging dry runs but no deploy.
-
-Added `npm run deploy:staging:site` on **2026-10-16** for fast frontend-only
-updates. It builds the console in staging mode once and uses the existing
-restricted `staging deploy:console` action. It skips checks, tests, local builds,
-dry runs, migrations, and API deployment; use the full command for backend
-changes. The staging console build and console Wrangler dry run passed. No
-remote deployment was performed while adding this command.
-
-Verification passed: all TypeScript checks, 23 auth/client tests, local and
-staging builds, 14 local browser tests, and a real hosted Chromium email smoke
-test. The hosted test verified signup, returning login, reload, logout/revocation,
-wrong passwords, cross-origin credentialed API calls, secure host-only staging
-cookies, exact CORS allowlisting, disabled Google, four viewport sizes, and no
-browser script errors. Repeat with
-`PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run smoke:staging`;
-each run creates one disposable staging account and saves ignored results under
-`test-results/staging/`. Production deployment records, custom domains, and
-zone Worker routes matched the pre-deployment snapshots; read-only production
-HTTP checks returned 200. Sibling working trees were left unchanged. These are
-operator-run checks, not a remote CI result.
-
-The real Google checkpoint remains pending. Before enabling it on staging,
-supply a separate test Web OAuth client authorized for
-`https://stg.mainbrella.com`, review the verifier's per-request key fetching
-and caching, and enable the explicit client ID in both staging builds/configs.
-Do not inherit ignored local client IDs or reuse production OAuth settings.
-Billing, Raindrop, and other product migrations remain deferred.
+Google implementation is complete; real provider verification remains pending
+and does not block the product milestone. It is optional and disabled on staging.
+Local setup requires the same separate test Web client ID in Worker
+`GOOGLE_CLIENT_ID` and console `VITE_GOOGLE_CLIENT_ID` (ignored local files).
+Preserve strict RS256/issuer/audience/time/verified-email checks, stable subject
+lookup, identity-conflict protection, private provider errors, bounded key fetch,
+and the separate rate limiter. Automated UI/provider fixtures are not real Google
+login. With an explicitly supplied test client, verify creation, repeat login,
+reload, logout, and password-account conflicts. Do not reuse production OAuth
+settings or change production origins. Before enabling staging Google, configure
+its exact origin and review key-fetch caching; record real results separately.
