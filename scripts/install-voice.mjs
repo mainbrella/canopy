@@ -3,6 +3,7 @@ import { readFile, readdir, mkdir, writeFile, open, unlink } from "node:fs/promi
 import { resolve, relative, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { setTimeout as delay } from "node:timers/promises";
 import { root, cache, cli, run as command, repositoryPath, cloudflare, d1Query, listDatabases, buildConsole, privateJSON } from "./operator.mjs";
 
 const product = join(root, "products/voice");
@@ -81,6 +82,50 @@ export async function claimInstallation(query, { target, state, source, lease, n
   return rows[0];
 }
 
+export async function waitForVoiceReady({ target, state, source, fetcher = fetch, signal,
+  timeoutMs = 300_000, intervalMs = 5000, now = Date.now, sleep = delay, log = console.log }) {
+  const url = `${target.origin}/_canopy/ready`;
+  const deadline = now() + timeoutMs;
+  let lastFailure, nextNotice = 0;
+  while (now() < deadline) {
+    signal?.throwIfAborted();
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    const timeout = AbortSignal.timeout(Math.min(15_000, remaining));
+    let response;
+    try {
+      response = await fetcher(url, { headers: { authorization: `Bearer ${state.secret}` }, redirect: "error",
+        signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+    } catch (error) {
+      signal?.throwIfAborted();
+      const code = error.name === "TimeoutError" ? error.name : error.cause?.code ?? error.code ?? error.name;
+      if (!["ENOTFOUND", "EAI_AGAIN", "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EHOSTUNREACH",
+        "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_SOCKET", "TimeoutError"].includes(code)) throw error;
+      lastFailure = code;
+    }
+    signal?.throwIfAborted();
+    if (response) {
+      if ([502, 503, 504].includes(response.status)) {
+        lastFailure = `HTTP ${response.status}`;
+        await response.body?.cancel();
+      } else {
+        const ready = await response.json();
+        if (!response.ok || !ready.ready || ready.installationId !== state.installationId || ready.version !== source.version) {
+          throw new Error("Voice runtime readiness did not match the installation.");
+        }
+        return ready;
+      }
+    }
+    if (now() >= nextNotice) {
+      log(`Waiting for Voice at ${target.origin} (${lastFailure}); DNS and routing may still be propagating.`);
+      nextNotice = now() + 30_000;
+    }
+    const waitMs = deadline - now();
+    if (waitMs > 0) await sleep(Math.min(intervalMs, waitMs), undefined, { signal });
+  }
+  throw new Error(`Voice readiness at ${url} timed out (${lastFailure}). Check DNS and HTTPS for ${target.origin}, then rerun the same installer with its preserved .cache/voice-installs state.`);
+}
+
 export async function main(args = process.argv.slice(2), dependencies = {}) {
   // Injection is for the local provisioning-state tests; CLI always uses the
   // credentialed transports. No runtime imports or state live in siblings.
@@ -155,9 +200,7 @@ export async function main(args = process.argv.slice(2), dependencies = {}) {
     }, 20_000);
     heartbeat.unref();
     if (claimed.state === "installed") {
-      const response = await fetcher(`${target.origin}/_canopy/ready`, { headers:{authorization:`Bearer ${state.secret}`}, redirect:'error', signal:AbortSignal.timeout(15000) });
-      const ready = await response.json();
-      if (!response.ok || !ready.ready || ready.installationId !== state.installationId || ready.version !== source.version) throw new Error('Recorded installation is unavailable; no resources were changed.');
+      await waitForVoiceReady({ target, state, source, fetcher, signal: controller.signal });
       await query("UPDATE product_install_requests SET state='complete',updated_at=? WHERE product='voice'", [new Date().toISOString()]);
       console.log("Voice is already installed and verified; no deployments were created."); return;
     }
@@ -191,9 +234,7 @@ export async function main(args = process.argv.slice(2), dependencies = {}) {
     await run(process.execPath,[cli,"d1","migrations","apply","DB","--remote","--config",voicePath],productDirectory);
     await guard();
     await run(process.execPath,[cli,"deploy","--config",voicePath,"--secrets-file",voiceSecrets],productDirectory);
-    const readiness=await fetcher(`${target.origin}/_canopy/ready`,{headers:{authorization:`Bearer ${state.secret}`},redirect:"error",signal:AbortSignal.timeout(15000)});
-    const ready=await readiness.json();
-    if(!readiness.ok||!ready.ready||ready.installationId!==state.installationId||ready.version!==source.version)throw new Error("Voice runtime readiness did not match the installation.");
+    const ready = await waitForVoiceReady({ target, state, source, fetcher, signal: controller.signal });
     await guard();
     await run(process.execPath,[cli,"deploy","--config",accountsPath,"--secrets-file",accountSecrets],dirname(accountsPath));
     const settings=await api(`${accountPath}/workers/scripts/${target.workerName}/settings`);

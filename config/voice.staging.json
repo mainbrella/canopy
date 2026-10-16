@@ -6,5 +6,6 @@
   "consoleOrigin": "https://stg.mainbrella.com",
   "workerName": "canopy-voice-stg",
   "databaseName": "canopy-voice-stg",
+  "operatorUserId": "0406e934-d13d-4d47-a826-62de3e02faa4",
   "origin": "https://voice-stg.mainbrella.com"
 }

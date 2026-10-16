@@ -1,10 +1,30 @@
 # Current product installation status — 2026-10-16
 
-The records below describe historical core staging deployments. Read-only recheck of `https://api-stg.mainbrella.com/products/voice` returned `not_installed`; no new product deployment was performed in this milestone work.
+Established staging now has connected Voice installed. Recovery completed at **15:04:23 UTC on 2026-10-16**; the live `https://api-stg.mainbrella.com/products/voice` response reports `ready` at `https://voice-stg.mainbrella.com`. Cut remains `not_installed`. Earlier core-only deployment records below are historical.
 
-The repository now implements portable core setup, operator-only installation requests, product grants, owner-funded Voice limits, atomic installer leases, carrier workspace routing and Appflare/Cut inventory reconciliation. These changes are local until deliberately deployed. `deploy:staging` still deploys **accounts and console only**; `deploy:staging:site` deploys **console only**. The separate Voice installer requires an existing pinned operator user and explicit owner-funded configuration. Catalog discovery is not product readiness.
+The repository implements portable core setup, operator-only installation requests, product grants, owner-funded Voice limits, atomic installer leases, carrier workspace routing and Appflare/Cut inventory reconciliation. Staging's connected Voice runtime and paired core configuration are deployed; the independent Appflare/Cut workflow remains unverified live. `deploy:staging` still deploys **accounts and console only**; `deploy:staging:site` deploys **console only**. The separate Voice installer requires an existing pinned operator user and explicit owner-funded configuration. Catalog discovery is not product readiness.
 
-See [operator installation](docs/operator-installation.md) for commands and recovery, and [the exact proposed resource/secret/retention plan](docs/milestone-deployment.md) for a fresh `canopy-m2` core, Voice, Appflare and Cut. **New-resource authorization and actual live verification remain pending.** Do not replace historical IDs below with build or fixture IDs.
+See [operator installation](docs/operator-installation.md) for commands and recovery, and [the exact proposed resource/secret/retention plan](docs/milestone-deployment.md) for a separate fresh `canopy-m2` core, Voice, Appflare and Cut. **That separate plan's authorization and full live verification remain pending.** Do not replace historical IDs below with build or fixture IDs.
+
+## Connected Voice installation and DNS recovery
+
+The user configured the existing staging account as operator with explicit `owner_funded` policy and ran `install:voice` using `config/voice.staging.json`. The first attempt successfully created/migrated/deployed Voice but failed its immediate readiness fetch: local resolver `100.100.100.100` returned NXDOMAIN for the newly attached custom domain. The saved installation was resumed with its original identity, secret, database UUID and unchanged product source. No database was recreated or manually marked installed.
+
+Cloudflare and Google DNS independently returned matching public A records. The recovery command used a private process-scoped DNS lookup override for `voice-stg.mainbrella.com` only, with ordinary HTTPS hostname/certificate verification. System DNS settings were unchanged. The same credentialed CLI then verified exact authenticated runtime identity/version, deployed accounts with the paired secret and the staging console, persisted version inventory, and published installation success.
+
+| Resource | Actual identity / deployed version |
+| --- | --- |
+| Voice installation | `3f90a4c4-d1d6-4dde-af40-935571e8afa0` |
+| Voice Worker | `canopy-voice-stg`, version `10ec9b25-2dd3-45f4-95ee-a9209b8cb963` |
+| Voice D1 | `canopy-voice-stg`, UUID `ca4ffd2f-1a5a-4085-a367-c5d20624a29b` |
+| Voice Durable Object namespace | `52f306893ed743b88cdadd96b0ab1519`, `ReceptionistCall` |
+| Accounts Worker | `canopy-accounts-stg`, version `02be0005-5ae8-4a84-b6c4-a8a9e2088506` |
+| Console Worker | `canopy-console-stg`, version `6c050d4f-2e69-4671-b36e-70d978614e0b` |
+| Product source | `0631dd11563dc636dd10cbba294e505772ea31b3` with dirty working tree, fingerprint version `0.1.0+a86a292f4148b67f` |
+
+Exact hashes, deployed versions and recovery evidence remain private in `.cache/voice-installs/bb5c3a21c28c623d/{inventory,dns-recovery-result}.json`; preserve the entire directory and its secret/recovery files. The scoped DNS loader is a one-run recovery artifact and must not become a permanent DNS configuration.
+
+Installer readiness now retries transient DNS, network timeouts and HTTP 502/503/504 for up to five minutes, preserving identity/version/authentication checks and cancellation. All **12 installer/operator script tests** passed, including the two new retry regressions; Voice client and staging console builds passed during the actual installation. The earlier full unit/browser suites were not rerun for this installer-only change. The live core API independently returned `ready` after completion. Signed-in opening, real inference, carrier behavior and the four deployed browser viewports were not verified in this recovery; no inference or carrier action was performed. This establishes staging installation readiness, not the separate fresh-core/Appflare milestone.
 
 ---
 
@@ -202,9 +222,9 @@ Cloudflare's read-only deployment records confirm these active versions:
 Real Google authentication remains unverified and disabled on staging. No
 production OAuth client or origins were reused or modified.
 
-Voice was extracted into `products/voice` on **2026-10-16** and verified locally.
-It has no staging Worker, database, domain, or installation record. Staging deploy
-commands continue to target only the console and accounts resources above. A real
-Voice install requires a separately authorized target and dedicated resources;
-see [Voice installation](products/voice/docs/installation.md). Local fixtures and
-dry-run builds do not extend this deployment record.
+At the time of the historical shell record above, Voice had only been extracted
+and verified locally. Its later real staging Worker, database, domain and
+installation record are recorded in the connected Voice recovery section at the
+top of this document. Core staging deploy commands continue to target only
+console and accounts; product installation uses the separate installer. See
+[Voice installation](products/voice/docs/installation.md).

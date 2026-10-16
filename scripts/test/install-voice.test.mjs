@@ -1,6 +1,52 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ensureDatabase, validateTarget } from "../install-voice.mjs";
+import { ensureDatabase, validateTarget, waitForVoiceReady } from "../install-voice.mjs";
+
+function readinessFixture(fetcher) {
+  let clock = 0;
+  return { target: { origin: 'https://voice.example' }, state: { secret: 'private-secret', installationId: 'install' },
+    source: { version: 'v1' }, fetcher, timeoutMs: 100, intervalMs: 10,
+    now: () => clock, sleep: async ms => { clock += ms; }, log: () => {} };
+}
+
+test('readiness waits for new-domain DNS and transient routing without accepting another installation', async () => {
+  let attempts = 0;
+  const fixture = readinessFixture(async (url, options) => {
+    assert.equal(url, 'https://voice.example/_canopy/ready');
+    assert.equal(options.redirect, 'error');
+    assert.equal(options.headers.authorization, 'Bearer private-secret');
+    attempts++;
+    if (attempts === 1) throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
+    if (attempts === 2) return new Response('Routing pending', { status: 503 });
+    if (attempts === 3) throw new DOMException('Request timed out', 'TimeoutError');
+    return Response.json({ ready: true, installationId: 'install', version: 'v1' });
+  });
+  assert.equal((await waitForVoiceReady(fixture)).ready, true);
+  assert.equal(attempts, 4);
+  for (const response of [
+    { ready: true, installationId: 'another-install', version: 'v1' },
+    { ready: true, installationId: 'install', version: 'v2' },
+    { ready: false, installationId: 'install', version: 'v1' },
+  ]) {
+    let sleeps = 0;
+    await assert.rejects(waitForVoiceReady({ ...fixture, fetcher: async () => Response.json(response), sleep: async () => { sleeps++; } }), /readiness did not match/);
+    assert.equal(sleeps, 0);
+  }
+});
+
+test('readiness stops on cancellation and permanent failures, and explains a bounded DNS timeout', async () => {
+  let attempts = 0;
+  const fixture = readinessFixture(async () => {
+    attempts++;
+    throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
+  });
+  await assert.rejects(waitForVoiceReady(fixture), /timed out \(ENOTFOUND\).*Check DNS.*preserved/);
+  assert.equal(attempts, 10);
+  const controller = new AbortController();
+  await assert.rejects(waitForVoiceReady({ ...fixture, signal: controller.signal, sleep: async () => { controller.abort(); } }), { name: 'AbortError' });
+  await assert.rejects(waitForVoiceReady({ ...fixture, fetcher: async () => { throw new Error('certificate failed'); } }), /certificate failed/);
+  await assert.rejects(waitForVoiceReady({ ...fixture, fetcher: async () => Response.json({ error: 'unauthorized' }, { status: 401 }) }), /readiness did not match/);
+});
 
 test("database retry reuses recorded UUIDs and requires explicit recovery for ambiguous names",async()=>{
   const target={databaseName:"canopy-voice-stg"}; const state={}; let databases=[],creates=0;

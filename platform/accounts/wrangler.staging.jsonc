@@ -11,6 +11,9 @@
   "vars": {
     "LOCAL_DEVELOPMENT": "false",
     "AUTH_ORIGINS": "https://stg.mainbrella.com",
+    "OPERATOR_USER_ID": "0406e934-d13d-4d47-a826-62de3e02faa4",
+    "VOICE_BILLING_MODE": "owner_funded",
+    "VOICE_INSTALL_ENABLED": "true",
     "SESSION_COOKIE_NAME": "__Host-canopy_stg_session"
   },
   "d1_databases": [{
