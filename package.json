@@ -34,6 +34,7 @@
     "deploy:raindrop": "node scripts/deploy.mjs raindrop",
     "verify:migration": "node scripts/verify-migration.mjs",
     "stg:plan": "node scripts/staging.mjs plan",
+    "stg:homepage": "node scripts/staging-homepage.mjs",
     "stg:check": "node scripts/staging.mjs check",
     "stg:provision": "node scripts/staging.mjs provision",
     "stg:deploy": "node scripts/staging.mjs deploy",

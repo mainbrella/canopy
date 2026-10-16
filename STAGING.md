@@ -60,7 +60,30 @@ The Cloudflare account, its limits, and provider billing are shared. Isolation i
 at the worker, binding, and data level. Staging builds and containers still consume
 Cloudflare resources.
 
-## One-time setup
+## Publish the homepage first
+
+The static website can be deployed independently, before creating the staging
+API, databases, containers, or previews. This path uses the existing local
+Wrangler login and does not require the GitHub environment setup below:
+
+```sh
+npm run stg:homepage -- --check
+npm run stg:homepage -- --publish
+```
+
+The publisher requires a clean, committed Canopy checkout and access to the
+configured Cloudflare account. It runs the web tests, documentation check, staging
+site build, and Wrangler dry run, then publishes only `mainbrella-web-stg` at
+`https://stg.mainbrella.com`. If that exact hostname belongs to an older staging
+worker, publication moves its custom domain to the new staging site; it does not
+delete the old worker. Evidence is saved under `artifacts/staging/`.
+
+The static homepage and public pages work immediately. Sign-in, payments,
+terminals, and the separate builder need their staging services deployed later.
+The browser build points at `api-stg.mainbrella.com`, disables analytics, and
+discourages indexing. No preview wildcard DNS or TLS is needed for the website.
+
+## One-time setup for the full environment
 
 1. Merge this feature into Canopy `main` so GitHub can run
    [the main-owned staging workflow](.github/workflows/staging.yml).
