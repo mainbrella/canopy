@@ -8,9 +8,10 @@ import { serialize } from 'node:v8';
 import { DatabaseSync } from 'node:sqlite';
 
 async function run(t, { signal, fail = false, migrationFail, allImages = false, portArgs = [], expectedPort = '8787', aiArgs = [], codexFail = false, githubLocal = false, devVars = false } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'mainbrella-dev-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const dir of ['scripts', 'containers', 'bin', 'node_modules/.bin', 'node_modules/wrangler/bin', 'state/v3/do/mainbrella-containers-UserContainer']) mkdirSync(join(root, dir), { recursive: true });
+  const workspace = mkdtempSync(join(tmpdir(), 'mainbrella-dev-'));
+  const root = join(workspace, 'backend');
+  t.after(() => rmSync(workspace, { recursive: true, force: true }));
+  for (const dir of ['../linux/containers/catalog', 'scripts', 'containers', 'bin', 'node_modules/.bin', 'node_modules/wrangler/bin', 'state/v3/do/mainbrella-containers-UserContainer']) mkdirSync(join(root, dir), { recursive: true });
   writeFileSync(join(root, 'package.json'), JSON.stringify({ type: 'module' }));
   const localSecrets = { GITHUB_BUILD_CLIENT_ID: 'local-client', GITHUB_BUILD_CLIENT_SECRET: 'local-secret', GITHUB_BUILD_APP_SLUG: 'mainbrella-build', GITHUB_BUILD_ENCRYPTION_KEY: 'a'.repeat(64) };
   if (githubLocal) writeFileSync(join(root, '.github-build-local-secrets.json'), JSON.stringify(localSecrets));
@@ -22,7 +23,7 @@ async function run(t, { signal, fail = false, migrationFail, allImages = false, 
   writeFileSync(join(root, 'wrangler.jsonc'), JSON.stringify({ name: 'mainbrella-api', routes: [{ pattern: 'api.mainbrella.com' }], ai: { binding: 'AI' },
     vars: { R2_BILLING_MODE: 'charge', R2_CHARGE_FROM: '2026-10-11T00:00:00Z' }, compatibility_flags: ['nodejs_compat', 'global_fetch_strictly_public'] }));
   writeFileSync(join(root, 'wrangler.containers.jsonc'), JSON.stringify({ name: 'mainbrella-containers', containers: [
-    { class_name: 'UserContainer', images: { terminal: { dockerfile: './containers/Dockerfile' } } },
+    { class_name: 'UserContainer', images: { terminal: { dockerfile: '../linux/containers/Dockerfile' } } },
   ] }));
   for (const service of ['admin', 'marketing']) {
     writeFileSync(join(root, `wrangler.${service}.jsonc`), JSON.stringify({ name: `mainbrella-${service}`, workers_dev: false, preview_urls: false }));
@@ -134,7 +135,7 @@ ${signal ? '' : `process.exit(${fail ? 7 : 0});`}
   const images = configs[1].containers[0].images;
   assert.deepEqual(Object.keys(images), allImages ? ['terminal', 'python', 'rust', 'go', 'devops'] : ['terminal']);
   if (allImages) {
-    for (const id of ['python', 'rust', 'go', 'devops']) assert.equal(images[id].dockerfile, `./containers/catalog/${id}.Dockerfile`);
+    for (const id of ['python', 'rust', 'go', 'devops']) assert.equal(images[id].dockerfile, `../linux/containers/catalog/${id}.Dockerfile`);
   }
   assert.equal(JSON.parse(readFileSync(join(root, 'args.json'))).includes('--all-images'), false);
   assert.equal(JSON.parse(readFileSync(join(root, 'args.json'))).some(arg => arg === '--ai' || arg.startsWith('--ai=')), false);

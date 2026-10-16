@@ -10,5 +10,5 @@
   "durable_objects": { "bindings": [{ "name": "NETWORK_PROBE", "class_name": "NetworkProbe" }] },
   "exports": { "NetworkProbe": { "type": "durable-object", "storage": "sqlite" } },
   "containers": [{ "class_name": "NetworkProbe", "scheduling_policy": "durable_object",
-    "images": { "terminal": { "dockerfile": "../containers/Dockerfile" } } }]
+    "images": { "terminal": { "dockerfile": "../../linux/containers/Dockerfile" } } }]
 }

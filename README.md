@@ -6,9 +6,12 @@ not necessarily require a separate deployment.
 
 | Workspace | Source | Purpose |
 | --- | --- | --- |
-| `@canopy/backend` | [apps/backend](apps/backend) | Shared platform and API composition; Linux and Vibe code pending extraction |
-| `@canopy/web` | [apps/web](apps/web) | Public website, account shell, and route/build composition; Linux and Vibe UI pending extraction |
+| `@canopy/backend` | [apps/backend](apps/backend) | Shared platform and API/deployment composition |
+| `@canopy/web` | [apps/web](apps/web) | Public website, account shell, and route/build composition |
 | `@canopy/raindrop` | [apps/raindrop](apps/raindrop) | Raindrop admin frontend and operations scripts |
+| `@canopy/platform` | [packages/platform](packages/platform) | Shared wallet, product usage charging, and billing client |
+| `@canopy/vibe` | [apps/vibe](apps/vibe) | Builder API, agent/workflow, source/history, and browser behavior |
+| `@canopy/linux` | [apps/linux](apps/linux) | Compute API, runtime, images, workspaces, SDKs, and browser behavior |
 | `@canopy/voice` | [apps/voice](apps/voice) | Voice API, receptionist runtime, providers, usage meters, and browser behavior |
 
 The three original source histories were imported with `git subtree add` without squashing.
@@ -22,8 +25,7 @@ production cutover remains pending.
 The [homepage](apps/web/index.html) and
 [many businesses article](https://mainbrella.com/blog/many-businesses-in-a-box-under-this-brella/)
 describe independently useful products sharing one account and balance. Organize
-the source around those products. This is the intended destination, not a claim
-that Linux and Vibe have already moved:
+the source around those products. Voice, Vibe, and Linux have their own worker/browser source workspaces:
 
 ```text
 apps/
@@ -31,8 +33,10 @@ apps/
   web/        # public site, shared account UI, route/build composition
   raindrop/   # platform administration
   voice/      # worker/ and web/ owned by Voice
-  vibe/       # next: builder API, agent/workflow, source/history, builder UI
-  linux/      # then: compute API, runtime, images, files, terminals, workspaces
+  vibe/       # builder API, agent/workflow, source/history, builder UI
+  linux/      # compute API, runtime, images, files, terminals, workspaces
+packages/
+  platform/   # shared wallet implementation and typed product charging API
 ```
 
 Backend owns accounts, sessions, API keys, shared project identity and ownership,
@@ -58,31 +62,34 @@ product as route composition is extracted; avoid building a second account shell
 or duplicating sign-in and billing per product. Existing `/voice/`, `/build/`, and
 Linux URLs can stay stable regardless of source location.
 
-The first milestone extracts Voice's worker/browser logic, schemas, fixtures, and
-tests. Its HTML and CSS still live in web, and its backend still runs inside the
-API Worker. Its six allowed imports from backend are explicit transitional seams:
-authentication, wallet access, inference pricing, deployment origin, OpenAPI
-helpers, and a bounded-body reader currently housed in the container contract.
-Worker types still use the API host's `Env` and generated Cloudflare bindings.
-`npm run check:boundaries` prevents new product coupling and host imports of Voice
-internals. Integration tests may still use backend fixtures and migration files.
+Backend composes each product's supported package exports. Linux supplies compute
+policy to the shared wallet; its account Durable Object retains the existing
+`CONTAINER_ACCOUNT` binding, `account:<userId>` identity, and persisted state.
+Vibe owns project source-workspace SQL and prepares its own retention statements
+for the platform's atomic expiration batch. Shared storage uses explicit product
+key prefixes; Vibe orphan cleanup scans only its legacy `build-git/` namespace.
+Product HTML/CSS remain inputs to web's existing site and builder deployments.
+Their location does not require another deployment or account shell.
 
-Before adding a fourth product:
+Before adding `apps/email`:
 
-1. Review this Voice extraction, then move Voice's page templates/styles and
-   define the small browser/platform and environment interfaces the next product needs.
-2. Extract Vibe using the same `worker/` and `web/` structure, keeping its current
-   builder release target. Extract Linux's API, runtime, and SDK ownership next.
-   Promote generic helpers such as the bounded-body reader out of Linux first.
-3. Once those boundaries are real, move the shared platform interfaces into a
-   focused package under `packages/` so products no longer reach into backend.
-   Keep backend and web as composition hosts. Do not create an unowned utilities
-   dumping ground or copy shared services into each app.
-4. Add `apps/email` or `apps/jobs` with its own routes, schemas, product tables,
-   meters, browser module, and tests, consuming the same account/project/wallet
-   interfaces. Platform welcome and marketing email remain platform concerns;
-   customer transactional email is a product. Vibe's workflow implementation
-   likewise remains Vibe code until a general jobs product provides a reusable API.
+1. Use `@canopy/platform/billing` for `reserveUsage`, `settleUsage`, and
+   `releaseUsage`. Email owns its prices, provider requests, durable send receipts,
+   and reconciliation. Funding, Stripe, spending caps, and accounting stay shared.
+   See [the product billing contract](packages/platform/README.md).
+2. Register the workspace, its backend/web exports, boundary rules, and checks for
+   the hosts that actually deploy it. Keep ordered product migrations in backend.
+3. Give Email storage an explicit `product: 'email'` owner and a
+   `products/email/<userId>/<resourceId>/` key prefix. Add Email's own retention
+   statements to the host's expiration composition when storing retained data.
+4. Keep platform welcome and marketing emails in backend. Customer transactional
+   email belongs in Email. Do not duplicate account or checkout implementations.
+
+Shared auth, OpenAPI, inference pricing, and storage imports remain explicitly
+listed transitional backend seams. New shared interfaces belong in the focused
+platform package. `npm run check:boundaries` rejects sibling internals, browser
+imports of wallet services, and platform dependencies on product implementations.
+Integration fixtures may exercise the real hosts and ordered migrations.
 
 Keep the existing ordered D1 migration history in backend while these products
 share a database; identify each new table's product owner and avoid rewriting or
@@ -104,7 +111,7 @@ npm run dev:backend
 Start `npm run dev:web` and `npm run dev:raindrop` in separate terminals as needed.
 Workspace commands also work directly, for example `npm run dev -w @canopy/backend`.
 Run installs from this root; there is one `package-lock.json`. The SDK packages
-remain under `apps/backend/sdk` and are not npm workspaces.
+remain under `apps/linux/sdk` and are not npm workspaces.
 
 Keep local configuration in each app's ignored environment files. See
 [web's environment example](apps/web/.env.example) and the app READMEs. Browser
@@ -118,6 +125,9 @@ npm test
 npm run test:backend
 npm run test:web
 npm run test:voice
+npm run test:vibe
+npm run test:linux
+npm run test:platform
 npm run check:boundaries
 npm run docs:check
 npm run build:web

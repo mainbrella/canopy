@@ -152,7 +152,7 @@ function assertSupportedSourceConfig(target, configuration) {
   if (target === 'containers') {
     if (containers.length !== 1 || containers[0].class_name !== 'UserContainer'
       || containers[0].scheduling_policy !== 'durable_object'
-      || !isDeepStrictEqual(containers[0].images, { terminal: { dockerfile: './containers/Dockerfile' } })
+      || !isDeepStrictEqual(containers[0].images, { terminal: { dockerfile: '../linux/containers/Dockerfile' } })
       || Object.keys(containers[0]).some(key => !['class_name', 'scheduling_policy', 'images', 'ssh', 'authorized_keys'].includes(key))) {
       unsupported(target, 'container image or application fields');
     }

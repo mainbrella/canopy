@@ -16,7 +16,7 @@ import { buildAccountStream, buildAppStream, type BuildActivityRow } from '../li
 import { localCodexConfigured } from '../lib/build-codex';
 import { BUILD_AI_MARKUP_PERCENT, buildTokenPrices } from '../lib/build-pricing';
 import { settleReportedBuildUsage } from '../lib/build-billing';
-import { accountBillingRequest } from '../../../backend/worker/lib/prepaid-billing';
+import { walletRequest as accountBillingRequest } from '@canopy/platform/billing';
 import { buildImageBytes, buildImagePath, publicBuildImage, savedBuildImages, buildImageEntries, serveBuildImage, type BuildImageRow } from '../lib/build-images';
 import { buildOperationTimeline, operationExplanation, type OperationRow } from '../lib/build-journal';
 import { buildGitEntries, buildGitVersion, publicGitVersion, exportBuildGit, deleteBuildGit, cleanupDeletedBuildGit, type BuildGitVersion } from '../lib/build-git';

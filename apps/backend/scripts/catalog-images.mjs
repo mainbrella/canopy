@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 
 export function catalogSourceHash(root, entry) {
-  return createHash('sha256').update(readFileSync(join(root, entry.dockerfile))).digest('hex');
+  return createHash('sha256').update(readFileSync(join(root, '../linux', entry.dockerfile))).digest('hex');
 }
 
 export function validateCatalogImage(entry, value, accountId, sourceHash) {

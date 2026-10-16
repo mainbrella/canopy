@@ -8,12 +8,12 @@ import { parseRepoRunConfig } from './repo-run-config.ts';
 const hooks = registerHooks({ resolve(specifier, context, next) {
   const mocks: Record<string, string> = {
     './auth.ts': "export const API_ORIGIN = 'https://api.test'; export const createAuthClient = () => ({ readSession: () => globalThis.runSession() });",
-    '../../linux/web/container-terminal.ts': "export const openContainerTerminal = (host, options) => { globalThis.runTerminals.push(options); return { dispose: () => globalThis.runDisposed++ }; };",
+    '@canopy/linux/web/terminal': "export const openContainerTerminal = (host, options) => { globalThis.runTerminals.push(options); return { dispose: () => globalThis.runDisposed++ }; };",
   };
   return Object.hasOwn(mocks, specifier) ? { url: `data:text/javascript,${encodeURIComponent(mocks[specifier])}`, shortCircuit: true } : next(specifier, context);
 } });
 process.on('exit', () => hooks.deregister());
-await import('../../linux/web/container-terminal.ts');
+await import('@canopy/linux/web/terminal');
 let sequence = 0;
 class Element {
   [key: string]: any;

@@ -1,4 +1,4 @@
-import { accountBillingRequest } from '../../../backend/worker/lib/prepaid-billing';
+import { walletRequest as accountBillingRequest } from '@canopy/platform/billing';
 import { inferenceChargeMicroUsd, inferenceTokenCostMicroUsd, readInferenceTokenUsage } from '../../../backend/worker/lib/inference-pricing';
 import { callStub, type VoiceCallRow, type VoicePhoneTransport, type VoicePhoneProvider, VOICE_MODELS } from './voice';
 

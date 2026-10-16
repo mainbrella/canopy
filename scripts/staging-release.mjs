@@ -89,7 +89,7 @@ export function publishedStagingImages({ directory = root, run = execute } = {})
     assert.ok(Number.isSafeInteger(asset?.id), `Missing published ${name}; publish the maintained images separately.`);
     return JSON.parse(capture(run, 'gh', ['api', `repos/mainbrella/backend/releases/assets/${asset.id}`, '-H', 'Accept: application/octet-stream'], options));
   };
-  const hash = createHash('sha256').update(readFileSync(join(directory, 'apps/backend/containers/Dockerfile'))).digest('hex');
+  const hash = createHash('sha256').update(readFileSync(join(directory, 'apps/linux/containers/Dockerfile'))).digest('hex');
   const terminal = validateImage(readAsset('terminal-image.json'), STAGING.accountId, hash);
   const images = validateCatalogImages(readAsset('catalog-images.json'), STAGING.accountId, join(directory, 'apps/backend'));
   assert.equal(images.terminal?.image, terminal, 'Published terminal and catalog images differ.');

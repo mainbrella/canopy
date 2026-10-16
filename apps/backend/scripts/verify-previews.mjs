@@ -9,7 +9,7 @@ import { previewBytes, previewCss, previewHtml } from './preview-app.mjs';
 const same = (a, b) => a.id === b.id && a.createdAt === b.createdAt;
 const requireCheck = value => { if (!value) throw new Error('check_failed'); };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const sources = ['scripts/verify-previews.mjs', 'scripts/preview-app.mjs', 'scripts/sdk-deployed-workflow.mjs', 'sdk/javascript/index.js'];
+const sources = ['scripts/verify-previews.mjs', 'scripts/preview-app.mjs', 'scripts/sdk-deployed-workflow.mjs', '../linux/sdk/javascript/index.js'];
 
 export function parsePreviewArgs(args, env = process.env) {
   const options = {};

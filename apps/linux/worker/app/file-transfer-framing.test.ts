@@ -7,7 +7,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 // supplied Content-Length even when workerd's ordinary streamed body drops it.
 test('fixed transfer lengths survive native runtime and public Worker response boundaries', async t => {
   const bundle = await build({ stdin: { contents: `
-    import {fixedByteStream} from './containers/file-transfer-contract.js';
+    import {fixedByteStream} from '@canopy/linux/contracts/file-transfer';
     export default {async fetch(request){
       const path=new URL(request.url).pathname;
       if(path==='/cancel'){

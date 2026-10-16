@@ -32,6 +32,7 @@ jobs:
       - run: npm ci
       - run: node scripts/verify-migration.mjs
       - run: npm test
+      - run: npm run test:platform
       - run: npm run check:boundaries
       - id: scope
         env:

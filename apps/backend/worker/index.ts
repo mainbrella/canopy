@@ -9,7 +9,7 @@ import { AppState } from "./durable-objects/app-state";
 import { collectStatus } from './app/status';
 import { handleApplicationGateway } from '@canopy/linux/gateway';
 import { reconcileAcquisitionBilling } from './lib/acquisition-billing';
-import { cleanupDeletedBuildGit, cleanupStorageOrphans } from '@canopy/vibe/maintenance';
+import { cleanupDeletedBuildGit, cleanupStorageOrphans, buildStorageExpiration } from '@canopy/vibe/maintenance';
 import { reconcileBuildTurns } from '@canopy/vibe/routes';
 
 export { AppState };
@@ -32,7 +32,7 @@ export default {
       await inventoryStoragePage(env);
       await runStorageBilling(env);
       await notifyStorageRetention(env);
-      await expireUnfundedStorage(env);
+      await expireUnfundedStorage(env, buildStorageExpiration);
       await cleanupDeletedBuildGit(env);
       await cleanupStorageOrphans(env);
     })().catch(() => { console.error('storage_reconciliation_failed'); }));

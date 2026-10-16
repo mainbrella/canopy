@@ -20,8 +20,8 @@ const docker = (args, timeoutMs = 10_000) => execFileSync('docker', args, { enco
 const identity = value => ({ id: value.id, createdAt: value.createdAt });
 export const nativeSource = `
 import {DurableObject} from 'cloudflare:workers';
-import {UserContainer} from './containers/user-container.js';
-export {EgressOutbound,PrivateServiceOutbound} from './containers/user-container.js';
+import {UserContainer} from '../linux/containers/user-container.js';
+export {EgressOutbound,PrivateServiceOutbound} from '../linux/containers/user-container.js';
 // Adds read-only cleanup inventory to the unchanged production implementation.
 export class LocalStagingContainer extends UserContainer {
   async qualificationSnapshots(){return this.controller.serialized(async()=>{const rows=Object.values(await this.ctx.storage.get('workspaceReceipts')??{});if(rows.some(row=>!row.handle))throw new Error('ambiguous_snapshot_receipt');return rows.map(row=>row.handle);});}

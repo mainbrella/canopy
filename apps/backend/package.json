@@ -74,6 +74,7 @@
     "zod": "^4.6.5",
     "@canopy/voice": "*",
     "@canopy/vibe": "*",
-    "@canopy/linux": "*"
+    "@canopy/linux": "*",
+    "@canopy/platform": "*"
   }
 }

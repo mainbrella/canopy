@@ -23,11 +23,21 @@ test('current production sources respect the product boundary', () => {
   assert.deepEqual(checkAppBoundaries(), []);
 });
 
+test('shared wallet source stays independent of hosts and browser code', () => {
+  assert.equal(importViolation('apps/voice/worker/lib/voice-billing.ts', '@canopy/platform/billing'), null);
+  assert.equal(importViolation('apps/linux/containers/prepaid-wallet.js', '@canopy/platform/wallet'), null);
+  assert.ok(importViolation('apps/web/src/subscription.ts', '@canopy/platform/wallet'));
+  assert.ok(importViolation('packages/platform/wallet.js', '../../apps/linux/containers/plan-policy.js'));
+  assert.ok(importViolation('packages/platform/billing.ts', '@canopy/backend/worker/lib/prepaid-billing'));
+});
+
 test('Vibe uses explicit platform and compute seams without reaching into sibling products', () => {
   const worker = 'apps/vibe/worker/lib/build-agent.ts';
-  for (const module of ['container-service', 'prepaid-billing', 'r2-storage', 'inference-pricing']) {
+  for (const module of ['prepaid-billing', 'r2-storage', 'inference-pricing']) {
     assert.equal(importViolation(worker, `../../../backend/worker/lib/${module}`), null);
   }
+  assert.equal(importViolation(worker, '@canopy/linux/compute'), null);
+  assert.ok(importViolation(worker, '@canopy/linux/routes'));
   assert.equal(importViolation(worker, '../../../backend/worker/shared/github-git'), null);
   assert.ok(importViolation(worker, '../../../backend/worker/lib/github-import'));
   assert.ok(importViolation(worker, '../../../voice/worker/lib/voice'));

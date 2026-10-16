@@ -9,5 +9,5 @@
   "durable_objects": { "bindings": [{ "name": "RUNTIME_PROBE", "class_name": "RuntimeProbe" }] },
   "exports": { "RuntimeProbe": { "type": "durable-object", "storage": "sqlite" } },
   "containers": [{ "class_name": "RuntimeProbe", "scheduling_policy": "durable_object",
-    "images": { "terminal": { "dockerfile": "../containers/Dockerfile" } } }]
+    "images": { "terminal": { "dockerfile": "../../linux/containers/Dockerfile" } } }]
 }

@@ -10,7 +10,8 @@
     "./web": "./web/build-dashboard.ts",
     "./landing": "./web/home-build.ts",
     "./onboarding": "./web/build-onboarding.ts",
-    "./code": "./web/project-code.ts"
+    "./code": "./web/project-code.ts",
+    "./projects": "./worker/lib/project-workspace.ts"
   },
   "scripts": {
     "test": "npm run test:worker && npm run test:web",
@@ -21,7 +22,8 @@
   "dependencies": {
     "shiki": "^4.5.0",
     "zod": "^4.6.5",
-    "@canopy/linux": "*"
+    "@canopy/linux": "*",
+    "@canopy/platform": "*"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",

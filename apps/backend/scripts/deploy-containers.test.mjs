@@ -9,9 +9,10 @@ import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 
 function fixture(t, { outdated = false, exitCode = 0, custom = { images: {} }, apiStatus = 200, dryRun = true, secret = true, localSecret, invalidCatalog = false, withoutActivity = false,
   busyResponses = 0, lockStatus = 200, releaseStatus = 200, lockError = false, manifestSignal, wranglerScript, preload = '', requireStoppedChild = false, securityArgs = [] } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'terminal-deploy-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const dir of ['scripts', 'containers', 'containers/catalog', 'bin', 'node_modules/wrangler/bin']) mkdirSync(join(root, dir), { recursive: true });
+  const workspace = mkdtempSync(join(tmpdir(), 'terminal-deploy-'));
+  const root = join(workspace, 'backend');
+  t.after(() => rmSync(workspace, { recursive: true, force: true }));
+  for (const dir of ['../linux/containers/catalog', 'scripts', 'containers', 'containers/catalog', 'bin', 'node_modules/wrangler/bin']) mkdirSync(join(root, dir), { recursive: true });
   for (const file of ['deploy-containers.mjs', 'terminal-image.mjs', 'custom-images.mjs', 'catalog-images.mjs', 'resolve-tool.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
   copyFileSync(new URL('../../linux/containers/image-catalog.js', import.meta.url), join(root, '../linux/containers/image-catalog.js'));
   const dockerfile = 'FROM test\n';
@@ -20,12 +21,12 @@ function fixture(t, { outdated = false, exitCode = 0, custom = { images: {} }, a
     durable_objects: { bindings: [
       { name: 'ACCOUNT_ACTIVITY', class_name: 'AccountActivity', script_name: 'mainbrella-api' },
       { name: 'OTHER', class_name: 'Other' },
-    ] }, containers: [{ images: { terminal: { dockerfile: './containers/Dockerfile' } } }] }));
+    ] }, containers: [{ images: { terminal: { dockerfile: '../linux/containers/Dockerfile' } } }] }));
   const image = `registry.cloudflare.com/account/mainbrella-terminal@sha256:${'a'.repeat(64)}`;
   const manifest = { image, dockerfileHash: outdated ? 'old' : createHash('sha256').update(dockerfile).digest('hex') };
   const catalog = { images: {} };
   for (const entry of IMAGE_CATALOG) {
-    if (entry.key !== 'terminal') writeFileSync(join(root, entry.dockerfile), dockerfile);
+    if (entry.key !== 'terminal') writeFileSync(join(root, '../linux', entry.dockerfile), dockerfile);
     catalog.images[entry.key] = { image: `registry.cloudflare.com/account/${entry.repository}@sha256:${'a'.repeat(64)}`, dockerfileHash: createHash('sha256').update(dockerfile).digest('hex') };
   }
   if (invalidCatalog) catalog.images.python.image = 'docker.io/python:latest';

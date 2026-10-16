@@ -1,0 +1,14 @@
+{
+  "name": "@canopy/platform",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./billing": "./billing.ts",
+    "./wallet": "./wallet.js",
+    "./usage": "./usage.js",
+    "./wallet-policy": "./wallet-policy.js"
+  },
+  "scripts": {
+    "test": "node --test *.test.mjs"
+  }
+}

@@ -16,6 +16,7 @@ export function affectedTargets(paths) {
   const selected = Object.fromEntries(keys.map(key => [key, false]));
   const services = new Set();
   for (const path of paths) {
+    if (path.startsWith('packages/platform/')) return allTargets();
     if (path.startsWith('apps/backend/')) {
       const local = path.slice('apps/backend/'.length);
       if (!local) return allTargets();

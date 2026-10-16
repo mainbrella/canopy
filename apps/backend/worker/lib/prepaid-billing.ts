@@ -1,3 +1,4 @@
+import { walletRequest } from '@canopy/platform/billing';
 import { stripeKeyAllowed, stripeRequest, type BillingEnv } from './stripe';
 import { recordFunding, type AccountingCharge } from './accounting-stripe';
 
@@ -21,7 +22,8 @@ export interface PrepaidResourceUsage {
 }
 export interface PrepaidHistory {
   asOf: number; balance: PrepaidBalance;
-  totals: { fundedCents: number; revokedCents: number; usedCents: number; unattributedUsedCents: number; inferenceUsedCents: number; storageUsedCents: number };
+  totals: { fundedCents: number; revokedCents: number; usedCents: number; unattributedUsedCents: number; inferenceUsedCents: number; storageUsedCents: number; usageUsedCents: number };
+  productUsage: { product: string; usedCents: number }[];
   currentHourlyCents: number; activeResources: PrepaidResourceUsage[]; resources: PrepaidResourceUsage[];
   fundings: { id: string; createdAt: number; amountCents: number; revokedCents: number; reason: 'refund' | 'dispute' | null }[];
   nextResourceCursor: string | null; nextFundingCursor: string | null; historyTruncated: boolean; retainedResourceLimit: 256;
@@ -63,15 +65,7 @@ export async function prepaidAccountByCustomer(env: BillingEnv, customerId: stri
   return env.DB.prepare('SELECT user_id, stripe_customer_id, payment_method_id, latest_payment_intent_id FROM prepaid_accounts WHERE stripe_customer_id = ?').bind(customerId).first<PrepaidAccount>();
 }
 export async function accountBillingRequest<T = { balance: PrepaidBalance }>(env: BillingEnv, userId: string, path: string, body?: unknown): Promise<T> {
-  if (!env.CONTAINER_ACCOUNT) throw new Error('billing_unavailable');
-  const account = env.CONTAINER_ACCOUNT.get(env.CONTAINER_ACCOUNT.idFromName(`account:${userId}`));
-  const response = await account.fetch(new Request(`https://internal${path}`, {
-    method: body === undefined ? 'GET' : 'POST', headers: { 'x-mainbrella-user': userId, 'Content-Type': 'application/json' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  }));
-  const result = await response.json() as T & { error?: string };
-  if (!response.ok) throw new Error(result.error ?? 'billing_unavailable');
-  return result;
+  return walletRequest<T>(env, userId, path, body);
 }
 
 export async function ensurePrepaidAccount(env: BillingEnv, user: { id: string; email: string | null; name: string }): Promise<PrepaidAccount> {

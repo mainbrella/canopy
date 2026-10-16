@@ -248,7 +248,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     }
     const output = resolve(options.output); await mkdir(dirname(output), { recursive: true }); await mkdir(output, { mode: 0o700 });
     const sources = await Promise.all(['scripts/verify-job3.mjs', 'scripts/network-guest-probe.mjs', 'scripts/preview-app.mjs', 'sdk/javascript/index.js'].map(async path =>
-      ({ path, sha256: createHash('sha256').update(await readFile(join(root, path))).digest('hex') })));
+      ({ path, sha256: createHash('sha256').update(await readFile(join(root, path.startsWith('sdk/') ? '../linux/' + path : path))).digest('hex') })));
     if (previous) for (const path of ['scripts/network-guest-probe.mjs', 'sdk/javascript/index.js']) {
       requireCheck(previous.sources?.find(source => source.path === path)?.sha256 === sources.find(source => source.path === path).sha256);
     }

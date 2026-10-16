@@ -9,7 +9,8 @@
     "apps/raindrop",
     "apps/voice",
     "apps/vibe",
-    "apps/linux"
+    "apps/linux",
+    "packages/platform"
   ],
   "packageManager": "npm@10.9.7",
   "engines": {
@@ -48,6 +49,7 @@
     "test:voice": "npm test -w @canopy/voice",
     "check:boundaries": "node scripts/check-app-boundaries.mjs",
     "test:vibe": "npm test -w @canopy/vibe",
-    "test:linux": "npm test -w @canopy/linux"
+    "test:linux": "npm test -w @canopy/linux",
+    "test:platform": "npm test -w @canopy/platform"
   }
 }

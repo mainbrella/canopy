@@ -271,7 +271,7 @@ test('managed failures clean up the owned generation and hide server output', as
 test('published local SDK references match backend source instructions', async () => {
   for (const language of ['javascript', 'python']) {
     assert.equal(await readFile(new URL(`../public/sdk/${language}.md`, import.meta.url), 'utf8'),
-      await readFile(new URL(`../../backend/sdk/${language}/README.md`, import.meta.url), 'utf8'));
+      await readFile(new URL(`../../linux/sdk/${language}/README.md`, import.meta.url), 'utf8'));
   }
 });
 

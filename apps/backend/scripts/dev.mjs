@@ -52,7 +52,7 @@ const configPaths = ['api', 'containers', 'admin', 'marketing'].map(name => {
       if (container.class_name === 'UserContainer') {
         container.images = {
           ...container.images,
-          ...Object.fromEntries(IMAGE_CATALOG.map(image => [image.key, { dockerfile: `./${image.dockerfile}` }])),
+          ...Object.fromEntries(IMAGE_CATALOG.map(image => [image.key, { dockerfile: `../linux/${image.dockerfile}` }])),
         };
       }
     }

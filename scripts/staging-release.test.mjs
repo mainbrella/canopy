@@ -461,8 +461,8 @@ test('published catalog images are read-only release assets pinned to this accou
   const directory = mkdtempSync(join(tmpdir(), 'canopy-staging-images-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const values = Object.fromEntries(IMAGE_CATALOG.map(entry => {
-    const from = join(root, 'apps/backend', entry.dockerfile);
-    const to = join(directory, 'apps/backend', entry.dockerfile);
+    const from = join(root, 'apps/linux', entry.dockerfile);
+    const to = join(directory, 'apps/linux', entry.dockerfile);
     mkdirSync(dirname(to), { recursive: true });
     copyFileSync(from, to);
     return [entry.key, { image: catalog[entry.key].image,

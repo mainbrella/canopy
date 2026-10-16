@@ -1,10 +1,11 @@
 # website
 
-Web owns public pages, shared account UI, and route/build composition. Voice's
-browser implementation and tests live in [apps/voice/web](../voice/web); the two
-Voice source entries here supply session/configuration or load landing behavior.
-Voice HTML and CSS remain here during the first extraction milestone. See the
-root [product boundaries](../../README.md#product-boundaries) for the next steps.
+Web owns public pages, shared account UI, and route/build composition. Product
+browser implementations and tests live in [Voice](../voice/web),
+[Vibe](../vibe/web), and [Linux](../linux/web). The source entries here supply
+session/configuration and compose those public exports. Product HTML and CSS
+remain inputs to the existing site/builder builds. See the root
+[product boundaries](../../README.md#product-boundaries).
 
 ```sh
 npm ci

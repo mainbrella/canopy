@@ -119,7 +119,7 @@ if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).
     const output=resolve(args.output);await mkdir(output,{mode:0o700});
     const env={...parseEnv(await readFile(join(root,'.env'),'utf8')),...process.env};
     const client=new Mainbrella({apiKey:env.MAINBRELLA_API_KEY,baseUrl:env.MAINBRELLA_API_URL});
-    const sources=await Promise.all(['scripts/benchmark-sizes.mjs','scripts/benchmark-workloads.mjs','containers/plan-policy.js','sdk/javascript/index.js'].map(async path=>({path,sha256:createHash('sha256').update(await readFile(join(root,path))).digest('hex')})));
+    const sources=await Promise.all(['scripts/benchmark-sizes.mjs','scripts/benchmark-workloads.mjs','../linux/containers/plan-policy.js','../linux/sdk/javascript/index.js'].map(async path=>({path,sha256:createHash('sha256').update(await readFile(join(root,path))).digest('hex')})));
     const revision=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
     const previousBytes=args.resume?await readFile(resolve(args.resume)):null,previous=previousBytes?JSON.parse(previousBytes):undefined;
     const previousEvidence=previousBytes?{path:resolve(args.resume),sha256:createHash('sha256').update(previousBytes).digest('hex')}:null;

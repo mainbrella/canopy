@@ -1,5 +1,5 @@
 import { BuildError, type BuildParams } from './build-contract';
-import { accountBillingRequest } from '../../../backend/worker/lib/prepaid-billing';
+import { walletRequest as accountBillingRequest } from '@canopy/platform/billing';
 import { buildInferenceChargeMicroUsd, buildTokenCostMicroUsd, readBuildTokenUsage } from './build-pricing';
 import { proposeBuildOperation, recordBuildOperation, buildFailure, type OperationRef } from './build-journal';
 

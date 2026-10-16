@@ -56,7 +56,7 @@ async function referencedObjects(env: Env, owner: StorageOwner) {
 export async function cleanupStorageOrphans(env: Env) {
   if (!storageMetered(env) || !env.BUCKET) return;
   const state = await env.DB.prepare("SELECT value FROM r2_meter_state WHERE id='orphan_app'").first<{ value: string }>();
-  const page = await env.DB.prepare(`SELECT DISTINCT user_id,app_id FROM r2_objects WHERE deleted_at IS NULL AND user_id<>'mainbrella'
+  const page = await env.DB.prepare(`SELECT DISTINCT user_id,app_id FROM r2_objects WHERE deleted_at IS NULL AND user_id<>'mainbrella' AND key LIKE 'build-git/%'
     AND app_id>? ORDER BY app_id LIMIT 10`).bind(state?.value ?? '').all<{ user_id: string; app_id: string }>();
   for (const row of page.results) {
     try {
@@ -64,7 +64,7 @@ export async function cleanupStorageOrphans(env: Env) {
       const app = await env.DB.prepare('SELECT active_turn_id FROM build_apps WHERE id=? AND user_id=?').bind(owner.appId, owner.userId).first<{ active_turn_id: string | null }>();
       if (app?.active_turn_id) continue;
       const cutoff = Date.now() - STORAGE_DAY_MS;
-      const candidates = await env.DB.prepare('SELECT key,state,size,purpose FROM r2_objects WHERE user_id=? AND app_id=? AND deleted_at IS NULL AND updated_at<? LIMIT 200')
+      const candidates = await env.DB.prepare("SELECT key,state,size,purpose FROM r2_objects WHERE user_id=? AND app_id=? AND deleted_at IS NULL AND updated_at<? AND key LIKE 'build-git/%' LIMIT 200")
         .bind(owner.userId, owner.appId, cutoff).all<{ key: string; state: string; size: number; purpose: 'source' | 'assets' | 'history' | 'diagnostics' }>();
       if (!candidates.results.length) continue;
       const refs = app ? await referencedObjects(env, owner) : new Set<string>();

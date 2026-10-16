@@ -48,7 +48,7 @@ async function qualificationSources() {
       else if (item.isFile() && (/\.(js|mjs|ts|py|json|toml|md)$/.test(item.name) || item.name === 'LICENSE')) paths.push(path);
     }
   }
-  for (const directory of ['../linux/sdk', '../linux/containers', '../linux/worker', 'worker', 'experiments']) await walk(directory);
+  for (const directory of ['../../packages/platform', '../linux/sdk', '../linux/containers', '../linux/worker', 'worker', 'experiments']) await walk(directory);
   return Promise.all([...new Set(paths)].sort().map(async path => ({ path,
     sha256: createHash('sha256').update(await readFile(join(root, path))).digest('hex') })));
 }
@@ -119,7 +119,7 @@ try {
   await copyFile(join(root, 'scripts/sdk-types.ts'), join(consumer, 'sdk-types.ts'));
   run(process.execPath, [resolveTool('typescript', 'bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022',
     '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--lib', 'ES2022,DOM,DOM.Iterable', 'sdk-types.ts'], { cwd: consumer });
-  const runtimeTest = join(root, 'worker/app/sdk-runtime.integration.test.ts');
+  const runtimeTest = join(root, '../linux/worker/app/sdk-runtime.integration.test.ts');
   const installedModule = pathToFileURL(join(installed, 'index.js')).href;
   run(process.execPath, ['--import', resolveTool('tsx', 'dist/loader.mjs'), '--test', runtimeTest],
     { cwd: root, env: { MAINBRELLA_SDK_MODULE: installedModule } });

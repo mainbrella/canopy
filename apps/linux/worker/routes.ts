@@ -22,3 +22,4 @@ export { handleTerminalRequest } from './app/terminal';
 export { handleWebhookRequest } from './app/webhooks';
 export { handleWorkspaceExportRequest } from './app/workspace-export';
 export { handleWorkspacesRequest } from './app/workspaces';
+export { handleProjectEndpointRequest, handleProjectDomainsRequest, purchasedProjectDomain, disconnectPurchasedDomain } from './app/project-hosting';

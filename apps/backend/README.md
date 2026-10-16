@@ -1,8 +1,12 @@
 # Mainbrella API
 
-Voice source and product tests now live in [apps/voice](../voice). This workspace
-still composes its routes, OpenAPI schemas, billing reconciliation, and Durable
-Object export into the existing API deployment.
+Product source and tests live in [Voice](../voice), [Vibe](../vibe), and
+[Linux](../linux). Backend composes their routes, schemas, reconciliation, and
+runtime exports into the existing deployments. The shared wallet and typed
+product charging client live in [packages/platform](../../packages/platform).
+Ordered D1 migrations stay here. Apply `049_product_usage.sql` before using the
+new product usage API; existing funding, balances, inference and storage receipts
+keep their identities.
 
 The session-authenticated `/containers` API resolves paid access from Stripe and
 reserves starts in an account-owned `ContainerAccount` Durable Object. Each
@@ -67,7 +71,7 @@ temporary local configs disable R2 storage billing so source uploads do not
 require the production inventory and billing bootstrap. The
 API is available at
 `http://localhost:8787`; API docs are at `/docs`. Wrangler builds the Node image
-from `containers/Dockerfile` and starts containers on demand. This requires
+from `../linux/containers/Dockerfile` and starts containers on demand. This requires
 Wrangler 4.136.0 or newer. Press `r` in the dev terminal to rebuild the image.
 `npm run dev:lan` exposes the same setup on your local network.
 

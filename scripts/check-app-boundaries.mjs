@@ -35,7 +35,7 @@ const products = {
     ]),
     productExports: new Set(['@canopy/linux/compute', '@canopy/linux/contracts/command', '@canopy/linux/contracts/execution', '@canopy/linux/contracts/account', '@canopy/linux/contracts/file']),
     hostExports: {
-      backend: new Set(['routes', 'maintenance', 'workflow', 'openapi']),
+      backend: new Set(['routes', 'maintenance', 'workflow', 'openapi', 'projects']),
       web: new Set(['web', 'landing', 'onboarding', 'code']),
     },
   },
@@ -61,13 +61,24 @@ export function importViolation(file, specifier) {
   const target = specifier.startsWith('.')
     ? relative(root, resolve(root, dirname(file), specifier)).replaceAll('\\', '/')
     : specifier;
+  if (file.startsWith('packages/platform/') && (target.startsWith('apps/')
+    || specifier.startsWith('@canopy/') && !specifier.startsWith('@canopy/platform/'))) return 'Platform must not depend on product or host implementations';
+  if (!file.startsWith('packages/platform/') && target.startsWith('packages/platform/')) return 'Use platform package exports';
+  if (specifier.startsWith('@canopy/platform/')) {
+    const [, owner, area] = file.split('/');
+    const entry = specifier.slice('@canopy/platform/'.length);
+    const allowed = area === 'worker' || owner === 'linux' && area === 'containers';
+    return allowed && (entry === 'billing' || owner === 'linux' && ['wallet', 'usage', 'wallet-policy'].includes(entry))
+      ? null : 'Use the supported server-side platform interface';
+  }
   const product = file.split('/')[1];
   const rules = products[product];
   if (rules) {
     const area = file.split('/')[2];
     if (target.startsWith(`apps/${product}/`)) {
       if (!target.startsWith(`apps/${product}/${area}/`)
-        && !(product === 'linux' && area === 'worker' && target.startsWith('apps/linux/containers/'))) return `${rules.name} browser and worker modules must stay separate`;
+        && !(product === 'linux' && ((area === 'worker' && target.startsWith('apps/linux/containers/'))
+          || (file.endsWith('.d.ts') && area === 'containers' && target.startsWith('apps/linux/worker/'))))) return `${rules.name} browser and worker modules must stay separate`;
     } else if (target.startsWith('apps/')) {
       if (area === 'web' || !rules.platformModules.has(target.replace(/\.ts$/, ''))) return `${rules.name} may only import its listed platform and compute modules`;
     } else if (specifier.startsWith('@canopy/')) {
@@ -94,7 +105,7 @@ function sourceFiles(directory) {
 
 export function checkAppBoundaries() {
   const failures = [];
-  for (const directory of ['apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
+  for (const directory of ['packages/platform', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
     for (const path of sourceFiles(join(root, directory))) {
       const file = relative(root, path).replaceAll('\\', '/');
       // Integration fixtures deliberately exercise the real shared host.
