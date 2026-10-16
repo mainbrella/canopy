@@ -1,9 +1,8 @@
 # Canopy staging
 
-The working tree now includes a dark product home and account dropdown that have
-not been deployed. The updated hosted smoke script expects that shell: deploy
-the reviewed revision before using it to verify this change. The deployment
-record below describes the earlier email/password account milestone.
+The dark product home and account dropdown are deployed and verified on staging
+as of **2026-10-16**. The deployment records below distinguish the initial
+email/password milestone from the latest shell deployment and hosted smoke test.
 
 Staging uses the existing Mainbrella Cloudflare account
 `2b7a9be82bb64187230703b024e25157`, with separate resources:
@@ -56,6 +55,12 @@ npm run check
 npm run build:staging
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run test:browser
 ```
+
+If a remote command reports `Authentication error [code: 10000]` or
+`Invalid access token [code: 9109]`, repeat the repository's `staging login`
+command, complete browser authentication, and confirm `staging whoami` succeeds
+before retrying deployment. This refreshes Canopy's isolated credentials under
+`.cache/`; an expired OAuth session may fail automatic refresh.
 
 Before the first deployment, check the account's Worker domains and routes for
 both production and staging hosts, verify that the staging hostnames are free,
@@ -131,7 +136,7 @@ deletion does not imply database deletion. Keep production Workers, domains,
 routes, databases, and OAuth configuration intact. Teardown is documented here,
 not part of normal deployment or authorization to delete staging data.
 
-## Deployment record
+## Initial deployment record
 
 Deployed and verified on **2026-10-16**:
 
@@ -152,6 +157,37 @@ Deployed and verified on **2026-10-16**:
 - Local snapshots are under ignored `.cache/staging/`; hosted browser results
   and screenshots are under ignored `test-results/staging/`. This is local
   operator verification, not evidence of a completed remote CI run.
+
+## Shell deployment record
+
+The operator redeployed both staging Workers on **2026-10-16** from checkout
+`cfb462a7a5623c627da07c097c8f1cb83658c7ba` with existing working-tree edits.
+Cloudflare's read-only deployment records confirm these active versions:
+
+- API: `9e9afc94-6f43-45cc-aee2-7fc3efeea59e`, deployed at 12:26:06 UTC.
+- Console: `1143a1a7-0c6c-4ffc-b45c-b628f8df50e8`, deployed at 12:26:11 UTC.
+- D1 remains `824e7e4b-b015-416a-93ec-f09ad56ef4d9`; the migration command
+  reported no migrations to apply. No new resources were provisioned.
+- The supplied deployment log confirms type checks, 23 account/client tests,
+  64 Voice tests, local builds and staging dry runs passed. Voice was built and
+  tested locally; only accounts and the console were deployed.
+- `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run smoke:staging`
+  passed against the hosted shell at **12:27:46 UTC**: product home, signup,
+  reload, logout/revocation, wrong password, returning login, staging-only API
+  calls, secure host-only cookies, exact CORS allowlisting, disabled Google,
+  all four viewport sizes, and no browser script errors. The smoke script now
+  waits for account details after reload before capturing account screenshots.
+  Two smoke runs created two disposable staging accounts; both signed out.
+- Active staging versions and domain associations were checked through the
+  Cloudflare API. Production API deployments, production domains, and zone
+  routes match the earlier 11:24:54 UTC snapshot. Production web already had a
+  newer deployment at 12:09:42 UTC (version
+  `8ce0582e-22d5-439a-8102-3c9b9eab3e5c`), before this staging redeploy, so it
+  does not match that older baseline. Verification performed no production writes.
+- Read-only deployment evidence is saved in ignored
+  `.cache/staging/redeploy-2026-10-16.json`; the latest smoke result and viewport
+  screenshots are in ignored `test-results/staging/`. These are operator-run
+  and local browser results, not remote CI results.
 
 Real Google authentication remains unverified and disabled on staging. No
 production OAuth client or origins were reused or modified.

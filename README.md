@@ -32,6 +32,8 @@ The local build produces `platform/accounts/dist/` and `platform/console/dist/`.
 
 For fast frontend-only updates, run `npm run deploy:staging:site`. It builds the staging console once and deploys only `stg.mainbrella.com`, skipping checks, tests, API deployment, and database migrations. Use the full deployment command for changes that also need backend updates.
 
+The dark product home and account dropdown were deployed to staging on **2026-10-16** and passed the hosted email/session smoke test across all four target viewport sizes. The latest Worker versions and verification evidence are recorded in [STAGING.md](STAGING.md#shell-deployment-record). Voice remains a catalog placeholder there; Google remains disabled.
+
 ### Console configuration
 
 The dark console has a product home, shared header/footer, and an account dropdown. Compute, Builder, and Voice each have a **Not installed** placeholder page. Voice's independent runtime is packaged, but the console has no installation API, account handoff, or provisioning flow yet. The Appflare link opens its external catalog; Canopy does not read or manage Appflare installs.

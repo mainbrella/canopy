@@ -49,6 +49,7 @@ try {
   assert.equal(cookie.sameSite, "None");
   await page.reload();
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+  await expect(page.locator("#account-email")).toHaveText(email);
   const viewports = [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }];
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);

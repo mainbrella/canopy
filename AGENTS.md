@@ -36,8 +36,8 @@ commit `3d09706e`. Completed milestones:
 | Local email/password accounts, sessions, shared contracts/client | `94f620c` | Implemented and locally verified |
 | Optional Google browser sign-in | `922cf30` | Implemented and automatically tested; real provider verification pending |
 | Isolated email/password staging | `394eeb5` | Deployed and verified; deployment record in `STAGING.md` |
-| Dark console theme | `570ffa6` | Implemented and locally verified; deployment not recorded |
-| Product shell, catalog placeholders, account menu | `61180e1` | Implemented and locally verified; deployment not recorded |
+| Dark console theme | `570ffa6` | Deployed to staging and hosted smoke verified; see `STAGING.md` |
+| Product shell, catalog placeholders, account menu | `61180e1` | Deployed to staging and hosted smoke verified; see `STAGING.md` |
 | Fast frontend-only staging deployment command | `2f5956e` | Implemented; staging build and dry run verified |
 | Standalone Voice product extraction | Working tree | Implemented and locally verified; no deployment or console installation |
 
@@ -67,7 +67,8 @@ views, native controls, focus/error states, and the optional Google button.
 Layout and authentication behavior are unchanged. Type checks, local/staging
 console builds, and all 14 local browser tests passed; screenshots were inspected
 across the four target viewport sizes and palette contrast checked. Google UI
-checks still use the stub SDK. This theme change has not been deployed.
+checks still use the stub SDK. This theme is now deployed to staging, with a
+hosted email/session smoke result recorded below and in `STAGING.md`.
 
 Console shell added on **2026-10-16** as the first slice toward a reference
 Mainbrella deployment in an operator's own Cloudflare account. The home lists
@@ -86,8 +87,16 @@ Verification: `npm run check` (23 auth/client tests), `npm run build:staging`, a
 hidden products and an empty catalog, session-service failure, account-menu
 keyboard/outside-click/focus dismissal, and the four target viewport sizes.
 Screenshots were inspected. Google UI checks still use a stub SDK. The hosted
-smoke script now follows the new product home and account dropdown; it has not
-been run against this revision. The shell and dark theme have not been deployed.
+smoke script follows the new product home and account dropdown and passed against
+the deployed shell on **2026-10-16**. The operator's redeploy from checkout
+`cfb462a7` activated API version `9e9afc94-6f43-45cc-aee2-7fc3efeea59e` and
+console version `1143a1a7-0c6c-4ffc-b45c-b628f8df50e8`; D1 had no pending
+migrations. The deployment log passed all checks and 87 account/client/Voice
+tests. The hosted smoke covered signup, login, reload, logout/revocation, errors,
+cookies, CORS, disabled Google and all four viewports without script errors.
+The smoke script now waits for account details after reload before screenshots.
+See `STAGING.md` for the read-only deployment evidence and production baseline
+comparison. Voice was not deployed and console installation remains unfinished.
 
 Implemented:
 
@@ -312,8 +321,8 @@ existing staging scope and resource boundaries when planning the test install.
 
 Defer additional products, a general installer framework, automatic upgrades,
 billing/wallet migration, production data migration and destructive uninstall UI.
-The shell/theme also still need a recorded staging deployment and hosted smoke
-result; do not treat the earlier account-only smoke as verification of this shell.
+The shell/theme staging deployment and hosted smoke are now recorded in
+`STAGING.md`; this verifies the console shell, not product installation.
 
 ## Pending checkpoint — real Google smoke test
 

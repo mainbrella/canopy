@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +44,11 @@ function include(path, initial = false) {
 }
 include("products/voice", true);
 
+for (const path of [".dev.vars", "wrangler.install.jsonc", ".wrangler/state"]) {
+  if (existsSync(`${output}/${path}`) || existsSync(`${output}/products/voice/${path}`)) {
+    throw new Error("The existing export contains local configuration or database state. Move it before generating a new export.");
+  }
+}
 await rm(output, { recursive: true, force: true });
 const target = `${output}/products/voice`;
 await mkdir(`${target}/scripts`, { recursive: true });
@@ -60,7 +66,7 @@ await writeFile(`${output}/package-lock.json`, `${JSON.stringify({ name: wrapper
 await writeFile(`${output}/SOURCE.json`, `${JSON.stringify({ repository: "https://github.com/mainbrella/canopy",
   revision: git("rev-parse", "HEAD"), version: pkg.version, dirty, release: !dirty }, null, 2)}\n`);
 const provenance = JSON.parse(await readFile(`${root}migration-sources.json`, "utf8"));
-provenance.files = provenance.files.filter(file => file.destination.startsWith("products/voice/"));
+provenance.files = provenance.files.filter(file => file.destination.startsWith("products/voice/") && existsSync(`${output}/${file.destination}`));
 await writeFile(`${output}/migration-sources.json`, `${JSON.stringify(provenance, null, 2)}\n`);
 await cp(`${product}LICENSE`, `${output}/LICENSE`);
 await writeFile(`${output}/README.md`, "# Mainbrella Voice source\n\nThis export contains only Voice and its locked dependencies. See [setup and installation](products/voice/README.md) and SOURCE.json.\n\nRun `npm ci`, `npm run type-check`, `npm test`, and `npm run build` here. The one-product workspace preserves npm's dependency and peer resolution without installing Canopy's platform services.\n");

@@ -283,7 +283,7 @@
       "source": "package.json",
       "destination": "products/voice/package.json",
       "sha256": "3e38b7c0004af8fd1c7ebe361d886ab604114cf09d71f923aae34f553de844b9",
-      "change": "Name the Canopy product workspace; use product-local restricted Wrangler scripts, workspace-aligned Workers types/Wrangler and patched Miniflare; retain runtime SDK dependencies and independent scripts."
+      "change": "Name the Canopy product workspace; use product-local restricted Wrangler and test-cache scripts, workspace-aligned Workers types/Wrangler and patched Miniflare; retain runtime SDK dependencies. Standalone exports omit catalog generation."
     },
     {
       "repository": "ai-receptionist",
