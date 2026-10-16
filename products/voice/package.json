@@ -13,7 +13,7 @@
     "build:client": "vite build",
     "build": "npm run build:client && node scripts/wrangler.mjs deploy --dry-run --outdir dist/worker",
     "type-check": "tsc -p tsconfig.worker.json && tsc -p tsconfig.client.json",
-    "test": "tsx --test test/*.test.ts src/*.test.ts",
+    "test": "node scripts/test.mjs",
     "db:migrate:local": "node scripts/wrangler.mjs d1 migrations apply DB --local",
     "catalog:manifest": "node scripts/catalog-manifest.mjs"
   },

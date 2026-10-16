@@ -51,6 +51,7 @@ for (const path of ["worker", "src", "test", "public", "migrations", "index.html
   await cp(`${product}${path}`, `${target}/${path}`, { recursive: true });
 }
 await cp(`${product}scripts/wrangler.mjs`, `${target}/scripts/wrangler.mjs`);
+await cp(`${product}scripts/test.mjs`, `${target}/scripts/test.mjs`);
 await mkdir(`${target}/docs`, { recursive: true });
 for (const path of ["telephony.md", "voice-languages.md", "installation.md"]) await cp(`${product}docs/${path}`, `${target}/docs/${path}`);
 await writeFile(`${target}/package.json`, `${JSON.stringify(pkg, null, 2)}\n`);

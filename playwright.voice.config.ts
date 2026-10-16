@@ -11,7 +11,7 @@ export default defineConfig({
     launchOptions: process.env.CANOPY_CHROMIUM_PATH ? { executablePath: process.env.CANOPY_CHROMIUM_PATH } : {},
   },
   webServer: {
-    command: "npm run build:client --workspace @canopy/voice && node products/voice/test/browser-server.mjs",
+    command: "npm run build:client --workspace @canopy/voice && node products/voice/scripts/test.mjs --browser",
     url: "http://127.0.0.1:8792/__ready",
     reuseExistingServer: false,
     timeout: 60_000,
