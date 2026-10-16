@@ -10,7 +10,7 @@ import { artifactHash } from './deploy.mjs';
 import { targetFor } from './deploy-targets.mjs';
 import { STAGING } from './staging-config.mjs';
 import { publishedStagingImages, stagingBootstrapConfig, stagingOperation, stagingSecrets,
-  stagingTargets, validateStagingOperation } from './staging-release.mjs';
+  stagingBackendTargets, stagingTargets, validateStagingOperation } from './staging-release.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const sha = 'a'.repeat(40);
@@ -59,9 +59,11 @@ function fixture(t, behavior = {}) {
     const call = { command, args: [...args], cwd: options.cwd, env: options.env, input: options.input };
     calls.push(call);
     if (command === 'git') {
-      assert.deepEqual(args, ['rev-parse', 'HEAD']);
       assert.equal(options.cwd, directory);
-      return sha;
+      if (args.join(' ') === 'rev-parse HEAD') return behavior.sha ?? sha;
+      if (args.join(' ') === 'status --porcelain') return behavior.dirty ? ' M worker/index.ts' : '';
+      if (args.join(' ') === 'remote get-url origin') return behavior.origin ?? 'git@github.com:mainbrella/canopy.git';
+      throw new Error(`Unexpected fixture git command: ${args.join(' ')}`);
     }
     if (command === 'npm') {
       assert.equal(args[0], 'run');
@@ -71,6 +73,12 @@ function fixture(t, behavior = {}) {
     }
     assert.equal(command, process.execPath);
     assert.equal(realpathSync(args[0]), realpathSync(join(wranglerPackage, 'bin/wrangler.js')));
+    if (args[1] === 'whoami') {
+      assert.deepEqual(args.slice(1), ['whoami', '--json']);
+      assert.equal(options.cwd, join(directory, 'apps/backend'));
+      assert.equal(options.env.CLOUDFLARE_API_TOKEN, releaseEnv.CLOUDFLARE_API_TOKEN);
+      return JSON.stringify(behavior.whoami ?? { loggedIn: true, accounts: [{ id: STAGING.accountId }] });
+    }
     const configPath = args[args.indexOf('--config') + 1];
     assert.ok(configPath && configPath.startsWith(directory));
     const config = JSON.parse(readFileSync(configPath, 'utf8'));
@@ -219,6 +227,71 @@ test('offline check validates every staging target without provider calls, secre
   assert.ok(f.calls.filter(call => call.command === 'npm').every(call => call.env.VITE_API_URL === STAGING.apiOrigin
     && call.env.VITE_GA_MEASUREMENT_ID === ''));
   assert.equal(f.evidence().publications.length, 0);
+  f.assertClean();
+});
+
+test('backend-only check validates four workers offline without credentials or provider calls', async t => {
+  const f = fixture(t);
+  f.options.env = { STAGING_SECRETS_JSON: '{"STRIPE_SECRET_KEY":"sk_live_ignored_offline"}' };
+  f.options.provision = () => { throw new Error('Backend check reached provisioner'); };
+  f.options.request = () => { throw new Error('Backend check reached provider'); };
+  f.options.images = () => { throw new Error('Backend check reached image publisher'); };
+  const result = await stagingOperation('check-backend', f.options);
+  assert.equal(result.status, 'success');
+  assert.deepEqual(Object.keys(result.validatedArtifacts), stagingBackendTargets);
+  assert.equal(f.calls.filter(call => call.command === 'npm').length, 7);
+  assert.deepEqual(f.calls.filter(call => call.command === process.execPath && call.args.includes('--dry-run'))
+    .map(call => call.config.name), stagingBackendTargets.map(name => `${targetFor(name).worker}-stg`));
+  assert.equal(deployCalls(f).length, 0);
+  assert.deepEqual(f.provider, []);
+  f.assertClean();
+});
+
+test('local backend bootstrap gates source, origin, token, account and Wrangler identity before builds', async t => {
+  const localEnv = { CLOUDFLARE_API_TOKEN: releaseEnv.CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: STAGING.accountId };
+  assert.doesNotThrow(() => validateStagingOperation('bootstrap-backend', 'all', localEnv, sha));
+  for (const [behavior, env, message] of [
+    [{}, { ...localEnv, CLOUDFLARE_API_TOKEN: '' }, /Cloudflare token/],
+    [{}, { ...localEnv, CLOUDFLARE_ACCOUNT_ID: undefined }, /explicit staging Cloudflare account/],
+    [{ sha: 'short' }, localEnv, /full source commit SHA/],
+    [{ dirty: true }, localEnv, /Commit all local changes/],
+    [{ origin: 'git@github.com:other/canopy.git' }, localEnv, /canonical Canopy origin/],
+    [{ whoami: { loggedIn: true, accounts: [{ id: 'wrong' }] } }, localEnv, /credentials must access/],
+  ]) {
+    const f = fixture(t, behavior);
+    f.options.env = env;
+    await assert.rejects(stagingOperation('bootstrap-backend', f.options), message);
+    assert.deepEqual(f.provider, []);
+    assert.equal(f.calls.some(call => call.command === 'npm'), false);
+    assert.equal(deployCalls(f).length, 0);
+    assert.equal(existsSync(join(f.directory, 'artifacts/staging')), false);
+    f.assertClean();
+  }
+});
+
+test('local backend bootstrap provisions stage resources and publishes stub plus exact four workers', async t => {
+  const f = fixture(t);
+  f.options.env = { CLOUDFLARE_API_TOKEN: releaseEnv.CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: STAGING.accountId };
+  const result = await stagingOperation('bootstrap-backend', f.options);
+  assert.equal(result.status, 'success');
+  assert.deepEqual(f.provider.map(call => call.kind), ['provision', 'request']);
+  assert.equal(f.provider[0].create, true);
+  assert.deepEqual(f.calls.filter(call => call.command === process.execPath && call.args[1] === 'd1')
+    .map(call => call.args[4]), ['DB', 'PREVIEW_ROUTES']);
+  assert.deepEqual(deployCalls(f).map(call => call.config.name), [
+    'mainbrella-api-stg', 'mainbrella-admin-stg', 'mainbrella-marketing-stg',
+    'mainbrella-containers-stg', 'mainbrella-api-stg',
+  ]);
+  assert.equal(deployCalls(f)[0].config.main, 'worker/staging-bootstrap.ts');
+  assert.deepEqual(deployCalls(f)[4].config.routes, [{ pattern: 'api-stg.mainbrella.com', custom_domain: true }]);
+  assert.deepEqual(f.preflights, ['admin', 'marketing', 'containers', 'api']);
+  assert.deepEqual(result.publications.map(item => item.kind),
+    ['bootstrap-declarations', 'application', 'application', 'application', 'application']);
+  assert.deepEqual(Object.keys(result.imageDigests), IMAGE_CATALOG.map(entry => entry.key));
+  assert.ok(deployCalls(f).every(call => !['mainbrella-previews-stg', 'mainbrella-web-stg',
+    'mainbrella-builder-stg', 'mainbrella-raindrop-stg'].includes(call.config.name)));
   f.assertClean();
 });
 
@@ -399,14 +472,14 @@ test('published catalog images are read-only release assets pinned to this accou
   const run = (command, args) => {
     calls.push([command, ...args]);
     assert.equal(command, 'gh');
-    if (args[0] === 'release') return JSON.stringify({ assets: [
+    if (args[1] === 'repos/mainbrella/backend/releases/tags/terminal-image') return JSON.stringify({ assets: [
       { name: 'terminal-image.json', id: 1 }, { name: 'catalog-images.json', id: 2 },
     ] });
     return JSON.stringify(args[1].endsWith('/1') ? values.terminal : { images: values });
   };
   assert.deepEqual(publishedStagingImages({ directory, run }), catalog);
   assert.deepEqual(calls.map(call => call.slice(0, 3)), [
-    ['gh', 'release', 'view'], ['gh', 'api', 'repos/mainbrella/backend/releases/assets/1'],
+    ['gh', 'api', 'repos/mainbrella/backend/releases/tags/terminal-image'], ['gh', 'api', 'repos/mainbrella/backend/releases/assets/1'],
     ['gh', 'api', 'repos/mainbrella/backend/releases/assets/2'],
   ]);
 });

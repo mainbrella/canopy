@@ -35,6 +35,7 @@
     "verify:migration": "node scripts/verify-migration.mjs",
     "stg:plan": "node scripts/staging.mjs plan",
     "stg:homepage": "node scripts/staging-homepage.mjs",
+    "stg:backend": "node scripts/staging-backend.mjs",
     "stg:check": "node scripts/staging.mjs check",
     "stg:provision": "node scripts/staging.mjs provision",
     "stg:deploy": "node scripts/staging.mjs deploy",

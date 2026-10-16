@@ -16,6 +16,7 @@ import { validateCatalogImages } from '../apps/backend/scripts/catalog-images.mj
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 export const stagingTargets = ['api', 'admin', 'marketing', 'containers', 'previews', 'site', 'builder', 'raindrop'];
+export const stagingBackendTargets = ['api', 'admin', 'marketing', 'containers'];
 const offlineResources = { databaseId: '00000000-0000-4000-8000-000000000001',
   previewDatabaseId: '00000000-0000-4000-8000-000000000002', bucketName: STAGING.bucketName };
 const checks = {
@@ -30,10 +31,17 @@ const capture = (run, command, args, options) => String(run(command, args,
 const versionId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 
 export function validateStagingOperation(operation, target, env, sourceSha) {
-  assert.ok(['check', 'deploy', 'bootstrap', 'migrate-api', 'migrate-previews'].includes(operation), 'Unknown staging operation.');
+  assert.ok(['check', 'check-backend', 'deploy', 'bootstrap', 'bootstrap-backend', 'migrate-api', 'migrate-previews'].includes(operation), 'Unknown staging operation.');
   assert.ok(stagingTargets.includes(target) || target === 'all' && operation !== 'deploy', 'Select one staging deploy target.');
-  if (!['check', 'deploy'].includes(operation)) assert.equal(target, 'all', 'Bootstrap and migration operations use target all.');
-  if (operation === 'check') return;
+  if (!['check', 'deploy'].includes(operation)) assert.equal(target, 'all', 'Backend checks, bootstrap, and migration operations use target all.');
+  if (operation === 'check' || operation === 'check-backend') return;
+  if (operation === 'bootstrap-backend') {
+    assert.ok(/^[a-f0-9]{40}$/.test(sourceSha ?? ''), 'Identify a full source commit SHA for local staging bootstrap.');
+    assert.ok(typeof env.CLOUDFLARE_API_TOKEN === 'string' && env.CLOUDFLARE_API_TOKEN.trim(), 'Configure a staging Cloudflare token.');
+    assert.equal(env.CLOUDFLARE_ACCOUNT_ID, STAGING.accountId, 'Set the explicit staging Cloudflare account.');
+    assert.ok(!env.CF_ACCOUNT_ID || env.CF_ACCOUNT_ID === STAGING.accountId, 'Staging account mismatch.');
+    return;
+  }
   assert.equal(env.GITHUB_ACTIONS, 'true', 'Publish staging through its GitHub workflow.');
   assert.equal(env.GITHUB_REPOSITORY, 'mainbrella/canopy', 'Staging releases belong to Canopy.');
   assert.equal(env.GITHUB_WORKFLOW_REF, 'mainbrella/canopy/.github/workflows/staging.yml@refs/heads/main', 'Use the main-owned staging workflow.');
@@ -75,7 +83,7 @@ export function stagingBootstrapConfig(api) {
 // a production API, image manifest endpoint, image deployment lease, or builder.
 export function publishedStagingImages({ directory = root, run = execute } = {}) {
   const options = { cwd: join(directory, 'apps/backend') };
-  const release = JSON.parse(capture(run, 'gh', ['release', 'view', 'terminal-image', '--repo', 'mainbrella/backend', '--json', 'assets'], options));
+  const release = JSON.parse(capture(run, 'gh', ['api', 'repos/mainbrella/backend/releases/tags/terminal-image'], options));
   const readAsset = name => {
     const asset = release.assets?.find(item => item.name === name);
     assert.ok(Number.isSafeInteger(asset?.id), `Missing published ${name}; publish the maintained images separately.`);
@@ -93,8 +101,23 @@ export async function stagingOperation(operation, { target = 'all', directory = 
   images = publishedStagingImages, log = console.log } = {}) {
   const sourceSha = capture(run, 'git', ['rev-parse', 'HEAD'], { cwd: directory });
   validateStagingOperation(operation, target, env, sourceSha);
-  const secrets = operation === 'check' ? {} : stagingSecrets(env.STAGING_SECRETS_JSON);
-  const selected = operation === 'bootstrap' || target === 'all' ? stagingTargets : [target];
+  const secrets = operation === 'check' || operation === 'check-backend' ? {} : stagingSecrets(env.STAGING_SECRETS_JSON);
+  const selected = operation === 'check-backend' || operation === 'bootstrap-backend' ? stagingBackendTargets
+    : operation === 'bootstrap' || target === 'all' ? stagingTargets : [target];
+  const tool = name => {
+    const require = createRequire(join(directory, targetFor(name).directory, 'package.json'));
+    return join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
+  };
+  if (operation === 'bootstrap-backend') {
+    assert.equal(capture(run, 'git', ['status', '--porcelain'], { cwd: directory }), '', 'Commit all local changes before staging bootstrap.');
+    const origin = capture(run, 'git', ['remote', 'get-url', 'origin'], { cwd: directory });
+    assert.match(origin, /^(?:git@github\.com:|https:\/\/github\.com\/)mainbrella\/canopy(?:\.git)?$/, 'Bootstrap only from the canonical Canopy origin.');
+    const identity = JSON.parse(capture(run, process.execPath, [tool('api'), 'whoami', '--json'],
+      { cwd: join(directory, 'apps/backend'), env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    assert.ok(identity.loggedIn === true && Array.isArray(identity.accounts)
+      && identity.accounts.some(account => account.id === STAGING.accountId),
+    'Local Wrangler credentials must access the staging Cloudflare account.');
+  }
   const nonce = randomUUID();
   const paths = {};
   const configurations = {};
@@ -106,10 +129,6 @@ export async function stagingOperation(operation, { target = 'all', directory = 
   const record = () => writeFileSync(join(output, 'release.json'), JSON.stringify(evidence, null, 2) + '\n');
   const stageEnv = { ...env, VITE_API_URL: STAGING.apiOrigin, VITE_GA_MEASUREMENT_ID: '',
     VITE_GOOGLE_CLIENT_ID: env.STAGING_GOOGLE_CLIENT_ID || '' };
-  const tool = name => {
-    const require = createRequire(join(directory, targetFor(name).directory, 'package.json'));
-    return join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
-  };
   const cwd = name => join(directory, targetFor(name).directory);
   const wrangler = (name, args, options = {}) => {
     assertStagingConfig(name, JSON.parse(readFileSync(paths[name], 'utf8')), configOptions(evidence.resources));
@@ -211,19 +230,19 @@ export async function stagingOperation(operation, { target = 'all', directory = 
   record();
   try {
     render(offlineResources);
-    if (operation === 'check' || operation === 'bootstrap' || operation === 'deploy') validateAndBuild(selected);
-    if (operation === 'check') {
+    if (['check', 'check-backend', 'bootstrap', 'bootstrap-backend', 'deploy'].includes(operation)) validateAndBuild(selected);
+    if (operation === 'check' || operation === 'check-backend') {
       evidence.status = 'success';
       evidence.validatedArtifacts = hashes;
       return evidence;
     }
-    evidence.resources = await provision({ env: stageEnv, request, create: operation === 'bootstrap' });
+    evidence.resources = await provision({ env: stageEnv, request, create: operation === 'bootstrap' || operation === 'bootstrap-backend' });
     render(evidence.resources);
-    if (operation === 'migrate-api' || operation === 'migrate-previews' || operation === 'bootstrap') {
-      const databases = operation === 'bootstrap' ? ['DB', 'PREVIEW_ROUTES'] : [operation === 'migrate-api' ? 'DB' : 'PREVIEW_ROUTES'];
+    if (operation === 'migrate-api' || operation === 'migrate-previews' || operation === 'bootstrap' || operation === 'bootstrap-backend') {
+      const databases = operation === 'bootstrap' || operation === 'bootstrap-backend' ? ['DB', 'PREVIEW_ROUTES'] : [operation === 'migrate-api' ? 'DB' : 'PREVIEW_ROUTES'];
       for (const database of databases) wrangler('api', ['d1', 'migrations', 'apply', database, '--remote']);
       evidence.migrations = databases;
-      if (operation !== 'bootstrap') { evidence.status = 'success'; return evidence; }
+      if (operation !== 'bootstrap' && operation !== 'bootstrap-backend') { evidence.status = 'success'; return evidence; }
     }
     if (selected.includes('containers')) {
       configurations.containers.containers[0].images = images({ directory, run });
@@ -231,10 +250,10 @@ export async function stagingOperation(operation, { target = 'all', directory = 
       writeFileSync(paths.containers, JSON.stringify(configurations.containers, null, 2));
       evidence.imageDigests = configurations.containers.containers[0].images;
     }
-    if (operation === 'deploy' || operation === 'bootstrap') {
+    if (operation === 'deploy' || operation === 'bootstrap' || operation === 'bootstrap-backend') {
       for (const name of selected) hashes[name] = bundle(name);
     }
-    if (operation === 'bootstrap') {
+    if (operation === 'bootstrap' || operation === 'bootstrap-backend') {
       if (!await existingApi()) {
         const bootstrapPath = join(cwd('api'), `.wrangler-local-staging-${nonce}-bootstrap.jsonc`);
         try {
@@ -254,8 +273,10 @@ export async function stagingOperation(operation, { target = 'all', directory = 
       await publish('marketing');
       await publish('containers');
       await publish('api');
-      await publish('previews');
-      for (const name of ['site', 'builder', 'raindrop']) await publish(name);
+      if (operation === 'bootstrap') {
+        await publish('previews');
+        for (const name of ['site', 'builder', 'raindrop']) await publish(name);
+      }
     } else {
       // The selected worker already exists on ordinary releases; initial install
       // is the explicit bootstrap operation above.

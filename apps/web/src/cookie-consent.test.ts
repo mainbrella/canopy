@@ -222,10 +222,11 @@ test('importing payment code does not inject Stripe before checkout opens', asyn
   }
   // Vite supports package directory imports; resolve the same real package for Node.
   const require = createRequire(import.meta.url);
+  const stripePureUrl = pathToFileURL(require.resolve('@stripe/stripe-js/pure')).href;
   const hooks = registerHooks({
     resolve(specifier, context, next) {
       if (specifier === '@stripe/stripe-js/pure') {
-        return { url: pathToFileURL(require.resolve(specifier)).href, shortCircuit: true };
+        return { url: stripePureUrl, shortCircuit: true };
       }
       return next(specifier, context);
     },

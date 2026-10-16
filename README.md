@@ -77,6 +77,7 @@ Cloudflare, preview DNS/TLS, and Google sign-in setup.
 npm run stg:plan                  # Show reserved hosts and resources
 npm run stg:homepage -- --check   # Validate just the static staging website
 npm run stg:homepage -- --publish # Publish the website with local Wrangler login
+npm run stg:backend -- --publish  # Install the API and its private staging services
 npm run stg:check                 # Test and bundle all targets without publishing
 npm run stg:bootstrap             # First installation, through GitHub Actions
 npm run stg:deploy -- api         # Subsequent release of one staging target
@@ -85,6 +86,11 @@ npm run stg:deploy -- api         # Subsequent release of one staging target
 The homepage command can bring up the static website before the staging backend
 exists; sign-in and application features need the backend deployment afterward.
 It publishes only `mainbrella-web-stg` at `stg.mainbrella.com`.
+
+`stg:backend` uses local Wrangler authentication to create the staging databases
+and bucket, apply migrations, and publish the API with its private services.
+It leaves preview hosting and the remaining frontend releases for later. Use
+`npm run stg:backend -- --check` for validation without provider access.
 
 The full staging workflow has its own `CANOPY_STAGING_DEPLOYS_ENABLED` gate and never
 enables the production release workflow. Staging starts with empty data and

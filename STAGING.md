@@ -83,6 +83,38 @@ terminals, and the separate builder need their staging services deployed later.
 The browser build points at `api-stg.mainbrella.com`, disables analytics, and
 discourages indexing. No preview wildcard DNS or TLS is needed for the website.
 
+## Deploy the backend next
+
+Use the local backend publisher to install the API and its private dependencies
+without waiting for the preview hostname or GitHub environment setup:
+
+```sh
+npm run stg:backend -- --check
+npm run stg:backend -- --publish
+```
+
+Publication requires a clean, committed Canopy checkout and access to the
+configured Cloudflare account. It uses `CLOUDFLARE_API_TOKEN` if supplied;
+otherwise it captures the current Wrangler login token in memory. It never
+prints the token, writes it to a file, or copies it to GitHub.
+
+The command validates all four backend targets, creates or reuses `delta-stg`,
+`mainbrella-stg-preview-routes`, and `mainbrella-stg-storage`, and applies both
+staging migration sets. For a new API worker it first installs the private
+Durable Object declarations, then publishes `mainbrella-admin-stg`,
+`mainbrella-marketing-stg`, `mainbrella-containers-stg`, and the full
+`mainbrella-api-stg` at `https://api-stg.mainbrella.com`. The container catalog
+uses existing immutable image digests. It records each published version and
+partial progress under `artifacts/staging/`; retries reuse existing resources.
+
+The homepage deployment stays in place. This operation does not publish
+Raindrop, the separate builder, or the preview gateway, and needs no
+`*.stg.mainbrella.dev` setup. Sign-in with email/password is available after the
+API is installed; Google sign-in still needs the authorized staging origins
+described below. Billing and other external integrations retain the staging
+defaults above. Terminal compute needs a separately funded staging account;
+preview URLs need their gateway and DNS/TLS installed later.
+
 ## One-time setup for the full environment
 
 1. Merge this feature into Canopy `main` so GitHub can run
