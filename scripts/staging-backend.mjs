@@ -28,7 +28,7 @@ export async function deployStagingBackend({ publish = false, directory = root, 
       // Capture credentials only in memory. Never forward auth-token output to
       // the terminal, release evidence, GitHub secrets, or a file.
       const output = run(process.execPath, [wrangler, 'auth', 'token', '--json'], {
-        cwd: join(directory, 'apps/backend'), env,
+        cwd: join(directory, 'apps/backend'), env: { ...env, WRANGLER_WRITE_LOGS: 'false' },
         encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
       });
       const credential = JSON.parse(String(output));

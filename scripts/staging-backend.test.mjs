@@ -51,6 +51,7 @@ test('publish obtains the local Wrangler token in memory without printing or mut
       assert.equal(command, process.execPath);
       assert.deepEqual(args.slice(1), ['auth', 'token', '--json']);
       assert.deepEqual(options.stdio, ['ignore', 'pipe', 'pipe']);
+      assert.equal(options.env.WRANGLER_WRITE_LOGS, 'false');
       return '{"type":"oauth","token":"private-token-for-test"}';
     },
     operation: async (name, options) => {
