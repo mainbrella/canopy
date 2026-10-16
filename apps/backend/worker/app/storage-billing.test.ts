@@ -1,20 +1,21 @@
+import { cleanupStorageOrphans } from '@canopy/vibe/maintenance';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { paidContainerFixture, USER_ONE, USER_TWO, SESSION_ONE } from './paid-container-test-helpers';
-import { buildBillingFixture } from './build-billing-test-helpers';
+import { buildBillingFixture } from '../../../vibe/worker/app/build-billing-test-helpers';
 import { dailyStorageCost, finalizeStorageDay, runStorageBilling, settleStorageReceipts, reconcileStorageInvoice, allocateStorageCategory, storageBillingSummary } from '../lib/r2-billing';
 import { putStoredObject, getStoredObject, deleteStoredObjects, inventoryObject, PLATFORM_STORAGE, reserveStorage, STORAGE_DAY_MS } from '../lib/r2-storage';
 import { notifyStorageRetention, markStorageWarning } from '../lib/r2-retention';
 import { storageReadAccess } from '../lib/r2-access';
 import { checkStorageHealth } from '../lib/r2-health';
-import { cleanupStorageOrphans, expireUnfundedStorage } from '../lib/r2-maintenance';
-import { storeBuildSource, storeBuildObject } from '../lib/build-storage';
+import { expireUnfundedStorage } from '../lib/r2-maintenance';
+import { storeBuildSource, storeBuildObject } from '../../../vibe/worker/lib/build-storage';
 import { handleRequest } from './service-test-helpers';
 import { handleAppDelete } from './auth-app';
 import { hashToken } from './auth-core';
-import { cleanupDeletedBuildGit } from '../lib/build-git';
-import { BuildError } from '../lib/build-contract';
+import { cleanupDeletedBuildGit } from '../../../vibe/worker/lib/build-git';
+import { BuildError } from '../../../vibe/worker/lib/build-contract';
 
 async function fixture(t: TestContext, mode: 'meter' | 'charge' = 'meter') {
   let now = Date.UTC(2026, 9, 1, 12);

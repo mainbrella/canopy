@@ -40,6 +40,21 @@ test('web builder and Raindrop operations stay independently selected', () => {
   assert.equal(result.ops, true);
 });
 
+test('Vibe selects its existing API, site, and builder deployment hosts', () => {
+  const browser = affectedTargets(['apps/vibe/web/build-api.ts']);
+  assert.equal(browser.site, true);
+  assert.equal(browser.builder, true);
+  assert.equal(browser.backend_full, false);
+  for (const path of ['apps/vibe/worker/app/build.ts', 'apps/vibe/package.json', 'apps/vibe/tsconfig.web.json']) {
+    const worker = affectedTargets([path]);
+    for (const key of ['backend_full', 'sdk', 'site', 'builder', 'docs']) assert.equal(worker[key], true, path);
+  }
+  const docs = affectedTargets(['apps/vibe/README.md']);
+  assert.equal(docs.docs, true);
+  assert.equal(docs.backend_full, false);
+  assert.equal(docs.builder, false);
+});
+
 test('Raindrop route smoke tooling selects UI checks', () => {
   const result = affectedTargets(['apps/raindrop/scripts/check-routes.mjs']);
   assert.equal(result.raindrop_ui, true);

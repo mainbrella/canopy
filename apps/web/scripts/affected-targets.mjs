@@ -47,6 +47,10 @@ export function affectedTargetsForRepositoryPaths(paths) {
       for (const target of ALL_TARGETS) selected.add(target);
     } else if (path.startsWith('apps/backend/')) {
       if (backendPathAffectsWeb(path.slice('apps/backend/'.length))) selected.add('site');
+    } else if (path.startsWith('apps/vibe/')) {
+      if (!['apps/vibe/README.md', 'apps/vibe/AGENTS.md'].includes(path)) {
+        for (const target of ALL_TARGETS) selected.add(target);
+      }
     } else if (path.startsWith('apps/raindrop/')) {
       continue;
     } else if (ROOT_DOCUMENTATION.has(path)) {

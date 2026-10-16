@@ -37,6 +37,15 @@ export function affectedTargets(paths) {
         // tests, and the site checks include its browser tests.
         selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
       }
+    } else if (path.startsWith('apps/vibe/')) {
+      const local = path.slice('apps/vibe/'.length);
+      if (local === 'README.md' || local === 'AGENTS.md') selected.docs = true;
+      else if (local.startsWith('web/')) {
+        // Onboarding and the code browser also run in the public site.
+        selected.site = selected.builder = true;
+      } else {
+        selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
+      }
     } else if (path.startsWith('apps/web/')) {
       const local = path.slice('apps/web/'.length);
       if (!local) return allTargets();

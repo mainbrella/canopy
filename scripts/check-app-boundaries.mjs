@@ -13,29 +13,63 @@ const platformModules = new Set([
   'apps/backend/worker/lib/deployment-environment',
   'apps/backend/containers/private-services-contract.js',
 ]);
-const hostExports = {
-  backend: new Set(['routes', 'billing', 'call', 'openapi']),
-  web: new Set(['web', 'landing']),
+const products = {
+  voice: {
+    name: 'Voice',
+    platformModules,
+    hostExports: {
+      backend: new Set(['routes', 'billing', 'call', 'openapi']),
+      web: new Set(['web', 'landing']),
+    },
+  },
+  vibe: {
+    name: 'Vibe',
+    platformModules: new Set([
+      ...[...platformModules].filter(module => module !== 'apps/backend/containers/private-services-contract.js'),
+      'apps/backend/worker/shared/github-git',
+      'apps/backend/worker/shared/storage-retention',
+      'apps/backend/worker/lib/r2-access',
+      'apps/backend/worker/lib/r2-storage',
+      'apps/backend/worker/lib/r2-retention',
+      // Compute seams until Linux has its own supported public interface.
+      'apps/backend/worker/lib/container-service',
+      'apps/backend/worker/lib/entitlements',
+      'apps/backend/worker/lib/preview-routing',
+      'apps/backend/worker/app/previews',
+      'apps/backend/containers/command-contract.js',
+      'apps/backend/containers/execution-contract.js',
+      'apps/backend/containers/container-account-core.js',
+      'apps/backend/containers/file-contract.js',
+    ]),
+    hostExports: {
+      backend: new Set(['routes', 'maintenance', 'workflow', 'openapi']),
+      web: new Set(['web', 'landing', 'onboarding', 'code']),
+    },
+  },
 };
 
 export function importViolation(file, specifier) {
   const target = specifier.startsWith('.')
     ? relative(root, resolve(root, dirname(file), specifier)).replaceAll('\\', '/')
     : specifier;
-  if (file.startsWith('apps/voice/')) {
-    const area = file.startsWith('apps/voice/web/') ? 'web' : 'worker';
-    if (target.startsWith('apps/voice/')) {
-      if (!target.startsWith(`apps/voice/${area}/`)) return 'Voice browser and worker modules must stay separate';
+  const product = file.split('/')[1];
+  const rules = products[product];
+  if (rules) {
+    const area = file.startsWith(`apps/${product}/web/`) ? 'web' : 'worker';
+    if (target.startsWith(`apps/${product}/`)) {
+      if (!target.startsWith(`apps/${product}/${area}/`)) return `${rules.name} browser and worker modules must stay separate`;
     } else if (target.startsWith('apps/')) {
-      if (area === 'web' || !platformModules.has(target.replace(/\.ts$/, ''))) return 'Voice may only import the listed shared platform modules';
+      if (area === 'web' || !rules.platformModules.has(target.replace(/\.ts$/, ''))) return `${rules.name} may only import its listed platform and compute modules`;
     } else if (specifier.startsWith('@canopy/')) {
-      return 'Voice must not depend on another product or its host';
+      return `${rules.name} must not depend on another product or its host`;
     }
   } else {
-    if (target.startsWith('apps/voice/')) return 'Hosts must use Voice package exports';
-    if (specifier === '@canopy/voice' || specifier.startsWith('@canopy/voice/')) {
-      const host = file.split('/')[1];
-      if (!hostExports[host]?.has(specifier.slice('@canopy/voice/'.length))) return 'Use the Voice export for this host';
+    for (const [name, rules] of Object.entries(products)) {
+      if (target.startsWith(`apps/${name}/`)) return `Hosts must use ${rules.name} package exports`;
+      if (specifier === `@canopy/${name}` || specifier.startsWith(`@canopy/${name}/`)) {
+        const host = file.split('/')[1];
+        if (!rules.hostExports[host]?.has(specifier.slice(`@canopy/${name}/`.length))) return `Use the ${rules.name} export for this host`;
+      }
     }
   }
   return null;
@@ -50,7 +84,7 @@ function sourceFiles(directory) {
 
 export function checkAppBoundaries() {
   const failures = [];
-  for (const directory of ['apps/voice/worker', 'apps/voice/web', 'apps/backend/worker', 'apps/web/src']) {
+  for (const directory of ['apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/backend/worker', 'apps/web/src']) {
     for (const path of sourceFiles(join(root, directory))) {
       const file = relative(root, path).replaceAll('\\', '/');
       // Integration fixtures deliberately exercise the real shared host.
@@ -70,5 +104,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (failures.length) {
     console.error(failures.join('\n'));
     process.exitCode = 1;
-  } else console.log('Voice product and host import boundaries verified.');
+  } else console.log('Voice, Vibe, and host import boundaries verified.');
 }

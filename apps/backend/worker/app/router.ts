@@ -1,10 +1,9 @@
+import { handleBuildRequest, handleGithubBuildRequest, handleProjectGithubRequest } from '@canopy/vibe/routes';
 import { handleVoiceRequest } from '@canopy/voice/routes';
 import { handleStorageBillingRequest } from './storage-billing';
 import { handleDomainsRequest } from './domains';
 import { handleRepoLaunchRequest } from "./repo-launches";
 import { handleGithubImportRequest } from './github-import';
-import { handleGithubBuildRequest } from './github-build';
-import { handleProjectGithubRequest } from './project-github';
 import { handleAPIKeysRequest } from "./api-keys";
 import { handleProjectsRequest } from "./projects";
 import { handleProjectEndpointRequest, handleProjectDomainsRequest } from './project-hosting';
@@ -41,7 +40,6 @@ import { handleWorkspacesRequest } from './workspaces';
 import { handleWorkspaceExportRequest } from './workspace-export';
 import { handlePrivateServicesRequest } from './private-services';
 import { handleAcquisitionRequest } from './acquisition';
-import { handleBuildRequest } from './build';
 
 async function handleLegacyRequest(
   request: Request,

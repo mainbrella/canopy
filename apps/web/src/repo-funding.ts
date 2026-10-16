@@ -1,5 +1,5 @@
 import { normalizeRepo, validRepo } from './repo-run-contract.ts';
-import { readBuildFunding, type BuildFunding } from './build-onboarding.ts';
+import { readBuildFunding, type BuildFunding } from '@canopy/vibe/onboarding';
 
 export const TRY_PROMOTION_CODE = 'BRELLA-GIT-TRY5';
 export const TRY_CREDIT_CENTS = 500;

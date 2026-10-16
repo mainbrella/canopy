@@ -1,0 +1,30 @@
+{
+  "name": "@canopy/vibe",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./routes": "./worker/routes.ts",
+    "./maintenance": "./worker/maintenance.ts",
+    "./workflow": "./worker/workflows/build.ts",
+    "./openapi": "./worker/openapi.ts",
+    "./web": "./web/build-dashboard.ts",
+    "./landing": "./web/home-build.ts",
+    "./onboarding": "./web/build-onboarding.ts",
+    "./code": "./web/project-code.ts"
+  },
+  "scripts": {
+    "test": "npm run test:worker && npm run test:web",
+    "test:worker": "tsx --test worker/app/*.test.ts",
+    "test:web": "tsx --test web/*.test.ts",
+    "type-check": "tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.web.json"
+  },
+  "dependencies": {
+    "shiki": "^4.5.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

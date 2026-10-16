@@ -1,0 +1,202 @@
+
+export type BuildActivity = { id: string; type: 'message' | 'tool'; text: string; status: 'proposed' | 'running' | 'skipped' | 'blocked' | 'succeeded' | 'failed' | 'unknown'; explanation?: string | null };
+export type BuildImage = { id: string; toolId: string; label: string; path: string };
+export type BuildOperation = {
+  turn_id: string; operation_id: string; attempt_id: string; schema_version: number; deployment_version: string | null;
+  kind: 'text' | 'image' | 'tool' | 'command' | 'source' | 'billing' | 'cleanup'; label: string;
+  status: 'proposed' | 'skipped' | 'blocked' | 'succeeded' | 'failed' | 'unknown'; explanation?: string | null;
+  dispatch_attempted: number | null; created_at: number; started_at: number | null; updated_at: number; finished_at: number | null;
+  evidence: Record<string, unknown>; result: unknown | null; source: Record<string, string> | null;
+};
+export type BuildBillingRecord = {
+  id: string; user_id: string; app_id: string; turn_id: string; model: string; reserved_micro_usd: number;
+  cost_micro_usd: number | null; usage_json: string | null; status: 'reserved' | 'running' | 'reported' | 'settled';
+  created_at: number; reported_at: number | null;
+};
+export type BuildDiagnostics = {
+  schemaVersion: 1; turnId: string; status: BuildTurn['status']; error: string | null; errorExplanation?: string | null;
+  log: string; failureOperationId: string | null; operations: BuildOperation[]; billing: BuildBillingRecord[];
+};
+export type BuildTurn = {
+  id: string; prompt: string; mode: 'build' | 'preview' | 'restore'; status: 'queued' | 'running' | 'succeeded' | 'failed';
+  stage: string; summary: string | null; error: string | null; log: string; model: string; effort?: string | null;
+  inputTokens: number | null; outputTokens: number | null; createdAt: string; finishedAt: string | null;
+  errorExplanation?: string | null; failureOperationId?: string | null;
+  aiCostCents?: number;
+  activity?: BuildActivity[];
+  images?: BuildImage[];
+};
+export type BuildApp = {
+  id: string; name: string; prompt: string; revision: number; activeTurnId: string | null;
+  versionId?: string | null; verifiedVersionId?: string | null; github?: BuildGitHub | null; retention?: { writesBlocked: boolean; deletionAt: number | null; notice: string | null; warningDeliveredAt: number | null; expiredAt: number | null };
+  container: { id: string; createdAt: string; expiresAt: string } | null;
+  preview: { id: string; url: string; expiresAt: number } | null;
+  createdAt: string; updatedAt: string; turns?: BuildTurn[];
+};
+export type BuildModel = { id: string; name: string; description?: string; efforts: string[]; defaultEffort: string };
+export type BuildModelOptions = { model?: string; effort?: string };
+export type BuildConfig = { available: boolean; versionHistory?: boolean; model: string; models?: BuildModel[]; maxApps: number; aiBilling: 'included' | 'prepaid'; aiMarkupPercent: number; computeUnitHourlyCents: number; size: 'small' };
+export type BuildVersion = { id: string; commitId: string; parentVersionId: string | null; message: string; verified: boolean; createdAt: string };
+export type BuildFileInfo = { path: string; size: number; type: 'text' | 'image' };
+export type BuildVersionDetail = { version: BuildVersion; files: BuildFileInfo[]; changes: { path: string; type: 'added' | 'modified' | 'deleted'; fileType: 'text' | 'image' }[] };
+export type BuildFiles = { revision: number; version: BuildVersion | null; files: BuildFileInfo[] };
+export type BuildSource = { revision: number; files: Record<string, string> };
+export type BuildGitHub = { repo: string; branch: string; commitId: string | null; url: string };
+export class BuildAPIError extends Error {
+  constructor(public code: string, public details?: string) { super(buildErrorMessage(code, details)); }
+}
+export function buildErrorMessage(code: string, details?: string | null): string {
+  const message = ({
+    invalid_build_model: 'Choose an available Build model and try again.',
+    invalid_build_effort: 'Choose a supported effort for this model and try again.',
+    subscription_required: 'Add prepaid balance to build and run apps.',
+    insufficient_balance: 'Your prepaid balance is too low to continue. Add balance and try again.',
+    spend_limit_exceeded: 'Your Mainbrella monthly spending limit cannot cover this request. Increase the limit in Billing to continue building.',
+    build_billing_unavailable: 'Could not check your prepaid balance. Try again shortly.',
+    build_billing_reconciliation_required: 'An AI request needs billing reconciliation. Your source is saved; contact support.',
+    build_operation_reconciliation_required: 'An operation has an unknown result. Execution stopped so it can be inspected safely.',
+    build_journal_unavailable: 'Required operation records could not be saved. Execution stopped; your saved source is retained.',
+    build_usage_storage_unavailable: 'Provider usage could not be saved. Execution stopped; accounting can retry independently.',
+    storage_funding_required: 'Storage funding could not be renewed. Add balance or download your files before the deletion deadline.',
+    storage_rate_limited: 'Too many requests. Wait one minute and try again.',
+    storage_stream_busy: 'Too many live views are open. Close another Build tab and try again.',
+    storage_export_busy: 'Two downloads are already running. Finish or cancel one before starting another.',
+    build_git_file_limit: 'A repository file exceeds the 25 MiB limit.',
+    build_model_unpriced: 'Build is unavailable right now. Please try again shortly.',
+    build_unavailable: 'Build is unavailable right now. Please try again shortly.',
+    build_busy: 'Another build is running in your account. Wait for it to finish.',
+    project_hosting_in_use: 'Unpublish this project’s endpoint and remove its custom domains in Projects before deleting it.',
+    revision_conflict: 'This app changed in another tab. Reload the app before trying again.',
+    build_app_limit: 'You have reached the 50-app limit. Delete an app to make room.',
+    build_turn_limit: 'This app has reached its 100-build limit. Export its source to keep working on it.',
+    app_not_found: 'This app is no longer available.',
+    container_not_running: 'The sandbox stopped. Your source is saved; start a new preview or ask for a change.',
+    build_budget_exceeded: 'The build stopped before verification finished. See the operation journal for the limit and the last check.',
+    model_response_incomplete: 'The model response was incomplete. Your source is saved; try again.',
+    invalid_model_response: 'The model returned an invalid response. Your source is saved; try again.',
+    build_inference_timeout: 'The model took too long to respond. Your source is saved; try again.',
+    build_inference_disconnected: 'The connection to the model was lost. Your source is saved; try again.',
+    build_check_failed: 'The app did not pass its build check. Ask Build to fix the build errors.',
+    build_interrupted: 'The build was interrupted. Your source is saved; try again.',
+    preview_start_failed: 'The app built, but its preview could not start. Try again.',
+    invalid_request: 'Check your app name or prompt and try again.',
+    source_limit: 'This app has reached the source size limit. Try a smaller change.',
+    build_git_unavailable: 'Could not save the Git version. Your working source is retained; try again.',
+    github_connection_required: 'Reconnect GitHub in Projects, then try again.',
+    github_build_unavailable: 'GitHub linking is unavailable right now. Try again shortly.',
+    github_write_access_required: 'Grant this app write access to the GitHub repository, then try again.',
+    github_branch_conflict: 'The remote branch changed. Retry to sync the latest repository state before continuing.',
+    github_source_conflict: 'GitHub and Builder changed the same file. Save your working version of that file to GitHub, then retry.',
+    github_branch_protected: 'Choose a branch that allows app commits, or update the branch protection rules.',
+    github_source_limit: 'This repository exceeds Builder source limits. Reduce its size in GitHub before building.',
+    github_rate_limited: 'GitHub is limiting requests right now. Wait briefly and try again.',
+    github_unavailable: 'GitHub is temporarily unavailable. Try again shortly.',
+    github_project_busy: 'This project is already processing a change. Wait for it to finish, then try again.',
+    github_repository_hosted: 'This repository is hosted on GitHub. Open GitHub to view or clone it.',
+    version_not_found: 'This saved version is unavailable. Refresh version history and try again.',
+    file_not_found: 'This file is unavailable in the selected version.',
+    build_source_unavailable: 'Could not load or save the source files. Try again shortly.',
+    build_command_timeout: 'A build command took too long. Your source is saved; try again.',
+    build_runtime_unavailable: 'The sandbox could not start. Check your balance and try again.',
+    build_failed: 'The build could not finish. Your source is saved; try again.',
+    network: 'Could not reach Build. Check your connection and try again.',
+  } as Record<string, string>)[code] || (code.trim() ? `Build error: ${code}` : 'Could not complete that action. Please try again.');
+  const output = details?.trim();
+  return output && output !== code && output !== message ? `${message}\n\n${output}` : message;
+}
+
+function buildResponseError(result: unknown): BuildAPIError {
+  const data = result && typeof result === 'object' ? result as Record<string, unknown> : {};
+  const code = typeof data.error === 'string' && data.error.trim() ? data.error : 'build_unavailable';
+  const details = [data.message, data.details].filter((value): value is string => typeof value === 'string' && Boolean(value.trim()));
+  return new BuildAPIError(code, [...new Set(details)].filter(value => value !== code).join('\n\n'));
+}
+export function safeBuildPreviewURL(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname;
+    if (url.username || url.password) return null;
+    if (url.protocol === 'https:' && !url.port && /^[a-f0-9]{48}\.mainbrella\.dev$/.test(host)) return url.href;
+    if (url.protocol === 'http:' && /^[a-f0-9]{48}\.localhost$/.test(host)) return url.href;
+  } catch { /* Invalid server URL. */ }
+  return null;
+}
+export function createBuildClient(apiOrigin: string, onUnauthenticated: () => void, signal?: AbortSignal) {
+  async function request<T>(path: string, method = 'GET', body?: unknown, key?: string): Promise<T> {
+    let response: Response;
+    try {
+      response = await fetch(`${apiOrigin}/build${path}`, { method, credentials: 'include', redirect: 'error', signal,
+        headers: { Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(key ? { 'Idempotency-Key': key } : {}) },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      throw new BuildAPIError('network');
+    }
+    const result = await response.json().catch(() => null);
+    if (response.status === 401) onUnauthenticated();
+    if (!response.ok) throw buildResponseError(result);
+    if (!result || typeof result !== 'object') throw new BuildAPIError('build_unavailable');
+    return result as T;
+  }
+  const appPath = (id: string) => `/apps/${encodeURIComponent(id)}`;
+  const fileURL = (id: string, path: string, versionId?: string | null) => {
+    const query = new URLSearchParams({ path }); if (versionId) query.set('versionId', versionId);
+    return `${apiOrigin}/build${appPath(id)}/file?${query}`;
+  };
+  return {
+    config: () => request<BuildConfig>('/config'),
+    list: () => request<{ apps: BuildApp[] }>('/apps'),
+    read: (id: string) => request<{ app: BuildApp }>(appPath(id)),
+    create: (prompt: string, key: string, options: BuildModelOptions = {}) => request<{ app: BuildApp }>('/apps', 'POST', { prompt, ...options }, key),
+    turn: (app: BuildApp, prompt: string, key: string, options: BuildModelOptions = {}) => request<{ app: BuildApp }>(`${appPath(app.id)}/turns`, 'POST', { mode: 'build', prompt, revision: app.revision, ...options }, key),
+    preview: (app: BuildApp, key: string) => request<{ app: BuildApp }>(`${appPath(app.id)}/turns`, 'POST', { mode: 'preview', revision: app.revision }, key),
+    resume: (id: string) => request<{ app: BuildApp }>(`${appPath(id)}/resume`, 'POST'),
+    rename: (id: string, name: string) => request<{ app: BuildApp }>(appPath(id), 'PATCH', { name }),
+    stop: (id: string) => request<{ app: BuildApp }>(`${appPath(id)}/stop`, 'POST'),
+    remove: (id: string) => request<{ deleted: true }>(appPath(id), 'DELETE'),
+    source: (id: string) => request<BuildSource>(`${appPath(id)}/source`),
+    files: (id: string, versionId?: string | null) => request<BuildFiles>(`${appPath(id)}/files${versionId ? `?${new URLSearchParams({ versionId })}` : ''}`),
+    fileURL,
+    async fileText(id: string, path: string, versionId?: string | null): Promise<string> {
+      let response: Response;
+      try { response = await fetch(fileURL(id, path, versionId), { credentials: 'include', redirect: 'error', signal, headers: { Accept: 'text/plain' } }); }
+      catch (error) { if (signal?.aborted) throw error; throw new BuildAPIError('network'); }
+      if (response.status === 401) onUnauthenticated();
+      if (!response.ok) throw buildResponseError(await response.json().catch(() => null));
+      return response.text();
+    },
+    versions: (id: string) => request<{ versions: BuildVersion[]; versionId: string | null; verifiedVersionId: string | null }>(`${appPath(id)}/versions`),
+    version: (id: string, versionId: string) => request<BuildVersionDetail>(`${appPath(id)}/versions/${encodeURIComponent(versionId)}`),
+    restore: (app: BuildApp, versionId: string, key: string) => request<{ app: BuildApp }>(`${appPath(app.id)}/restore`, 'POST', { versionId, revision: app.revision }, key),
+    diagnostics: (appId: string, turnId: string) => request<BuildDiagnostics>(`${appPath(appId)}/turns/${encodeURIComponent(turnId)}/diagnostics`),
+    imageURL: (appId: string, imageId: string) => /^[a-f0-9-]{36}$/.test(appId) && /^[a-f0-9-]{36}$/.test(imageId)
+      ? `${apiOrigin}/build${appPath(appId)}/images/${imageId}` : null,
+    watch(id: string, onApp: (app: BuildApp) => void, onDisconnect: () => void) {
+      const events = new EventSource(`${apiOrigin}/build${appPath(id)}/events`, { withCredentials: true });
+      const stop = () => { events.close(); signal?.removeEventListener('abort', stop); };
+      events.addEventListener('app', event => {
+        if (signal?.aborted) return;
+        try {
+          const data = JSON.parse((event as MessageEvent).data);
+          if (data.app?.id !== id || !Array.isArray(data.app.turns)) throw new Error('Invalid build progress');
+          onApp(data.app as BuildApp);
+        } catch { stop(); onDisconnect(); }
+      });
+      events.onerror = () => { stop(); if (!signal?.aborted) onDisconnect(); };
+      signal?.addEventListener('abort', stop, { once: true });
+      if (signal?.aborted) stop();
+      return stop;
+    },
+    async export(id: string, repository = false): Promise<Blob> {
+      let response: Response;
+      try { response = await fetch(`${apiOrigin}/build${appPath(id)}/${repository ? 'repository' : 'export'}`, { credentials: 'include', redirect: 'error', signal }); }
+      catch (error) { if (signal?.aborted) throw error; throw new BuildAPIError('network'); }
+      if (response.status === 401) onUnauthenticated();
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw buildResponseError(result);
+      }
+      return response.blob();
+    },
+  };
+}

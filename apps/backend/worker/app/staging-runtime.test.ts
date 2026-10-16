@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { publicApiOrigin, publicWebOrigin } from '../lib/deployment-environment';
 import { githubCallbackURL } from '../lib/github-import';
-import { githubBuildCallbackURL } from '../lib/github-build';
+import { githubBuildCallbackURL } from '../../../vibe/worker/lib/github-build';
 import { imageBuildsConfigured } from '../lib/image-build-options';
 import { stripeKeyAllowed, stripeRequest, type BillingEnv } from '../lib/stripe';
 import { handleImageBuildRequest } from './images';

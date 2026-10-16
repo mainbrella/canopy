@@ -39,6 +39,9 @@ test('repository paths select only web-owned checks and known backend contracts'
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/backend/worker/app/openapi-auth.ts']), ['site']);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/backend/worker/lib/stripe.ts']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/raindrop/src/main.ts']), []);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/vibe/web/build-api.ts']), ['site', 'builder']);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/vibe/worker/app/build.ts']), ['site', 'builder']);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/vibe/README.md']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['README.md']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['package.json']), ['site', 'builder']);
 });

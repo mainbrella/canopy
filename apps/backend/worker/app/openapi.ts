@@ -1,9 +1,8 @@
+import { registerBuildRoutes, registerGithubBuildRoutes, registerProjectGithubRoutes } from '@canopy/vibe/openapi';
 import { registerStorageBillingRoutes } from './openapi-storage-billing';
 import { registerDomainRoutes } from './openapi-domains';
 import { registerRepoLaunchRoutes } from "./openapi-repo-launches";
 import { registerGithubImportRoutes } from './openapi-github-import';
-import { registerGithubBuildRoutes } from './openapi-github-build';
-import { registerProjectGithubRoutes } from './openapi-project-github';
 import { fromHono } from "chanfana";
 import { Hono } from "hono";
 import { registerAPIKeyRoutes } from "./openapi-api-keys";
@@ -37,7 +36,6 @@ import { registerAccountingRoutes } from './openapi-accounting';
 import { registerOperationsRoutes } from "./openapi-operations";
 import { registerPrivateServiceRoutes } from './openapi-private-services';
 import { registerAcquisitionRoutes } from './openapi-acquisition';
-import { registerBuildRoutes } from './openapi-build';
 import { forward, type LegacyHandler } from "./openapi-shared";
 import { registerSecurityInfrastructureRoutes } from './openapi-security-infrastructure';
 import { registerVoiceRoutes, registerVoiceTelnyxRoutes, registerVoiceNumberSearchRoutes } from '@canopy/voice/openapi';

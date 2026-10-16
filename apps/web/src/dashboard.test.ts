@@ -19,7 +19,7 @@ registerHooks({ resolve(specifier, context, next) {
     './containers-dashboard.ts': 'export const createContainersDashboard=options=>{globalThis.dashboardContainerOptions=options;return{load(){globalThis.dashboardLoads++},dispose(){globalThis.dashboardDisposals++},setImages(){},selectImage(){}}}',
     './images-dashboard.ts': 'export const createImagesDashboard=()=>({load(){},dispose(){globalThis.dashboardDisposals++}});',
     './overview-feed.ts': 'export const createOverviewFeed=()=>({load(){globalThis.dashboardOverviewLoads++},dispose(){globalThis.dashboardOverviewDisposals++}});',
-    './build-dashboard.ts': 'export const createBuildDashboard=()=>({load(id){globalThis.dashboardBuildLoads.push(id)},dispose(){globalThis.dashboardBuildDisposals++}});',
+    '@canopy/vibe/web': 'export const createBuildDashboard=()=>({load(id){globalThis.dashboardBuildLoads.push(id)},dispose(){globalThis.dashboardBuildDisposals++}});',
     './acquisition-analytics.ts': 'export const trackFunnel=()=>{};',
   };
   if (mocks[specifier]) return { url: `data:text/javascript,${encodeURIComponent(mocks[specifier])}`, shortCircuit: true };
