@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +47,9 @@ test('CLI compares added, deleted, and moved web paths from the Canopy root', ()
   const repo = mkdtempSync(join(tmpdir(), 'affected-targets-'));
   const script = fileURLToPath(new URL('./affected-targets.mjs', import.meta.url));
   const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
-  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: repo, encoding: 'utf8' });
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], {
+    cwd: repo, encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: '' },
+  });
   try {
     git('init', '-q');
     git('config', 'user.email', 'test@example.com');
@@ -70,6 +72,14 @@ test('CLI compares added, deleted, and moved web paths from the Canopy root', ()
     const result = run(base, 'HEAD');
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), ['site', 'builder']);
+
+    const outputFile = join(repo, 'github-output.txt');
+    const outputMode = spawnSync(process.execPath, [script, base, 'HEAD'], {
+      cwd: repo, encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: outputFile },
+    });
+    assert.equal(outputMode.status, 0, outputMode.stderr);
+    assert.equal(outputMode.stdout, '');
+    assert.equal(readFileSync(outputFile, 'utf8'), 'targets=["site","builder"]\n');
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -78,7 +88,9 @@ test('CLI compares added, deleted, and moved web paths from the Canopy root', ()
 test('CLI selects all checks when comparison history is missing or invalid', () => {
   const repo = mkdtempSync(join(tmpdir(), 'affected-targets-history-'));
   const script = fileURLToPath(new URL('./affected-targets.mjs', import.meta.url));
-  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: repo, encoding: 'utf8' });
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], {
+    cwd: repo, encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: '' },
+  });
   try {
     for (const args of [[], ['0000000000000000000000000000000000000000'], ['missing-base', 'HEAD']]) {
       const result = run(...args);
