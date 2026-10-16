@@ -118,7 +118,7 @@
       "source": "src/login.ts",
       "destination": "platform/console/src/google-sign-in.ts",
       "sha256": "8933d7c0ea64a422e944f5ab22da7b06ac9438c7a8de34121da33826f9410a1d",
-      "change": "Extract optional Google script loading, 12-second timeout, retry, initialize and renderButton behavior. Explicit client ID, one initialization, light button theme, inert provider host while authenticating, SDK logout handling; no admin/product screens."
+      "change": "Extract optional Google script loading, 12-second timeout, retry, initialize and renderButton behavior. Explicit client ID, one initialization, dark button theme, inert provider host while authenticating, SDK logout handling; no admin/product screens."
     },
     {
       "repository": "raindrop",

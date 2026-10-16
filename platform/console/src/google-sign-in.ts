@@ -6,7 +6,7 @@ interface GoogleSignIn {
     auto_select: boolean;
     ux_mode: "popup";
   }): void;
-  renderButton(host: HTMLElement, options: { type: "standard"; theme: "outline"; size: "large"; text: "continue_with"; shape: "rectangular" }): void;
+  renderButton(host: HTMLElement, options: { type: "standard"; theme: "filled_black"; size: "large"; text: "continue_with"; shape: "rectangular" }): void;
   disableAutoSelect(): void;
 }
 declare global { interface Window { google?: { accounts?: { id?: GoogleSignIn } } } }
@@ -60,7 +60,7 @@ export function createGoogleSignIn(root: HTMLElement, clientID: string, onCreden
       }
       host.replaceChildren();
       host.hidden = false;
-      sdk.renderButton(host, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "rectangular" });
+      sdk.renderButton(host, { type: "standard", theme: "filled_black", size: "large", text: "continue_with", shape: "rectangular" });
       status.hidden = true;
       ready = true;
     } catch {

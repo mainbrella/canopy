@@ -40,6 +40,13 @@ record, repeatable commands, verification, and teardown.
 The [README](README.md) contains setup instructions, the inspected source
 inventory, and the broader migration plan; distinguish that plan from working code.
 
+Console appearance updated on **2026-10-16**: dark theme for sign-in and account
+views, native controls, focus/error states, and the optional Google button.
+Layout and authentication behavior are unchanged. Type checks, local/staging
+console builds, and all 14 local browser tests passed; screenshots were inspected
+across the four target viewport sizes and palette contrast checked. Google UI
+checks still use the stub SDK. This theme change has not been deployed.
+
 Implemented:
 
 | Location | Responsibility |
