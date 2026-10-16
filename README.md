@@ -62,6 +62,8 @@ Maintain one Voice engine for hosted and standalone use. The engine should own s
 
 Today, `ai-receptionist` is a modified standalone extraction while hosted Voice lives in `backend` and `web`. Those implementations need to converge; the shared engine is not already present. Keep the standalone repository until there is a supported way to consume and release the shared implementation. Avoid creating another maintained copy during migration.
 
+### Compute
+
 Keep Compute's sandbox and production runtime together where they share execution behavior. Give them distinct lifecycle, restart, persistence, and hosting policies. A reusable Compute package is justified only when a real consumer needs that shared implementation; otherwise its code belongs in `products/compute`.
 
 ### Contracts
@@ -80,11 +82,23 @@ Audit events can record actor, account, project, resource, action, and outcome f
 
 Commit product code, shared package code, tests, package metadata, and documentation in this repository like any other source. Create a package when code is genuinely shared; keep a product-only feature inside its product. If an interface change affects both a producer and a consumer, update them together in the same commit or pull request.
 
-For example, a Telnyx audio fix belongs in `voice-engine` if that package owns the shared audio behavior. Add a focused test there, update either wrapper if the interface changed, and verify the hosted and standalone Voice builds before releasing the affected product.
+For example, once extracted, a shared engine package could contain:
+
+```text
+packages/voice-engine/
+  package.json           Package name, exports, and dependencies
+  src/                   Maintained implementation
+  test/                  Tests of shared behavior
+  README.md              Supported interface and usage
+```
+
+These files are ordinary tracked source in Canopy. They do not need a second Git repository or an npm release before another workspace can use them.
+
+A Telnyx audio fix belongs in `voice-engine` if that package owns the shared audio behavior. Add a focused test there, update either wrapper if the interface changed, and verify the hosted and standalone Voice builds before releasing the affected product.
 
 Commit root workspace lockfile changes when dependencies change. Do not commit secrets or `node_modules`; generated `dist` output should only be committed if a deliberate artifact policy requires it. Workspace links resolve local package source, so ordinary monorepo development does not require copying files or publishing every package. If consumers move outside this repository, give them a versioned package or artifact, or pin source to an immutable revision; do not rely on an unversioned relative sibling import.
 
-A Git commit is not a deployment. CI should check changed products and their transitive shared-package consumers. Release and deploy only the products that changed and are ready. Each product build should bundle or otherwise include the libraries it needs; a CI job may fetch the repository or install root workspace dependencies without deploying unrelated apps. Keep product release artifacts and versions independently identifiable, and record the source commit and relevant package revisions used to build them. Deploy selectively while keeping interfaces compatible with currently running consumers.
+A Git commit is not a deployment. CI should check changed products and their transitive shared-package consumers. Release and deploy affected products when they are ready, including products affected by a shared-package change. Each product build should bundle or otherwise include the libraries it needs; a CI job may fetch the repository or install root workspace dependencies without deploying unrelated apps. Keep product release artifacts and versions independently identifiable, and record the source commit and relevant package revisions used to build them. Deploy selectively while keeping interfaces compatible with currently running consumers.
 
 This repository has no established package manager, workspace configuration, or build/deploy commands yet. Add concrete commands with the implementation; examples in this plan are not executable instructions.
 
@@ -114,7 +128,9 @@ Hosted backend, web, and Raindrop source can move into Canopy progressively with
 
 ## Appflare distribution
 
-Appflare should receive installable **products or supported bundles**, not internal engine or contracts packages. A catalog change is a PR to [appflare/catalog](https://github.com/appflare/catalog), adding `apps/<slug>/appflare.jsonc`. The manifest should point at the public Canopy repository and an exact commit, then describe the product build, configuration, settings, and requirements. Monorepo subpaths are supported, so a product does not need its own Git repository. Shared packages remain build-time dependencies. The pin makes the submitted product reviewable and reproducible.
+Appflare should receive installable **products or supported bundles**, not internal engine or contracts packages. A catalog change is a PR to [appflare/catalog](https://github.com/appflare/catalog), adding `apps/<slug>/appflare.jsonc`. The manifest should point at the public Canopy repository and an exact commit, then describe the product build, configuration, settings, and requirements. Monorepo subpaths are supported, so a product does not need its own Git repository. The product build includes the shared library code it uses in its deployable output; users do not install those libraries separately. The pin makes the submitted product reviewable and reproducible.
+
+For Voice, the source would live in Canopy's `products/voice` and `packages/voice-engine`, while the catalog submission would be `apps/mainbrella-voice/appflare.jsonc` in `appflare/catalog`. The manifest selects Voice's build command and Wrangler configuration. The resulting install should contain Voice's frontend, Worker code, and required resources, without provisioning unrelated Mainbrella products or hosted services.
 
 Voice is the clearest first candidate if its standalone installation is complete. The catalog entry must deploy the product's required runtime as a self-contained artifact. Service, Durable Object, or Workflow bindings cannot depend on unrelated external Mainbrella Workers; multiple Workers can be part of one catalog entry when the packaging path supports them.
 
@@ -124,4 +140,4 @@ Managed Mainbrella and customer-owned Appflare deployments can coexist. Keep sub
 
 ## Later product candidates
 
-Potential additions include Workers-based Firecrawl scraping, a Semantic Search knowledge base, Punctual booking, Cloudflarebase (now Frostbase) app backends, EmailFlare customer email, Cloudflare Playwright MCP browser automation, FormZero forms, Counterscale website analytics, and Auth Inbox agent verification. These are candidates, not commitments or current Canopy features. If prioritized, start with scraping, knowledge bases, durable jobs, and booking, and define each product's independent install and service boundaries before adding it.
+Potential additions include Workers Firecrawl scraping, a Semantic Search knowledge base, Punctual booking, Cloudflarebase (now Frostbase) app backends, EmailFlare customer email, Cloudflare Playwright MCP browser automation, FormZero forms, Counterscale website analytics, and Auth Inbox agent verification. These are candidates, not commitments or current Canopy features. If prioritized, start with scraping, knowledge bases, durable jobs, and booking, and define each product's independent install and service boundaries before adding it.
