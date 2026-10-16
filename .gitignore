@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-staging/
 .wrangler/
 .cache/
 playwright-report/

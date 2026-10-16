@@ -2,7 +2,7 @@
 
 Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
 
-The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their running services.
+The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. Isolated hosted staging is available at **https://stg.mainbrella.com**, with its API at **https://api-stg.mainbrella.com**; staging currently uses email/password only. See [STAGING.md](STAGING.md) for resources, deployment, verification, and teardown. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their production services.
 
 Canopy is one repository for these products; it is not every repository in the Mainbrella organization. A normal user installing Voice, Compute, or Builder should only need that product's supported build and runtime requirements, not a clone of the whole repository or every service in it.
 
@@ -28,7 +28,7 @@ For the browser suite, install Chromium once with `PLAYWRIGHT_BROWSERS_PATH="$PW
 
 The browser command runs two stacks sequentially: the existing email suite with Google disabled, then the Google UI suite with an explicit fake client ID and stubbed Google script/API responses. These settings override local console configuration during tests. Worker tests use locally generated RSA keys and stubbed Google key responses with real signature verification and SQLite. No automated test signs into Google or uses a production OAuth client.
 
-The build produces `platform/accounts/dist/` and `platform/console/dist/`. There is no deployment command or production configuration. The static console build needs the same `/auth/*` routing when a hosting target is introduced; Vite's development proxy is not part of that build.
+The local build produces `platform/accounts/dist/` and `platform/console/dist/`. `npm run build:staging` produces separate `dist-staging/` outputs and checks both staging Wrangler configurations without deploying. `npm run deploy:staging` checks, builds, migrates the dedicated staging D1, and deploys the two staging Workers. The staging console calls the staging API directly; Vite's development proxy is not part of that build. Canopy has no production deployment configuration.
 
 ### Optional Google browser sign-in
 
@@ -52,7 +52,7 @@ The verifier retains Google's RS256 signature, issuer, audience, expiry and veri
 
 Accounts are identified by the stable Google subject. A Google credential cannot claim a password account or a different Google subject with the same normalized email; the API returns `identity_conflict` (409). Concurrent creation/linking rechecks the saved identity before issuing a session. Legacy rows without either credential may be linked, as in the source. A changed Google email does not rewrite the existing account profile.
 
-The real smoke test remains separate from automated verification: use the configured test client to create an account, reload, sign out, sign back in, and check that a password account with the same email is rejected by Google sign-in. **No real Google smoke test has been run for this handoff**, because no test OAuth client was supplied. Native sign-in and hosted deployment remain outside this slice.
+The real Google smoke test remains separate from automated verification: use the configured test client to create an account, reload, sign out, sign back in, and check that a password account with the same email is rejected by Google sign-in. **No real Google smoke test has been run for this handoff**, because no test OAuth client was supplied. Native sign-in remains outside this slice. Hosted staging was deployed and verified separately with Google disabled.
 
 ## What has moved
 
@@ -65,7 +65,7 @@ The real smoke test remains separate from automated verification: use the config
 
 [migration-sources.json](migration-sources.json) records exact source commits, file hashes, destination paths, and adaptations. These are deliberate subset copies with provenance, not a Git history merge. Canopy's builds and tests resolve everything from this checkout and its root lockfile; nothing imports a sibling repo.
 
-This milestone preserves scrypt password parameters, normalized email lookup, concurrent-signup checks, SHA-256 session-token storage, 30-day sessions, and the existing public user fields. The copied SQL migrations `001_initial.sql`, `002_auth_sessions.sql`, and `012_email_password.sql` are unchanged, including their names. They form a **fresh local identity database only**, not the complete migration stream for the live `delta` database. Never apply this subset to an existing hosted database.
+This milestone preserves scrypt password parameters, normalized email lookup, concurrent-signup checks, SHA-256 session-token storage, 30-day sessions, and the existing public user fields. The copied SQL migrations `001_initial.sql`, `002_auth_sessions.sql`, and `012_email_password.sql` are unchanged, including their names. They initialize **fresh local or isolated staging identity databases only**, not the complete migration stream for the live `delta` database. Never apply this subset to an existing production or imported database.
 
 Intentional adaptations include explicit environment bindings, a configurable origin allowlist, streamed JSON size limits, local development, and the Google validation/race safeguards described above. The development cookie is `canopy_session`, HttpOnly and SameSite=Lax, so it does not overwrite sibling apps' `mainbrella_session` cookie. That exception requires both the local flag and a loopback request; other hosts retain the original Secure/SameSite=None cookie behavior. Missing database or rate-limit bindings fail closed. The local Wrangler configuration names only a local database placeholder and contains no production resource bindings or routes.
 

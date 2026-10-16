@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "type-check": "tsc -p tsconfig.json",
-    "build": "vite build"
+    "build": "vite build",
+    "build:staging": "vite build --mode staging --outDir dist-staging"
   }
 }

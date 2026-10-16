@@ -82,7 +82,7 @@ export async function hashToken(token: string): Promise<string> {
 
 function cookieName(env: Env, request: Request): string {
   // Local cookies must not replace sessions from the sibling apps on localhost.
-  return isLocalRequest(env, request) ? "canopy_session" : "mainbrella_session";
+  return isLocalRequest(env, request) ? "canopy_session" : env.SESSION_COOKIE_NAME || "mainbrella_session";
 }
 
 function readToken(env: Env, request: Request): string | null {

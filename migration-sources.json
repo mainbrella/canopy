@@ -20,21 +20,21 @@
       "source": "migrations/001_initial.sql",
       "destination": "platform/accounts/migrations/001_initial.sql",
       "sha256": "4c50fabdd2345834ae6b16e845a04f74ef52d39cf9744f8205a7366e87005904",
-      "change": "Unchanged; fresh local database only, not a complete production migration stream."
+      "change": "Unchanged; fresh local or isolated staging identity database only, not a complete production migration stream."
     },
     {
       "repository": "backend",
       "source": "migrations/002_auth_sessions.sql",
       "destination": "platform/accounts/migrations/002_auth_sessions.sql",
       "sha256": "9148e9dd0b022faf453ce5008365e63dc31c7e3d803cda42ecc04d72ce9edcaa",
-      "change": "Unchanged; fresh local database only, not a complete production migration stream."
+      "change": "Unchanged; fresh local or isolated staging identity database only, not a complete production migration stream."
     },
     {
       "repository": "backend",
       "source": "migrations/012_email_password.sql",
       "destination": "platform/accounts/migrations/012_email_password.sql",
       "sha256": "83a3121ec87f09972a37673ee34fe3d20a20e5f3c6cbc75cdeed477c09d3f152",
-      "change": "Unchanged; fresh local database only, not a complete production migration stream."
+      "change": "Unchanged; fresh local or isolated staging identity database only, not a complete production migration stream."
     },
     {
       "repository": "backend",
@@ -48,7 +48,7 @@
       "source": "worker/app/auth-core.ts",
       "destination": "platform/accounts/src/auth-core.ts",
       "sha256": "19c7f9670ee233aac18c862082d47254625305d09b653f957a9b7da942a70566",
-      "change": "Browser session subset only; explicit origin configuration, bounded streamed JSON, and isolated loopback-only development cookie."
+      "change": "Browser session subset only; explicit origin configuration, bounded streamed JSON, and isolated loopback-only development cookie. Hosted staging can explicitly select its own __Host- cookie name; default and loopback cookie behavior preserved."
     },
     {
       "repository": "backend",
@@ -125,7 +125,21 @@
       "source": "src/login.ts",
       "destination": "platform/console/src/main.ts",
       "sha256": "8933d7c0ea64a422e944f5ab22da7b06ac9438c7a8de34121da33826f9410a1d",
-      "change": "Adapt shared email/Google sign-in callback and busy-state pattern into the existing compact console. Google is absent without configuration, late callbacks are ignored, and provider failures leave email available. No admin checks or product effects."
+      "change": "Adapt shared email/Google sign-in callback and busy-state pattern into the existing compact console. Google is absent without configuration, late callbacks are ignored, and provider failures leave email available. No admin checks or product effects. The staging build selects its own API URL and labels the environment as Staging."
+    },
+    {
+      "repository": "backend",
+      "source": "wrangler.jsonc",
+      "destination": "platform/accounts/wrangler.staging.jsonc",
+      "sha256": "8e89f86ffbf4d9c084fd0b8e2baaf84116b7425a0afd7e54790b2c4b536929e0",
+      "change": "Adapt the same Cloudflare account and custom-domain configuration pattern. Separate Canopy staging Worker, fresh identity D1 and rate-limit namespaces; exact staging console origin and dedicated host-only cookie. All production bindings, integrations, domains and Google client omitted."
+    },
+    {
+      "repository": "web",
+      "source": "wrangler.jsonc",
+      "destination": "platform/console/wrangler.staging.jsonc",
+      "sha256": "4e754b6e1fee98d398e815c560106b2bfbf802ddc9605f85022198b4486a1085",
+      "change": "Adapt static Worker assets and custom-domain routing for canopy-console-stg at stg.mainbrella.com. Explicit same Cloudflare account; separate dist-staging output and disabled preview URLs. Production Worker and apex domain unchanged."
     }
   ]
 }

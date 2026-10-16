@@ -3,13 +3,14 @@ import type { SignInResult, User } from "@canopy/contracts/auth";
 import { createGoogleSignIn } from "./google-sign-in.ts";
 import "./style.css";
 
-const auth = createAuthClient();
+const auth = createAuthClient({ baseUrl: import.meta.env.VITE_AUTH_BASE_URL });
 function element<T extends HTMLElement>(id: string): T {
   const value = document.getElementById(id);
   if (!value) throw new Error(`Missing element: ${id}`);
   return value as T;
 }
 
+element("environment").textContent = import.meta.env.MODE === "staging" ? "Staging" : "Local development";
 const heading = element("heading");
 const status = element("status");
 const error = element("error");

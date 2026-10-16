@@ -151,3 +151,38 @@ test("malformed and oversized bodies, unsupported routes and methods are rejecte
   assert.equal(wrongMethod.status, 405);
   assert.equal(wrongMethod.headers.get("allow"), "POST, OPTIONS");
 });
+
+test("staging accepts only its console origin and keeps its session separate from production", async t => {
+  const f = fixture(t);
+  f.env.LOCAL_DEVELOPMENT = "false";
+  f.env.AUTH_ORIGINS = "https://stg.mainbrella.com";
+  f.env.SESSION_COOKIE_NAME = "__Host-canopy_stg_session";
+  const request = (path: string, init: RequestInit = {}) => handleRequest(new Request(`https://api-stg.mainbrella.com${path}`, init), f.env);
+  for (const Origin of ["https://mainbrella.com", "https://api.mainbrella.com", "http://localhost:5175", "https://stg.mainbrella.com.evil.example"]) {
+    const response = await request("/auth/email", { method: "POST", headers: { Origin }, body: "{}" });
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get("access-control-allow-origin"), null);
+  }
+  const Origin = "https://stg.mainbrella.com";
+  const preflight = await request("/auth/email", { method: "OPTIONS", headers: { Origin } });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), Origin);
+  assert.equal(preflight.headers.get("access-control-allow-credentials"), "true");
+  const login = await request("/auth/email", {
+    method: "POST", headers: { Origin, "CF-Connecting-IP": "192.0.2.1", "content-type": "application/json" },
+    body: JSON.stringify({ email: "staging@example.com", password: "staging password" }),
+  });
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get("set-cookie")!;
+  assert.match(cookie, /^__Host-canopy_stg_session=[a-f0-9]{64}; Max-Age=2592000; Path=\/; HttpOnly; SameSite=None; Secure$/);
+  const Cookie = cookie.split(";")[0];
+  const body = await login.json() as SignInResult;
+  assert.deepEqual(await (await request("/auth/me", { headers: { Origin, Cookie } })).json(), { user: body.user });
+  for (const name of ["mainbrella_session", "canopy_session"]) {
+    const siblingCookie = Cookie.replace("__Host-canopy_stg_session", name);
+    assert.deepEqual(await (await request("/auth/me", { headers: { Origin, Cookie: siblingCookie } })).json(), { user: null });
+  }
+  const logout = await request("/auth/logout", { method: "POST", headers: { Origin, Cookie } });
+  assert.match(logout.headers.get("set-cookie")!, /^__Host-canopy_stg_session=; Max-Age=0;/);
+  assert.deepEqual(await (await request("/auth/me", { headers: { Origin, Cookie } })).json(), { user: null });
+});

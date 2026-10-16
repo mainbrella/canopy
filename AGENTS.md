@@ -33,6 +33,10 @@ commit `94f620c` (`first brella under`). The **Google browser sign-in milestone 
 complete** in commit `922cf30` (`google`), including the optional console control,
 shared client, Worker verification, identity-conflict protection, and automated
 regressions. Real Google login remains an outstanding verification checkpoint.
+The isolated **email/password staging milestone is also deployed and verified**
+on 2026-10-16 at `https://stg.mainbrella.com`, using
+`https://api-stg.mainbrella.com`. See [STAGING.md](STAGING.md) for the deployment
+record, repeatable commands, verification, and teardown.
 The [README](README.md) contains setup instructions, the inspected source
 inventory, and the broader migration plan; distinguish that plan from working code.
 
@@ -44,8 +48,8 @@ Implemented:
 | `platform/console/` | Small Vite/TypeScript email form, optional Google control with loading/retry, and read-only account details |
 | `packages/contracts/` | Public user/session types and runtime response validation |
 | `packages/platform-client/` | Shared credentialed auth client with injectable fetch and no browser globals |
-| `scripts/` | Local stack startup/cleanup and a Wrangler wrapper for local commands and dry-run builds |
-| `.github/workflows/ci.yml` | Clean install, type checks, auth tests, builds, and browser checks; no deployment |
+| `scripts/` | Local stack startup/cleanup, restricted Wrangler commands, staging deployment and hosted smoke test |
+| `.github/workflows/ci.yml` | Clean install, type checks, auth tests, local/staging builds, and browser checks; no deployment |
 
 Current API: `POST /auth/email`, `POST /auth/google`, `GET /auth/me`, and
 `POST /auth/logout`.
@@ -56,11 +60,13 @@ concurrent-signup behavior, hashed session tokens, and 30-day lifetime.
 
 Important boundaries and implementation notes:
 
-- Local accounts are separate from hosted Mainbrella accounts. No customer data
-  or production bindings were imported and nothing was deployed.
+- Local and staging accounts are separate from production Mainbrella accounts.
+  No customer data or production bindings were imported. Only dedicated Canopy
+  staging resources were deployed; production remains unchanged.
 - The three identity migrations (`001`, `002`, `012`) are byte-identical source
-  copies for a fresh local database. They are **not** the complete `delta`
-  migration stream. Do not renumber them or apply this subset to hosted data.
+  copies for fresh local or isolated staging identity databases. They are **not**
+  the complete `delta` migration stream. Do not renumber them or apply this subset
+  to production or imported data.
 - Loopback requests with `LOCAL_DEVELOPMENT=true` use `canopy_session` with
   HttpOnly/SameSite=Lax. This avoids overwriting sibling localhost sessions.
   Other hosts retain the original Secure/SameSite=None behavior. Do not broaden
@@ -68,8 +74,11 @@ Important boundaries and implementation notes:
 - Worker bindings use explicit types imported from
   `@cloudflare/workers-types/index.ts`. Loading its global declarations alongside
   Node types caused a `Buffer` collision; keep the module-based approach.
-- Vite's `/auth` proxy is development-only. A future hosted console needs explicit
-  routing; building the static files alone does not provide an API.
+- Vite's `/auth` proxy is development-only. The separate staging console build
+  explicitly calls `https://api-stg.mainbrella.com` with credentials. Its API
+  allows exactly `https://stg.mainbrella.com`; production and localhost origins
+  are rejected. The staging cookie is `__Host-canopy_stg_session`, Secure,
+  HttpOnly, host-only, and independent from local and production sessions.
 - Google is optional: set the same explicit test client ID as `GOOGLE_CLIENT_ID`
   in `platform/accounts/.dev.vars` and `VITE_GOOGLE_CLIENT_ID` in
   `platform/console/.env.local`. Both files are ignored. With no console client
@@ -134,10 +143,11 @@ Verification recorded for the completed Google milestone:
   Playwright graceful shutdown from the first milestone. npm may log exit 143
   when Vite is terminated during teardown; the browser command exits successfully.
 
-These are local results from the implementation handoff, not evidence of a live
-deployment or a completed remote CI run. Google browser tests do not authenticate
-with Google; Worker tests stub Google's key response. A real Google smoke test
-was **not run** because no explicit test OAuth client was supplied.
+These are the local Google milestone results, not evidence of Google working
+on the hosted staging deployment or of a completed remote CI run. Google browser
+tests do not authenticate with Google; Worker tests stub Google's key response.
+A real Google smoke test was **not run** because no explicit test OAuth client
+was supplied.
 
 ## Next checkpoint — real Google smoke test
 
@@ -153,19 +163,47 @@ update these notes. Without that test client, leave this checkpoint pending and
 keep Google optional. Do not change production OAuth origins or use the sibling
 production client as a fallback.
 
-## Next milestone — isolated staging preparation
+## Completed milestone — isolated staging deployment
 
-After the real Google flow is verified, scope a separate staging slice for the
-accounts Worker and console:
+The user authorized separate staging hosts before real Google verification;
+Google remains disabled there. Staging uses the same Cloudflare account as
+production, `2b7a9be82bb64187230703b024e25157`, with these dedicated resources:
 
-1. Define an isolated database and explicit console/API routing so the built
-   console can reach auth without Vite's development proxy.
-2. Review HTTPS session cookies, the exact origin allowlist, separate test OAuth
-   configuration, Google key caching, and the migration history required for a
-   fresh staging database. Preserve all existing local auth behavior.
-3. Prepare the configuration and relevant checks inside Canopy, then document
-   the proposed resources, validation steps, and teardown before deployment.
+| Resource | Staging |
+| --- | --- |
+| Console | `canopy-console-stg` at `stg.mainbrella.com` |
+| API | `canopy-accounts-stg` at `api-stg.mainbrella.com` |
+| D1 | `canopy-accounts-stg`, UUID `824e7e4b-b015-416a-93ec-f09ad56ef4d9` |
+| Rate-limit namespaces | `2001` (email), `2002` (Google) |
 
-Staging is proposed work, not an existing deployment or authorization to create
-hosted resources. Keep production databases, OAuth settings, domains, and sibling
-deployments unchanged; defer billing, Raindrop, and product migrations.
+The Worker versions and detailed verification record are in [STAGING.md](STAGING.md).
+Production `mainbrella-web`, `mainbrella-api`, `mainbrella.com`,
+`api.mainbrella.com`, and `delta` are unchanged. Account billing and quotas
+are shared; data, Workers, origins, cookies, and bindings are separate.
+
+Use `npm run build:staging` for local staging builds and dry runs.
+`npm run deploy:staging` checks, builds, migrates only the staging database,
+and deploys only the staging Workers. The Wrangler wrapper accepts fixed staging
+actions; existing local commands remain restricted. Credentials, logs, snapshots,
+and caches stay inside ignored `.cache/`. Do not recreate the existing staging
+database or migrate production data. CI includes staging dry runs but no deploy.
+
+Verification passed: all TypeScript checks, 23 auth/client tests, local and
+staging builds, 14 local browser tests, and a real hosted Chromium email smoke
+test. The hosted test verified signup, returning login, reload, logout/revocation,
+wrong passwords, cross-origin credentialed API calls, secure host-only staging
+cookies, exact CORS allowlisting, disabled Google, four viewport sizes, and no
+browser script errors. Repeat with
+`PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run smoke:staging`;
+each run creates one disposable staging account and saves ignored results under
+`test-results/staging/`. Production deployment records, custom domains, and
+zone Worker routes matched the pre-deployment snapshots; read-only production
+HTTP checks returned 200. Sibling working trees were left unchanged. These are
+operator-run checks, not a remote CI result.
+
+The real Google checkpoint remains pending. Before enabling it on staging,
+supply a separate test Web OAuth client authorized for
+`https://stg.mainbrella.com`, review the verifier's per-request key fetching
+and caching, and enable the explicit client ID in both staging builds/configs.
+Do not inherit ignored local client IDs or reuse production OAuth settings.
+Billing, Raindrop, and other product migrations remain deferred.

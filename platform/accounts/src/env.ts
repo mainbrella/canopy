@@ -8,4 +8,5 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   AUTH_ORIGINS: string;
   LOCAL_DEVELOPMENT?: string;
+  SESSION_COOKIE_NAME?: string;
 }
