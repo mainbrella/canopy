@@ -52,7 +52,7 @@ inspect state before retrying a mutation. Watchers remain unsupported.
 For development and release qualification, build local archives with backend
 `npm run sdk:qualify` and install the wheel with
 `python -m pip install /path/to/mainbrella-0.1.0-py3-none-any.whl`. See the backend
-[SDK release runbook](https://github.com/mainbrella/backend/blob/main/docs/sdk-release.md)
+[SDK release runbook](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/sdk-release.md)
 for artifact and deployed-workflow gates.
 
 Credentials belong in your environment or secret manager. HTTPS is required
@@ -370,7 +370,7 @@ No fetch, push, credentials or forced checkout are implicit; Git protects local
 changes. Keep repository configuration and the index stable during an operation.
 Each execution defaults to 30 seconds (maximum 60) and output to 1 MiB; partial
 output is rejected. See the
-[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
+[Git SDK contract](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 
@@ -434,7 +434,7 @@ retained output, or `close()` to cancel it. The context manager cancels on exit.
 Notifications can coalesce or be lost, and registering a new subtree has a race;
 they are not a durable file-change journal. Start a new watcher after a generation
 ends. This SDK helper does not enable a server watch endpoint. See
-[native watcher limits](https://github.com/mainbrella/backend/blob/main/docs/native-file-watch.md).
+[native watcher limits](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/native-file-watch.md).
 
 ## Linux desktop automation (unreleased)
 

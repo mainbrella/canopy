@@ -748,7 +748,7 @@ policy, or issues public previews. Machines retain independent deadlines and
 stop behavior; deleting a member does not cascade to peers. To share a frontend
 with a browser, issue a separate protected preview for that frontend only.
 
-The repository's [local users demo](https://github.com/mainbrella/backend/tree/main/examples/private-services)
+The repository's [local users demo](https://github.com/mainbrella/canopy/tree/main/apps/backend/examples/private-services)
 provides the Node frontend → private Go backend → SQLite recipe and explicit
 cleanup command. It seeds three users and renders the results of
 `SELECT * FROM users ORDER BY id`. Its launcher verifies private HTTP, rendered
@@ -979,7 +979,7 @@ Delivery is at least once and may arrive out of order. Up to eight automatic att
 
 POST payloads are `{id,sequence,type,occurredAt,container:{id,createdAt,size},reason?}`. Headers include `Mainbrella-Event-Id` and `Mainbrella-Signature: t=<Unix-seconds>,v1=<hex-HMAC-SHA256>`. The signature covers the exact UTF-8 bytes of `<timestamp>.<raw-body>` using the returned signingSecret string as the HMAC key. Verify the raw body before JSON parsing, check timestamp freshness, then deduplicate event IDs. JS exports `verifyWebhookSignature(bytes,header,secret)`; Python exports `verify_webhook_signature(body,header,secret)`. Both default to a five-minute freshness window and compare signatures through standard cryptographic primitives.
 
-JavaScript `sandbox.webhook.configure(url,{replayFromCursor})`, `.get()`, `.remove()`, `.deliveries()` and `.retry(eventId)` expose the contract. Python equivalents use `replay_from_cursor` and `event_id`. Signing keys are encrypted in private runtime storage with an operator-managed key; destination URL paths/query values remain owner-visible configuration. Key rotation requires reconfiguring retained webhook destinations. Operators should read [the observability runbook](https://github.com/mainbrella/backend/blob/main/docs/workload-observability.md) before enabling delivery. OTLP JSON pull export is available in source; see [OTLP lifecycle and workload export](#otlp-lifecycle-and-workload-export). Provider metrics and webhook qualification gates are unchanged.
+JavaScript `sandbox.webhook.configure(url,{replayFromCursor})`, `.get()`, `.remove()`, `.deliveries()` and `.retry(eventId)` expose the contract. Python equivalents use `replay_from_cursor` and `event_id`. Signing keys are encrypted in private runtime storage with an operator-managed key; destination URL paths/query values remain owner-visible configuration. Key rotation requires reconfiguring retained webhook destinations. Operators should read [the observability runbook](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/workload-observability.md) before enabling delivery. OTLP JSON pull export is available in source; see [OTLP lifecycle and workload export](#otlp-lifecycle-and-workload-export). Provider metrics and webhook qualification gates are unchanged.
 
 ## Public operational status
 

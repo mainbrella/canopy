@@ -33,7 +33,7 @@
           <h1 id="site-title">Open Source<br />Business in a Box</h1>
           <p class="hero-description">Fork Mainbrella. Make it your own. Set your prices and sell Linux workspaces for AI agents from your own Cloudflare account. Accounts, billing, quotas, and customer access are already built.</p>
           <div class="hero-actions">
-            <a class="button" href="https://github.com/mainbrella/backend">Fork the platform <span aria-hidden="true">↗</span></a>
+            <a class="button" href="https://github.com/mainbrella/canopy/tree/main/apps/backend">Fork the platform <span aria-hidden="true">↗</span></a>
             <a class="text-link" href="#self-host">Launch your own service <span aria-hidden="true">↓</span></a>
             <!-- agent-copy-cta -->
           </div>
@@ -110,7 +110,7 @@ POST /containers/exec
 {"error":"container_not_running"}</code></pre><p class="terminal-foot">The command never runs on generation B.</p></figure>
       </div>
       <p class="source-note">The API checks the logical ID and exact <code>createdAt</code> before forwarding commands; the runtime rechecks generation identity. Old stdin writes are fenced out too. A malformed generation returns <code>400 invalid_generation</code>. Retained history remains subject to execution retention limits.</p>
-      <a class="text-link" href="https://github.com/mainbrella/backend/blob/main/worker/app/commands.ts">Inspect the command boundary →</a>
+      <a class="text-link" href="https://github.com/mainbrella/canopy/blob/main/apps/linux/worker/app/commands.ts">Inspect the command boundary →</a>
     </section>
 
     <section class="workflow wrap" aria-labelledby="previews-title">
@@ -128,8 +128,8 @@ POST /containers/exec
 
     <section class="workflow wrap" id="self-host" aria-labelledby="self-host-title">
       <div class="section-heading"><div><h2 id="self-host-title">Already on Workers Paid? You have a head start.</h2><p>Fork Mainbrella and put your existing Cloudflare account to work.</p></div></div>
-      <div class="source-columns"><div><h3>Fork it. Set your own prices. Compete with us.</h3><p>Mainbrella is free software under GPL v3.0. You are welcome to inspect, fork, modify, and run the code, change the pricing, charge your own customers, and launch a hosted service that competes with mainbrella.com. You do not need a Mainbrella subscription or to pay us a software fee.</p><p>Your infrastructure runs in your account. Respect GPL v3.0, including its requirements when distributing modified software.</p><a class="text-link" href="https://github.com/mainbrella/backend/blob/main/LICENSE">Read the GPL v3.0 license →</a></div><div><h3>Your plan already includes Container usage.</h3><p>Cloudflare's $5/month Workers Paid plan includes 375 vCPU-minutes, 25 GiB-hours of memory, and 200 GB-hours of disk each month. A small deployment that stays within your account's included allowances may add no compute cost.</p><p>Containers require Workers Paid. Allowances are shared across your account; additional usage and other services can incur charges.</p><a class="text-link" href="https://developers.cloudflare.com/containers/platform/pricing/">Cloudflare pricing and allowances →</a></div></div>
-      <div class="provider-details"><h3>The deployment<br />is in the repository.</h3><div><p>Worker code, the container runtime and Dockerfile, Wrangler configs, D1 migrations, tests, and deployment tooling are included. Start with the backend README and release runbook: configure your account bindings, domains, identity and billing integrations, and secrets; apply migrations; then deploy the runtime and API in the documented order. Adapt the account entitlements for your own installation.</p><nav class="recipe-links" aria-label="Self-hosting resources"><a href="https://github.com/mainbrella/backend">Backend source</a><a href="https://github.com/mainbrella/backend/blob/main/docs/deployment.md">Deployment runbook</a><a href="https://github.com/mainbrella/web">Web client</a><a href="https://github.com/mainbrella/ios">iOS client</a></nav></div></div>
+      <div class="source-columns"><div><h3>Fork it. Set your own prices. Compete with us.</h3><p>Mainbrella is free software under GPL v3.0. You are welcome to inspect, fork, modify, and run the code, change the pricing, charge your own customers, and launch a hosted service that competes with mainbrella.com. You do not need a Mainbrella subscription or to pay us a software fee.</p><p>Your infrastructure runs in your account. Respect GPL v3.0, including its requirements when distributing modified software.</p><a class="text-link" href="https://github.com/mainbrella/canopy/blob/main/apps/backend/LICENSE">Read the GPL v3.0 license →</a></div><div><h3>Your plan already includes Container usage.</h3><p>Cloudflare's $5/month Workers Paid plan includes 375 vCPU-minutes, 25 GiB-hours of memory, and 200 GB-hours of disk each month. A small deployment that stays within your account's included allowances may add no compute cost.</p><p>Containers require Workers Paid. Allowances are shared across your account; additional usage and other services can incur charges.</p><a class="text-link" href="https://developers.cloudflare.com/containers/platform/pricing/">Cloudflare pricing and allowances →</a></div></div>
+      <div class="provider-details"><h3>The deployment<br />is in the repository.</h3><div><p>Worker code, the container runtime and Dockerfile, Wrangler configs, D1 migrations, tests, and deployment tooling are included. Start with the backend README and release runbook: configure your account bindings, domains, identity and billing integrations, and secrets; apply migrations; then deploy the runtime and API in the documented order. Adapt the account entitlements for your own installation.</p><nav class="recipe-links" aria-label="Self-hosting resources"><a href="https://github.com/mainbrella/canopy/tree/main/apps/backend">Backend source</a><a href="https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/deployment.md">Deployment runbook</a><a href="https://github.com/mainbrella/canopy/tree/main/apps/web">Web client</a><a href="https://github.com/mainbrella/ios">iOS client</a></nav></div></div>
       <p class="benchmark-note">Cloudflare allowances reviewed October 6, 2026. This is a self-hosting option; <a href="/pricing/">Mainbrella's hosted plans</a> are a separate service.</p>
     </section>
 
@@ -148,7 +148,7 @@ POST /containers/exec
     <section class="availability wrap" aria-labelledby="contribute-title">
       <h2 id="contribute-title">Build a business on it.</h2>
       <p>Choose your audience, make the platform your own, and offer a service people want to use. The code is open, the pricing is yours to change, and your customers are yours to serve.</p>
-      <div class="hero-actions"><a class="button" href="https://github.com/orgs/mainbrella/repositories">Get the code <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/mainbrella/backend/blob/main/docs/deployment.md">Start with the deployment guide →</a></div>
+      <div class="hero-actions"><a class="button" href="https://github.com/orgs/mainbrella/repositories">Get the code <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/deployment.md">Start with the deployment guide →</a></div>
     </section>
     <!-- agent-setup -->
   </main>

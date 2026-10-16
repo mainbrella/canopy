@@ -44,7 +44,7 @@ policy, or issues public previews. Machines retain independent deadlines and
 stop behavior; deleting a member does not cascade to peers. To share a frontend
 with a browser, issue a separate protected preview for that frontend only.
 
-The repository's [local users demo](https://github.com/mainbrella/backend/tree/main/examples/private-services)
+The repository's [local users demo](https://github.com/mainbrella/canopy/tree/main/apps/backend/examples/private-services)
 provides the Node frontend → private Go backend → SQLite recipe and explicit
 cleanup command. It seeds three users and renders the results of
 `SELECT * FROM users ORDER BY id`. Its launcher verifies private HTTP, rendered

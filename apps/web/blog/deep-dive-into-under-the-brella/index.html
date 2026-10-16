@@ -42,7 +42,7 @@
         <p>Builder doesn’t accept the model’s final message as a passing build. After installing dependencies, the platform invokes the compiler and bundler directly from the app directory:</p>
         <pre class="docs-code" tabindex="0" role="region" aria-label="Builder’s compile check, run inside the app directory"><code>./node_modules/.bin/tsc --noEmit &amp;&amp;
 ./node_modules/.bin/vite build</code></pre>
-        <p>The generated <code>package.json</code> can’t redefine this check as a script that prints “success.” Compiler failures go back to the agent for repair, and the preview serves compiled output. The <a href="https://github.com/mainbrella/backend/blob/main/worker/lib/build-agent.ts">build loop</a> makes success depend on a tool result we control.</p>
+        <p>The generated <code>package.json</code> can’t redefine this check as a script that prints “success.” Compiler failures go back to the agent for repair, and the preview serves compiled output. The <a href="https://github.com/mainbrella/canopy/blob/main/apps/vibe/worker/lib/build-agent.ts">build loop</a> makes success depend on a tool result we control.</p>
         <p>That still doesn’t prove the dashboard adds up the CSV correctly. Try known inputs and check the totals. Mainbrella gives you running software and evidence about its build; deciding whether the software does the right thing remains an engineering job.</p>
 
         <h2 id="saved-work">Keep the code when compute ends</h2>
@@ -63,7 +63,7 @@
 
         <h2 id="recovery">A dropped connection shouldn’t change the job</h2>
         <p>Suppose your agent starts a machine and loses the response. Repeating the request with the same <code>Idempotency-Key</code> looks up the original creation. Generating a new key asks for another start. We save the creation receipt before booting, so recovery has something to find.</p>
-        <p>Once running, an Ad Hoc machine is identified by its slot and exact <code>createdAt</code> timestamp. Slots get reused. A delayed cleanup request must distinguish yesterday’s dashboard from today’s occupant. The <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account-core.js">account coordinator</a> and runtime enforce those identities; cleanup shouldn’t guess.</p>
+        <p>Once running, an Ad Hoc machine is identified by its slot and exact <code>createdAt</code> timestamp. Slots get reused. A delayed cleanup request must distinguish yesterday’s dashboard from today’s occupant. The <a href="https://github.com/mainbrella/canopy/blob/main/apps/linux/containers/container-account-core.js">account coordinator</a> and runtime enforce those identities; cleanup shouldn’t guess.</p>
         <p>Longer commands can use managed executions with retained results and numbered output events. Jobs run for up to fifteen minutes within the machine’s lease, with results retained for an hour. A disconnected viewer can reconnect using its cursor while the job continues within its deadline. A runtime restart is different: unfinished jobs become interrupted, without silently replaying commands. Automatically rerunning a side effect because its reply disappeared is how a “helpful” retry becomes a second invoice.</p>
 
         <h2 id="billing">Put the budget on the server</h2>
@@ -78,10 +78,10 @@
           </tbody>
         </table>
         <p>A separate monthly spending cap bounds consumption. Stopping releases unused runtime reservations; model inference and retained storage have their own usage charges. The cloud bill shouldn’t depend on whether a browser remembered to run its cleanup handler.</p>
-        <p>Temporary Ad Hoc sessions have idle and hard deadlines. The backend’s newer <a href="https://github.com/mainbrella/backend/blob/main/docs/production.md">Production lifecycle</a> renews funded five-minute reservations and supervises a startup command for longer-lived services. Its live rollout still needs qualification. Recovery starts from the image and command, so durable application data belongs outside the guest; persistent disks, replica failover, and an uptime SLA aren’t included.</p>
+        <p>Temporary Ad Hoc sessions have idle and hard deadlines. The backend’s newer <a href="https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/production.md">Production lifecycle</a> renews funded five-minute reservations and supervises a startup command for longer-lived services. Its live rollout still needs qualification. Recovery starts from the image and command, so durable application data belongs outside the guest; persistent disks, replica failover, and an uptime SLA aren’t included.</p>
 
         <h2 id="ownership">Buy the service, or run it</h2>
-        <p>The <a href="https://github.com/mainbrella/backend">backend</a> and <a href="https://github.com/mainbrella/web">web client</a> are open source under GPLv3, including accounts, billing, and lifecycle enforcement. You can develop locally with Wrangler and a Docker-compatible engine, or adapt a deployment to your own Cloudflare account. That takes operator work, and the infrastructure layer depends on Cloudflare.</p>
+        <p>The <a href="https://github.com/mainbrella/canopy/tree/main/apps/backend">backend</a> and <a href="https://github.com/mainbrella/canopy/tree/main/apps/web">web client</a> are open source under GPLv3, including accounts, billing, and lifecycle enforcement. You can develop locally with Wrangler and a Docker-compatible engine, or adapt a deployment to your own Cloudflare account. That takes operator work, and the infrastructure layer depends on Cloudflare.</p>
         <p>With the hosted service, we handle platform deployment and maintenance. A self-hosted deployment leaves those jobs with you, alongside control over the implementation. Start with a small task: <a href="/build/">build the CSV dashboard</a>, check its totals, download its repository, and run it in your editor. You should leave that experiment with useful software and code you can keep working on.</p>
       </article>
     </main>

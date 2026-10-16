@@ -56,7 +56,7 @@ inspect state before retrying a mutation. Watchers remain unsupported.
 Release candidates are built and checked with backend `npm run sdk:qualify`.
 Version 0.1.0 passed artifact and bounded deployed qualification; fresh npm
 downloads match the qualified archive and pass clean-install checks. See the backend
-[SDK release runbook](https://github.com/mainbrella/backend/blob/main/docs/sdk-release.md)
+[SDK release runbook](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/sdk-release.md)
 for artifact and deployed-workflow gates.
 
 Keep the API key in a secret store or environment, never in code or logs. The
@@ -477,7 +477,7 @@ operation in another. It disables hooks, external diff/text conversion, configur
 clean/smudge/process filters and signing. Keep Git configuration and the index
 stable while operating. Each execution defaults to 30 seconds (maximum 60),
 output is limited to 1 MiB, and incomplete output raises an error. See
-[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
+[Git SDK contract](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 
@@ -549,7 +549,7 @@ again on the same handle to consume retained output, or `close()` to cancel it.
 Always close in `finally`. Native notifications can coalesce or be lost, and a
 new subtree has a registration race; this is not a durable file-change journal.
 Start a new watcher after a generation ends. No server watch capability is enabled.
-See [native watcher limits](https://github.com/mainbrella/backend/blob/main/docs/native-file-watch.md).
+See [native watcher limits](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/native-file-watch.md).
 
 ## Linux desktop automation (unreleased)
 

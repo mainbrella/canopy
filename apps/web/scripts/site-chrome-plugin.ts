@@ -18,7 +18,7 @@ const homeNavigation: [string, string][] = [
 
 const voiceNavigation: [string, string][] = [
   ['Product', '#product'], ['Costs', '#costs'], ['Compare', '#compare'],
-  ['GitHub', 'https://github.com/mainbrella/backend#ai-receptionist'],
+  ['GitHub', 'https://github.com/mainbrella/canopy/tree/main/apps/backend#ai-receptionist'],
 ];
 
 function extractCriticalCss(css: string, filename: string) {

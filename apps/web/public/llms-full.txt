@@ -754,7 +754,7 @@ policy, or issues public previews. Machines retain independent deadlines and
 stop behavior; deleting a member does not cascade to peers. To share a frontend
 with a browser, issue a separate protected preview for that frontend only.
 
-The repository's [local users demo](https://github.com/mainbrella/backend/tree/main/examples/private-services)
+The repository's [local users demo](https://github.com/mainbrella/canopy/tree/main/apps/backend/examples/private-services)
 provides the Node frontend → private Go backend → SQLite recipe and explicit
 cleanup command. It seeds three users and renders the results of
 `SELECT * FROM users ORDER BY id`. Its launcher verifies private HTTP, rendered
@@ -985,7 +985,7 @@ Delivery is at least once and may arrive out of order. Up to eight automatic att
 
 POST payloads are `{id,sequence,type,occurredAt,container:{id,createdAt,size},reason?}`. Headers include `Mainbrella-Event-Id` and `Mainbrella-Signature: t=<Unix-seconds>,v1=<hex-HMAC-SHA256>`. The signature covers the exact UTF-8 bytes of `<timestamp>.<raw-body>` using the returned signingSecret string as the HMAC key. Verify the raw body before JSON parsing, check timestamp freshness, then deduplicate event IDs. JS exports `verifyWebhookSignature(bytes,header,secret)`; Python exports `verify_webhook_signature(body,header,secret)`. Both default to a five-minute freshness window and compare signatures through standard cryptographic primitives.
 
-JavaScript `sandbox.webhook.configure(url,{replayFromCursor})`, `.get()`, `.remove()`, `.deliveries()` and `.retry(eventId)` expose the contract. Python equivalents use `replay_from_cursor` and `event_id`. Signing keys are encrypted in private runtime storage with an operator-managed key; destination URL paths/query values remain owner-visible configuration. Key rotation requires reconfiguring retained webhook destinations. Operators should read [the observability runbook](https://github.com/mainbrella/backend/blob/main/docs/workload-observability.md) before enabling delivery. OTLP JSON pull export is available in source; see [OTLP lifecycle and workload export](#otlp-lifecycle-and-workload-export). Provider metrics and webhook qualification gates are unchanged.
+JavaScript `sandbox.webhook.configure(url,{replayFromCursor})`, `.get()`, `.remove()`, `.deliveries()` and `.retry(eventId)` expose the contract. Python equivalents use `replay_from_cursor` and `event_id`. Signing keys are encrypted in private runtime storage with an operator-managed key; destination URL paths/query values remain owner-visible configuration. Key rotation requires reconfiguring retained webhook destinations. Operators should read [the observability runbook](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/workload-observability.md) before enabling delivery. OTLP JSON pull export is available in source; see [OTLP lifecycle and workload export](#otlp-lifecycle-and-workload-export). Provider metrics and webhook qualification gates are unchanged.
 
 ## Public operational status
 
@@ -1697,7 +1697,7 @@ inspect state before retrying a mutation. Watchers remain unsupported.
 Release candidates are built and checked with backend `npm run sdk:qualify`.
 Version 0.1.0 passed artifact and bounded deployed qualification; fresh npm
 downloads match the qualified archive and pass clean-install checks. See the backend
-[SDK release runbook](https://github.com/mainbrella/backend/blob/main/docs/sdk-release.md)
+[SDK release runbook](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/sdk-release.md)
 for artifact and deployed-workflow gates.
 
 Keep the API key in a secret store or environment, never in code or logs. The
@@ -2118,7 +2118,7 @@ operation in another. It disables hooks, external diff/text conversion, configur
 clean/smudge/process filters and signing. Keep Git configuration and the index
 stable while operating. Each execution defaults to 30 seconds (maximum 60),
 output is limited to 1 MiB, and incomplete output raises an error. See
-[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
+[Git SDK contract](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 
@@ -2190,7 +2190,7 @@ again on the same handle to consume retained output, or `close()` to cancel it.
 Always close in `finally`. Native notifications can coalesce or be lost, and a
 new subtree has a registration race; this is not a durable file-change journal.
 Start a new watcher after a generation ends. No server watch capability is enabled.
-See [native watcher limits](https://github.com/mainbrella/backend/blob/main/docs/native-file-watch.md).
+See [native watcher limits](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/native-file-watch.md).
 
 ## Linux desktop automation (unreleased)
 
@@ -2283,7 +2283,7 @@ inspect state before retrying a mutation. Watchers remain unsupported.
 For development and release qualification, build local archives with backend
 `npm run sdk:qualify` and install the wheel with
 `python -m pip install /path/to/mainbrella-0.1.0-py3-none-any.whl`. See the backend
-[SDK release runbook](https://github.com/mainbrella/backend/blob/main/docs/sdk-release.md)
+[SDK release runbook](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/sdk-release.md)
 for artifact and deployed-workflow gates.
 
 Credentials belong in your environment or secret manager. HTTPS is required
@@ -2601,7 +2601,7 @@ No fetch, push, credentials or forced checkout are implicit; Git protects local
 changes. Keep repository configuration and the index stable during an operation.
 Each execution defaults to 30 seconds (maximum 60) and output to 1 MiB; partial
 output is rejected. See the
-[Git SDK contract](https://github.com/mainbrella/backend/blob/main/docs/git-sdk.md).
+[Git SDK contract](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/git-sdk.md).
 
 ## Streaming transfers and directory copies
 
@@ -2665,7 +2665,7 @@ retained output, or `close()` to cancel it. The context manager cancels on exit.
 Notifications can coalesce or be lost, and registering a new subtree has a race;
 they are not a durable file-change journal. Start a new watcher after a generation
 ends. This SDK helper does not enable a server watch endpoint. See
-[native watcher limits](https://github.com/mainbrella/backend/blob/main/docs/native-file-watch.md).
+[native watcher limits](https://github.com/mainbrella/canopy/blob/main/apps/backend/docs/native-file-watch.md).
 
 ## Linux desktop automation (unreleased)
 
