@@ -28,6 +28,24 @@
 
 ## Where work stopped
 
+Handoff updated **2026-10-16**, after commit `2f5956e`. Completed milestones:
+
+| Milestone | Commit | Status |
+| --- | --- | --- |
+| Local email/password accounts, sessions, shared contracts/client | `94f620c` | Implemented and locally verified |
+| Optional Google browser sign-in | `922cf30` | Implemented and automatically tested; real provider verification pending |
+| Isolated email/password staging | `394eeb5` | Deployed and verified; deployment record in `STAGING.md` |
+| Dark console theme | `570ffa6` | Implemented and locally verified; deployment not recorded |
+| Product shell, catalog placeholders, account menu | `61180e1` | Implemented and locally verified; deployment not recorded |
+| Fast frontend-only staging deployment command | `2f5956e` | Implemented; staging build and dry run verified |
+
+**Next implementation milestone: install and open one real product from Canopy.**
+No product runtime, installation API, persistent installation state, or provisioning
+flow exists yet. The current catalog is presentation only. Real Google verification
+remains pending but does not block this next milestone; email/password is available.
+This sequencing supersedes the older next-checkpoint paragraph in the README;
+the README's broader product architecture remains a plan, not completed work.
+
 Last implementation handoff: **2026-10-16**. The first account milestone is in
 commit `94f620c` (`first brella under`). The **Google browser sign-in milestone is
 complete** in commit `922cf30` (`google`), including the optional console control,
@@ -176,7 +194,68 @@ tests do not authenticate with Google; Worker tests stub Google's key response.
 A real Google smoke test was **not run** because no explicit test OAuth client
 was supplied.
 
-## Next checkpoint — real Google smoke test
+## Next milestone — first product installation
+
+The goal is one complete path: an authorized operator chooses a product in Canopy,
+installs it into the operator's Cloudflare account, sees its actual installation
+status after reload, and opens a working product. A catalog link, a configuration
+toggle, or a successful build alone does not complete this milestone.
+
+Start with **Voice as the provisional first candidate**, following the existing
+README plan and its standalone `../ai-receptionist` reference. This is a candidate,
+not a claim that its current packaging is ready. Before implementation, inspect
+the current standalone and hosted sources read-only, record their revisions, and
+identify the smallest independently usable slice, required resources, credentials,
+authentication, and external services. Confirm the product and supported install
+path from that evidence. Do not bundle full hosted/standalone engine convergence
+into this first install unless the selected slice requires it, or create a third
+maintained Voice implementation.
+
+Work in these independently verifiable slices:
+
+1. **Define the install boundary.** Record the chosen product, source/build version,
+   target account, resource ownership, required settings and secrets, and the
+   operator authorization model. Existing self-service signup does not confer
+   permission to provision resources. Inspect Appflare's current supported install
+   path and integration surface before choosing an adapter; the existing external
+   link is not an integration. Reuse a supported installer where practical rather
+   than building a general marketplace. Recheck packaging compatibility before
+   selecting Compute or Builder; do not assume their bindings are supported.
+2. **Package one working product.** Keep its implementation and deploy configuration
+   under `products/<product>`, with only necessary shared contracts. Include its
+   runtime, UI, migrations and explicit resource bindings as needed. Build without
+   sibling imports or installs, record copied/adapted source provenance, and avoid
+   production Mainbrella dependencies. Preserve a supported standalone install
+   boundary; unrelated products and hosted billing must not be prerequisites.
+3. **Connect installation to Canopy.** Add the smallest server-side install/status
+   contract and compact console flow for that product. Keep provisioning credentials
+   out of browser code. Persist the installation identity, version and owned
+   resource references. Enforce operator permissions server-side, handle duplicate
+   requests and interrupted attempts without creating duplicate resources, and show
+   useful pending/failure/retry feedback. Determine readiness from deployed runtime
+   evidence, not catalog visibility or an optimistic client flag. Open the product
+   with an explicit authentication handoff; do not assume cookies cross hosts.
+4. **Prove the complete path.** Test unauthorized access, successful install,
+   duplicate requests, failure/retry, reload, runtime health and opening the product
+   to perform one useful action. Verify the relevant keyboard and viewport behavior.
+   Record a real install into dedicated test resources separately from mocks and
+   dry runs, including installed version, resource inventory and cleanup procedure.
+   Define partial-install cleanup and data retention before exposing removal;
+   deleting shared identity or unrelated resources must never be implicit.
+
+Done means the console can install, report and open that one usable product, the
+product has a reproducible independent build/install path, and the real test
+deployment is recorded. Run the affected checks and auth regressions, then update
+this handoff, README and deployment documentation with what actually works.
+This handoff update authorizes no new deployment or production changes; retain the
+existing staging scope and resource boundaries when planning the test install.
+
+Defer additional products, a general installer framework, automatic upgrades,
+billing/wallet migration, production data migration and destructive uninstall UI.
+The shell/theme also still need a recorded staging deployment and hosted smoke
+result; do not treat the earlier account-only smoke as verification of this shell.
+
+## Pending checkpoint — real Google smoke test
 
 The implementation milestone is done; do not repeat the Google extraction or
 bundle another product into it. Its sources were reinspected at the revisions
