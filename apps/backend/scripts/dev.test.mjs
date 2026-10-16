@@ -10,7 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 async function run(t, { signal, fail = false, migrationFail, allImages = false, portArgs = [], expectedPort = '8787', aiArgs = [], codexFail = false, githubLocal = false, devVars = false } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'mainbrella-dev-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const dir of ['scripts', 'containers', 'bin', 'node_modules/.bin', 'state/v3/do/mainbrella-containers-UserContainer']) mkdirSync(join(root, dir), { recursive: true });
+  for (const dir of ['scripts', 'containers', 'bin', 'node_modules/.bin', 'node_modules/wrangler/bin', 'state/v3/do/mainbrella-containers-UserContainer']) mkdirSync(join(root, dir), { recursive: true });
   writeFileSync(join(root, 'package.json'), JSON.stringify({ type: 'module' }));
   const localSecrets = { GITHUB_BUILD_CLIENT_ID: 'local-client', GITHUB_BUILD_CLIENT_SECRET: 'local-secret', GITHUB_BUILD_APP_SLUG: 'mainbrella-build', GITHUB_BUILD_ENCRYPTION_KEY: 'a'.repeat(64) };
   if (githubLocal) writeFileSync(join(root, '.github-build-local-secrets.json'), JSON.stringify(localSecrets));
@@ -18,7 +18,7 @@ async function run(t, { signal, fail = false, migrationFail, allImages = false, 
   writeFileSync(join(root, '.env'), existingEnv);
   if (devVars) writeFileSync(join(root, '.dev.vars'), `${existingEnv}GITHUB_BUILD_CLIENT_SECRET="old-local-secret"\n`);
   copyFileSync(new URL('../containers/image-catalog.js', import.meta.url), join(root, 'containers/image-catalog.js'));
-  for (const file of ['dev.mjs', 'local-proxy-cleanup.mjs', 'codex-bridge.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
+  for (const file of ['dev.mjs', 'local-proxy-cleanup.mjs', 'codex-bridge.mjs', 'resolve-tool.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
   writeFileSync(join(root, 'wrangler.jsonc'), JSON.stringify({ name: 'mainbrella-api', routes: [{ pattern: 'api.mainbrella.com' }], ai: { binding: 'AI' },
     vars: { R2_BILLING_MODE: 'charge', R2_CHARGE_FROM: '2026-10-11T00:00:00Z' }, compatibility_flags: ['nodejs_compat', 'global_fetch_strictly_public'] }));
   writeFileSync(join(root, 'wrangler.containers.jsonc'), JSON.stringify({ name: 'mainbrella-containers', containers: [
@@ -61,6 +61,7 @@ ${signal ? "process.on('SIGINT', () => process.exit(0)); process.on('SIGTERM', (
 console.log('fixture-ready');
 ${signal ? '' : `process.exit(${fail ? 7 : 0});`}
 `, { mode: 0o755 });
+  copyFileSync(join(root, 'node_modules/.bin/wrangler'), join(root, 'node_modules/wrangler/bin/wrangler.js'));
   const child = spawn(process.execPath, ['scripts/dev.mjs', ...(allImages ? ['--all-images'] : []), ...aiArgs, ...portArgs, '--persist-to', 'state'], {
     cwd: root, env: { ...process.env, PATH: `${join(root, 'bin')}:${process.env.PATH}`, CODEX_PATH: join(root, 'bin', codexFail ? 'missing-codex' : 'codex'), CODEX_FIXTURE_LOG: join(root, 'codex.jsonl'), ...(migrationFail ? { FAIL_LOCAL_MIGRATION: migrationFail } : {}) }, stdio: ['ignore', 'pipe', 'pipe'],
   });

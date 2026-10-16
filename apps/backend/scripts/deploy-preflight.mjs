@@ -3,13 +3,14 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
+import { resolveTool } from './resolve-tool.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 function wrangler(args) {
   try {
     return JSON.parse(execFileSync(process.execPath,
-      [join(root, 'node_modules/wrangler/bin/wrangler.js'), ...args],
+      [resolveTool('wrangler', 'bin/wrangler.js'), ...args],
       { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60_000 }));
   } catch {
     // Wrangler errors may include environment/configuration data. Do not echo them.

@@ -1,0 +1,37 @@
+{
+  "name": "@canopy/root",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "workspaces": [
+    "apps/backend",
+    "apps/web",
+    "apps/raindrop"
+  ],
+  "packageManager": "npm@10.9.7",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "test": "node --test scripts/*.test.mjs",
+    "dev:backend": "npm run dev -w @canopy/backend",
+    "dev:web": "npm run dev -w @canopy/web",
+    "dev:raindrop": "npm run dev -w @canopy/raindrop",
+    "test:backend": "npm test -w @canopy/backend",
+    "test:web": "npm test -w @canopy/web",
+    "build:web": "npm run build -w @canopy/web",
+    "build:raindrop": "npm run build -w @canopy/raindrop",
+    "docs:check": "npm run docs:check -w @canopy/web",
+    "deploy": "node scripts/deploy.mjs",
+    "deploy:api": "node scripts/deploy.mjs api",
+    "deploy:admin": "node scripts/deploy.mjs admin",
+    "deploy:marketing": "node scripts/deploy.mjs marketing",
+    "deploy:containers": "node scripts/deploy.mjs containers",
+    "deploy:previews": "node scripts/deploy.mjs previews",
+    "deploy:site": "node scripts/deploy.mjs site",
+    "deploy:builder": "node scripts/deploy.mjs builder",
+    "deploy:redirect": "node scripts/deploy.mjs redirect",
+    "deploy:raindrop": "node scripts/deploy.mjs raindrop",
+    "verify:migration": "node scripts/verify-migration.mjs"
+  }
+}

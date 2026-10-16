@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveTool } from './resolve-tool.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const args = process.argv.slice(2);
@@ -14,6 +15,12 @@ if (args.length && (args.length !== 2 || args[0] !== '--out')) {
 }
 const output = resolve(args[1] || join(root, 'artifacts/sdk'));
 const pythonCommand = process.env.PYTHON || 'python3';
+async function authoritativeLockfile() {
+  for (const path of ['package-lock.json', '../../package-lock.json']) {
+    try { await access(join(root, path)); return path; } catch {}
+  }
+  throw new Error('Cannot find package-lock.json in the backend app or monorepo root.');
+}
 const work = await mkdtemp(join(tmpdir(), 'mainbrella-sdk-'));
 let completed = false;
 let createdOutput = false;
@@ -30,7 +37,7 @@ function run(command, argv, { cwd = work, env = {}, capture = false } = {}) {
 }
 
 async function qualificationSources() {
-  const paths = ['LICENSE', 'package.json', 'package-lock.json', 'scripts/qualify-sdk-artifacts.mjs',
+  const paths = ['LICENSE', 'package.json', await authoritativeLockfile(), 'scripts/qualify-sdk-artifacts.mjs', 'scripts/resolve-tool.mjs', 'scripts/resolve-tool.d.mts',
     'scripts/qualify-python-artifact.py', 'scripts/sdk-build-requirements.txt', 'scripts/sdk-runtime-workflow.py', 'scripts/sdk-types.ts',
     'scripts/qualify-sdk-deployed.mjs', 'scripts/sdk-deployed-workflow.mjs', 'scripts/sdk-deployed-workflow.py', 'scripts/sdk-deployed.test.mjs'];
   async function walk(directory) {
@@ -110,11 +117,11 @@ try {
   } });
   assert.equal(run(join(consumer, 'node_modules/.bin/mainbrella'), ['--version'], { cwd: consumer, capture: true }).trim(), metadata.version);
   await copyFile(join(root, 'scripts/sdk-types.ts'), join(consumer, 'sdk-types.ts'));
-  run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022',
+  run(process.execPath, [resolveTool('typescript', 'bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022',
     '--module', 'NodeNext', '--moduleResolution', 'NodeNext', '--lib', 'ES2022,DOM,DOM.Iterable', 'sdk-types.ts'], { cwd: consumer });
   const runtimeTest = join(root, 'worker/app/sdk-runtime.integration.test.ts');
   const installedModule = pathToFileURL(join(installed, 'index.js')).href;
-  run(process.execPath, ['--import', join(root, 'node_modules/tsx/dist/loader.mjs'), '--test', runtimeTest],
+  run(process.execPath, ['--import', resolveTool('tsx', 'dist/loader.mjs'), '--test', runtimeTest],
     { cwd: root, env: { MAINBRELLA_SDK_MODULE: installedModule } });
 
   run(pythonCommand, ['-m', 'venv', join(work, 'build-env')]);
@@ -137,7 +144,7 @@ try {
     run(executable, ['-m', 'pip', 'install', '--disable-pip-version-check', '--no-index', '--no-deps', '--no-build-isolation', join(output, artifact)]);
     run(executable, ['-I', '-c', 'import importlib.metadata, mainbrella; assert mainbrella.__version__ == importlib.metadata.version("mainbrella")']);
     run(executable, ['-I', '-m', 'unittest', 'discover', '-s', tests, '-p', 'test_*.py']);
-    run(process.execPath, ['--import', join(root, 'node_modules/tsx/dist/loader.mjs'), '--test', runtimeTest],
+    run(process.execPath, ['--import', resolveTool('tsx', 'dist/loader.mjs'), '--test', runtimeTest],
       { cwd: root, env: { MAINBRELLA_SDK_MODULE: installedModule, MAINBRELLA_SDK_PYTHON: executable } });
   }
   const artifacts = [];

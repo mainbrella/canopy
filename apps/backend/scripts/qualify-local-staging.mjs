@@ -8,6 +8,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolveTool } from './resolve-tool.mjs';
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { Mainbrella } from '../sdk/javascript/index.js';
@@ -165,8 +166,13 @@ export async function qualifyLocalStaging({ image, output }) {
     // Remove only hooks installed by this dedicated instance.
     for (const [signal, previous] of priorSignalListeners) for (const handler of process.listeners(signal)) if (!previous.has(handler)) process.off(signal, handler);
     report.bundleHashes = { api: checksum(await readFile(join(work, 'api.mjs'))), runtime: checksum(await readFile(join(work, 'runtime.mjs'))) };
-    report.tooling = Object.fromEntries(await Promise.all(['wrangler', 'miniflare', 'workerd'].map(async name => [name, JSON.parse(await readFile(join(root, 'node_modules', name, 'package.json'), 'utf8')).version])));
-    report.packageLockSha256 = checksum(await readFile(join(root, 'package-lock.json')));
+    report.tooling = Object.fromEntries(await Promise.all(['wrangler', 'miniflare', 'workerd'].map(async name => [name, JSON.parse(await readFile(resolveTool(name, 'package.json'), 'utf8')).version])));
+    let lockfile;
+    for (const path of ['package-lock.json', '../../package-lock.json']) {
+      try { lockfile = await readFile(join(root, path)); break; } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    assert.ok(lockfile, 'Cannot find package-lock.json in the backend app or monorepo root.');
+    report.packageLockSha256 = checksum(lockfile);
     report.runnerSha256 = checksum(await readFile(fileURLToPath(import.meta.url)));
     report.hostSdkEntrySha256 = checksum(await readFile(join(root, 'sdk/javascript/index.js')));
     await bounded(mf.ready, 45_000, 'local_staging_ready_timeout', abort.signal);

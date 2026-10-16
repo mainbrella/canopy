@@ -8,6 +8,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { assembleImageMap, imageBuildApi } from './custom-images.mjs';
 import { validateImage } from './terminal-image.mjs';
 import { validateCatalogImages } from './catalog-images.mjs';
+import { resolveTool } from './resolve-tool.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const repository = 'mainbrella/backend';
@@ -56,7 +57,7 @@ async function deployWithWrangler() {
   shutdown.signal.throwIfAborted();
   const started = Date.now();
   const grouped = process.platform !== 'win32';
-  const child = spawn(process.execPath, [join(root, 'node_modules/wrangler/bin/wrangler.js'), 'deploy', '--config', temporaryConfig, ...wranglerArgs],
+  const child = spawn(process.execPath, [resolveTool('wrangler', 'bin/wrangler.js'), 'deploy', '--config', temporaryConfig, ...wranglerArgs],
     { cwd: root, stdio: 'inherit', detached: grouped });
   const stop = signal => {
     if (!child.pid) return;

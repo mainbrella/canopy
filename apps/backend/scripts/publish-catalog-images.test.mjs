@@ -12,7 +12,7 @@ function fixture(t, { published = false, changed = false, schedule = false, smok
   const root = mkdtempSync(join(tmpdir(), 'catalog-publish-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ['scripts', 'containers/catalog', 'bin', 'node_modules/wrangler/bin']) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ['publish-catalog-images.mjs', 'catalog-images.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
+  for (const file of ['publish-catalog-images.mjs', 'catalog-images.mjs', 'resolve-tool.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
   copyFileSync(new URL('../containers/image-catalog.js', import.meta.url), join(root, 'containers/image-catalog.js'));
   const manifest = { images: {} };
   for (const entry of IMAGE_CATALOG) {

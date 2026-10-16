@@ -15,7 +15,8 @@ const marketingFiles = new Set([
 
 export function checksForFiles(files) {
   const services = new Set();
-  for (const file of files) {
+  for (let file of files) {
+    if (file.startsWith('apps/backend/')) file = file.slice('apps/backend/'.length);
     if (adminFiles.has(file)) services.add('admin');
     else if (marketingFiles.has(file)) services.add('marketing');
     else return { full: true, services: [] };

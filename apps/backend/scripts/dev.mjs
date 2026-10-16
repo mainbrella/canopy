@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { LocalProxyCleanup } from './local-proxy-cleanup.mjs';
 import { IMAGE_CATALOG } from '../containers/image-catalog.js';
 import { startCodexBridge } from './codex-bridge.mjs';
+import { resolveTool } from './resolve-tool.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const allImages = process.argv.slice(2).includes('--all-images');
@@ -94,9 +95,9 @@ const configPaths = ['api', 'containers', 'admin', 'marketing'].map(name => {
 const removeConfigs = () => { for (const path of configPaths) { try { unlinkSync(path); } catch {} } };
 process.on('exit', removeConfigs);
 const localStatePath = resolve(root, persistPath ?? '.wrangler/state');
-const wrangler = `${root}node_modules/.bin/wrangler`;
+const wrangler = resolveTool('wrangler', 'bin/wrangler.js');
 for (const database of ['delta', 'mainbrella-preview-routes']) {
-  const migration = spawnSync(wrangler, [
+  const migration = spawnSync(process.execPath, [wrangler,
     'd1', 'migrations', 'apply', database, '--local', '--config', configPaths[0], '--persist-to', localStatePath,
   ], { cwd: root, stdio: ['ignore', 'inherit', 'inherit'] });
   if (migration.error) console.error(`Could not apply local ${database} migrations: ${migration.error.message}`);
@@ -127,7 +128,7 @@ if (shutdownSignal) {
   await bridge?.close(); await sweep(true); removeConfigs();
   process.exit(shutdownSignal === 'SIGINT' ? 130 : 143);
 }
-child = spawn(wrangler, [
+child = spawn(process.execPath, [wrangler,
   'dev', '--local', ...configPaths.flatMap(path => ['--config', path]), ...args,
 ], { cwd: root, stdio: 'inherit' });
 const timer = setInterval(() => { void sweep(); }, 15_000);

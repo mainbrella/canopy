@@ -1,5 +1,5 @@
 {
-  "name": "mainbrella-backend",
+  "name": "@canopy/backend",
   "private": true,
   "type": "module",
   "scripts": {
@@ -58,7 +58,8 @@
     "check:admin": "node scripts/deploy-services-preflight.mjs admin --local && wrangler deploy --dry-run --config wrangler.admin.jsonc --outdir .wrangler/check-admin --metafile && node scripts/check-worker-boundaries.mjs admin .wrangler/check-admin/bundle-meta.json",
     "check:marketing": "node scripts/deploy-services-preflight.mjs marketing --local && wrangler deploy --dry-run --config wrangler.marketing.jsonc --outdir .wrangler/check-marketing --metafile && node scripts/check-worker-boundaries.mjs marketing .wrangler/check-marketing/bundle-meta.json",
     "check:services": "npm run check:admin && npm run check:marketing",
-    "check:api": "wrangler deploy --dry-run --config wrangler.jsonc --outdir .wrangler/check-api --metafile && node scripts/check-worker-boundaries.mjs api .wrangler/check-api/bundle-meta.json"
+    "check:api": "wrangler deploy --dry-run --config wrangler.jsonc --outdir .wrangler/check-api --metafile && node scripts/check-worker-boundaries.mjs api .wrangler/check-api/bundle-meta.json",
+    "api:preflight": "node scripts/deploy-api-preflight.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",
