@@ -45,7 +45,7 @@
 .mb-umbrella { position: relative; height: 356px; margin-top: 20px; scroll-margin-top: 24px; animation: mb-enter 600ms 100ms ease-out both; }
 .mb-canopy { position: absolute; inset: 0 0 auto; width: 100%; height: 178px; overflow: visible; }
 .mb-canopy-fill { fill: #0d292a; }
-.mb-canopy-outline { stroke: #6ab7a9; stroke-width: 1.5; vector-effect: non-scaling-stroke; animation: mb-canopy-draw 900ms 120ms ease-out both; }
+.mb-canopy-outline { stroke: #6ab7a9; stroke-width: 1.5; vector-effect: non-scaling-stroke; animation: mb-canopy-draw 900ms 120ms ease-out backwards; }
 .mb-rib { stroke: #22514d; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .mb-platform-label { position: absolute; z-index: 1; top: 43px; left: 10%; width: 80%; text-align: center; }
 .mb-platform-label h2 { color: #ddf7ef; font-size: 31px; font-weight: 600; line-height: 1.2; letter-spacing: -.035em; }
