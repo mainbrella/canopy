@@ -1,18 +1,18 @@
 .search-images-article .search-capture {
   display: block;
   position: relative;
-  aspect-ratio: 29 / 15;
+  aspect-ratio: 57 / 29;
   overflow: hidden;
 }
 
 /* Frame the first two results; the link opens the complete, unaltered capture. */
 .search-images-article .search-capture img {
   position: absolute;
-  width: 196.781609%;
+  width: 200.233918%;
   max-width: none;
   height: auto;
-  left: -39.08046%;
-  top: -28%;
+  left: -39.766082%;
+  top: -28.965517%;
 }
 
 .search-images-article .search-single {
@@ -26,6 +26,7 @@
 .search-images-article .search-single img {
   width: 380.444444%;
   left: -72.222222%;
+  top: -28%;
 }
 
 .search-images-article .search-capture:focus-visible {
@@ -82,6 +83,7 @@
   .search-images-article .search-capture img {
     width: 380.444444%;
     left: -72.222222%;
+    top: -28%;
   }
 
   .search-images-article table {
