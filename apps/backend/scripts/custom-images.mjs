@@ -1,4 +1,4 @@
-import { CUSTOM_IMAGE_CAPACITY } from '../containers/image-catalog.js';
+import { CUSTOM_IMAGE_CAPACITY } from '../../linux/containers/image-catalog.js';
 
 // Validate manifests before placing them in a trusted Worker deployment.
 export function validateCustomImages(manifest, accountId) {

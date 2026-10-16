@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { IMAGE_CATALOG } from '../containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 
 function fixture(t, { outdated = false, exitCode = 0, custom = { images: {} }, apiStatus = 200, dryRun = true, secret = true, localSecret, invalidCatalog = false, withoutActivity = false,
   busyResponses = 0, lockStatus = 200, releaseStatus = 200, lockError = false, manifestSignal, wranglerScript, preload = '', requireStoppedChild = false, securityArgs = [] } = {}) {
@@ -13,9 +13,9 @@ function fixture(t, { outdated = false, exitCode = 0, custom = { images: {} }, a
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ['scripts', 'containers', 'containers/catalog', 'bin', 'node_modules/wrangler/bin']) mkdirSync(join(root, dir), { recursive: true });
   for (const file of ['deploy-containers.mjs', 'terminal-image.mjs', 'custom-images.mjs', 'catalog-images.mjs', 'resolve-tool.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
-  copyFileSync(new URL('../containers/image-catalog.js', import.meta.url), join(root, 'containers/image-catalog.js'));
+  copyFileSync(new URL('../../linux/containers/image-catalog.js', import.meta.url), join(root, '../linux/containers/image-catalog.js'));
   const dockerfile = 'FROM test\n';
-  writeFileSync(join(root, 'containers/Dockerfile'), dockerfile);
+  writeFileSync(join(root, '../linux/containers/Dockerfile'), dockerfile);
   writeFileSync(join(root, 'wrangler.containers.jsonc'), JSON.stringify({ account_id: 'account', main: 'containers/user-container.js',
     durable_objects: { bindings: [
       { name: 'ACCOUNT_ACTIVITY', class_name: 'AccountActivity', script_name: 'mainbrella-api' },

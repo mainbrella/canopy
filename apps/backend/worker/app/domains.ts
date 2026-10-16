@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { authCorsHeaders, authJson, currentUser, type AuthUser } from './auth-core';
-import { boundedPrivateBody } from '../../containers/private-services-contract.js';
+import { boundedBody as boundedPrivateBody } from '../shared/bounded-body.js';
 import { stripeKeyAllowed, stripeRequest, type BillingEnv } from '../lib/stripe';
 import { ensurePrepaidAccount } from '../lib/prepaid-billing';
 import { namecom, DomainError, DOMAIN_TLDS, domainName, registrarConfigured, retailCents, usdCents, nameDomainPath, checkedNameDomain, type NameDomain, type NameRecord } from '../lib/namecom';
-import { apexIps, customDomainsConfigured } from '../lib/project-hosting';
-import { purchasedProjectDomain, disconnectPurchasedDomain } from './project-hosting';
+import { apexIps, customDomainsConfigured } from '@canopy/linux/hosting';
+import { purchasedProjectDomain, disconnectPurchasedDomain } from '@canopy/linux/routes';
 import { contactSchema, quoteSchema, checkoutSchema, settingsSchema, recordSchema } from './domain-schemas';
 
 export interface DomainOrder {

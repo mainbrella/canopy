@@ -1,7 +1,7 @@
 import type { WorkflowStep } from 'cloudflare:workers';
-import { accountResponse, runningContainer } from '../../../backend/worker/lib/container-service';
+import { accountResponse, runningContainer } from '@canopy/linux/compute';
 import { resolveEntitlement } from '../../../backend/worker/lib/entitlements';
-import { handleOwnedPreviewRequest } from '../../../backend/worker/app/previews';
+import { handleOwnedPreviewRequest } from '@canopy/linux/routes';
 import { publicApiOrigin, publicWebOrigin } from '../../../backend/worker/lib/deployment-environment';
 import { failBuildTurn } from '../app/build';
 import { buildInference, buildSystemPrompt, buildFirstVersionPrompt, parseBuildTool, type BuildAIMessage, type BuildAIResult, type BuildToolCall } from './build-ai';

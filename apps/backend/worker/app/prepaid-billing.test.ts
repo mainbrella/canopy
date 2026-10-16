@@ -7,7 +7,7 @@ import { handleSubscriptionWebhook } from './subscription-webhook';
 import { handleSubscriptionRequest } from './subscription';
 import { ensurePrepaidAccount, prepaidRecharge, type PrepaidBalance, type Funding } from '../lib/prepaid-billing';
 import { resolveEntitlement } from '../lib/entitlements';
-import { ContainerAccountController } from '../../containers/container-account-core.js';
+import { ContainerAccountController } from '../../../linux/containers/container-account-core.js';
 import { appendAccountingEvent } from '../lib/accounting-ledger';
 import { createAccountingClose } from '../lib/accounting-close';
 

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { targetFor } from './deploy-targets.mjs';
 import { STAGING, assertStagingConfig, stagingConfig } from './staging-config.mjs';
-import { IMAGE_CATALOG } from '../apps/backend/containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../apps/linux/containers/image-catalog.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const targets = ['api', 'admin', 'marketing', 'containers', 'previews', 'site', 'builder', 'raindrop'];

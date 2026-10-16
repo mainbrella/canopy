@@ -16,7 +16,7 @@
     "deploy:site": "npm run build:site && wrangler deploy",
     "deploy:builder": "npm run build:builder && wrangler deploy --config wrangler.builder.jsonc",
     "deploy:redirect": "wrangler deploy --config wrangler.redirect.jsonc",
-    "test": "tsx --test src/*.test.ts scripts/*.test.mjs && npm run test:web -w @canopy/voice && npm run test:web -w @canopy/vibe",
+    "test": "tsx --test src/*.test.ts scripts/*.test.mjs && npm run test:web -w @canopy/voice && npm run test:web -w @canopy/vibe && npm run test:web -w @canopy/linux",
     "docs:sync": "node scripts/sync-agent-docs.mjs",
     "docs:check": "node scripts/sync-agent-docs.mjs --check",
     "acquisition:link": "node scripts/acquisition-link.mjs",
@@ -34,10 +34,9 @@
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.17.0",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
     "yaml": "^2.9.1",
     "@canopy/voice": "*",
-    "@canopy/vibe": "*"
+    "@canopy/vibe": "*",
+    "@canopy/linux": "*"
   }
 }

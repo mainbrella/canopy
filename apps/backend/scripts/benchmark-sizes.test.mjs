@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { benchmarkSizes, sizeEconomics } from './benchmark-sizes.mjs';
-import { MACHINE_SIZES } from '../containers/plan-policy.js';
+import { MACHINE_SIZES } from '../../linux/containers/plan-policy.js';
 
 function fixture({failedPhase=false,failedCleanup=false}={}) {
   const starts=[], stopped=[]; let live=0,peak=0;

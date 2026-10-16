@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { Mainbrella } from '../sdk/javascript/index.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
 import { preflight, verifyAgent } from './verify-agent.mjs';
 
 const percentile = (values, fraction) => {

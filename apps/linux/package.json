@@ -1,0 +1,58 @@
+{
+  "name": "@canopy/linux",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./routes": "./worker/routes.ts",
+    "./openapi": "./worker/openapi.ts",
+    "./compute": "./worker/compute.ts",
+    "./hosting": "./worker/hosting.ts",
+    "./account": "./worker/account.ts",
+    "./billing": "./worker/lib/usage-billing.ts",
+    "./schemas": "./worker/schemas.ts",
+    "./gateway": "./worker/preview-gateway.ts",
+    "./web": "./web/index.ts",
+    "./web/types": "./web/types.ts",
+    "./web/terminal": "./web/container-terminal.ts",
+    "./web/previews": "./web/container-previews.ts",
+    "./web/hosting": "./web/project-hosting.ts",
+    "./web/networks": "./web/private-services.ts",
+    "./web/view": "./web/dashboard-view.ts",
+    "./contracts/command": "./containers/command-contract.js",
+    "./contracts/execution": "./containers/execution-contract.js",
+    "./contracts/file": "./containers/file-contract.js",
+    "./contracts/file-transfer": "./containers/file-transfer-contract.js",
+    "./contracts/code": "./containers/code-contract.js",
+    "./contracts/filesystem": "./containers/filesystem-contract.js",
+    "./contracts/preview": "./containers/preview-contract.js",
+    "./contracts/private-services": "./containers/private-services-contract.js",
+    "./contracts/project": "./containers/project-contract.js",
+    "./contracts/security": "./containers/security-contract.js",
+    "./contracts/webhook": "./containers/webhook-contract.js",
+    "./contracts/workspace": "./containers/workspace-contract.js",
+    "./contracts/pool": "./containers/pool-contract.js",
+    "./contracts/account": "./containers/container-account-core.js",
+    "./contracts/plans": "./containers/plan-policy.js",
+    "./contracts/usage": "./containers/usage-policy.js",
+    "./contracts/launch": "./containers/restore-launch.js",
+    "./contracts/catalog": "./containers/image-catalog.js"
+  },
+  "scripts": {
+    "test": "npm run test:containers && npm run test:worker && npm run test:sdk && npm run test:web",
+    "test:containers": "node --test containers/*.test.mjs",
+    "test:worker": "cd ../backend && tsx --test ../linux/worker/app/*.test.ts ../linux/worker/*.test.ts",
+    "test:sdk": "node --test sdk/javascript/*.test.mjs && PYTHONPATH=sdk/python python3 -m unittest discover -s sdk/python -p 'test_*.py'",
+    "test:web": "tsx --test web/*.test.ts",
+    "type-check": "tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.web.json"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

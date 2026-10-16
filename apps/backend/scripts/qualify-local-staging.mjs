@@ -11,8 +11,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveTool } from './resolve-tool.mjs';
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { Mainbrella } from '../sdk/javascript/index.js';
-import { machineName } from '../containers/container-account-core.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
+import { machineName } from '../../linux/containers/container-account-core.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const checksum = value => createHash('sha256').update(value).digest('hex');
@@ -174,7 +174,7 @@ export async function qualifyLocalStaging({ image, output }) {
     assert.ok(lockfile, 'Cannot find package-lock.json in the backend app or monorepo root.');
     report.packageLockSha256 = checksum(lockfile);
     report.runnerSha256 = checksum(await readFile(fileURLToPath(import.meta.url)));
-    report.hostSdkEntrySha256 = checksum(await readFile(join(root, 'sdk/javascript/index.js')));
+    report.hostSdkEntrySha256 = checksum(await readFile(join(root, '../linux/sdk/javascript/index.js')));
     await bounded(mf.ready, 45_000, 'local_staging_ready_timeout', abort.signal);
     namespace = await bounded(mf.getDurableObjectNamespace('USER_CONTAINER', runtimeName), 5000, 'runtime_namespace_timeout', abort.signal);
     gateway = { fetch(address, options = {}) { const desired = new URL(address); assert.ok(desired.hostname.endsWith('.localhost')); assert.equal(desired.port, String(port)); return mf.dispatchFetch(desired.href, { ...options, redirect: 'manual', headers: { ...options.headers, Host: desired.host }, signal: abort.signal }); } };

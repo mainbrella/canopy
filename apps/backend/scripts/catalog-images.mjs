@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { IMAGE_CATALOG } from '../containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 
 export function catalogSourceHash(root, entry) {
   return createHash('sha256').update(readFileSync(join(root, entry.dockerfile))).digest('hex');

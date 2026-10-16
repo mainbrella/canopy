@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { IMAGE_CATALOG } from '../containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 import { catalogSourceHash, validateCatalogImage } from './catalog-images.mjs';
 import { resolveTool } from './resolve-tool.mjs';
 

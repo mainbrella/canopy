@@ -8,7 +8,8 @@
     "apps/web",
     "apps/raindrop",
     "apps/voice",
-    "apps/vibe"
+    "apps/vibe",
+    "apps/linux"
   ],
   "packageManager": "npm@10.9.7",
   "engines": {
@@ -46,6 +47,7 @@
     "stg:migrate:previews": "node scripts/staging.mjs migrate-previews",
     "test:voice": "npm test -w @canopy/voice",
     "check:boundaries": "node scripts/check-app-boundaries.mjs",
-    "test:vibe": "npm test -w @canopy/vibe"
+    "test:vibe": "npm test -w @canopy/vibe",
+    "test:linux": "npm test -w @canopy/linux"
   }
 }

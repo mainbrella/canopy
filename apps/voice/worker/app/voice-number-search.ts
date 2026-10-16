@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { boundedPrivateBody } from '../../../backend/containers/private-services-contract.js';
+import { boundedBody as boundedPrivateBody } from '../../../backend/worker/shared/bounded-body.js';
 import { authCorsHeaders, authJson, currentUser } from '../../../backend/worker/app/auth-core';
 
 export const numberSearchInput = z.object({

@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { readFileBytes } from '../containers/file-contract.js';
+import { readFileBytes } from '@canopy/linux/contracts/file';
 import { createSecurityInfrastructureApp } from './app/openapi';
 import { handleSecurityAcknowledgment } from './app/security-ack';
 import { infrastructureError, operatorAuthorized } from './lib/security-infrastructure';

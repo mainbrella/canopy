@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { LocalProxyCleanup } from './local-proxy-cleanup.mjs';
-import { IMAGE_CATALOG } from '../containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 import { startCodexBridge } from './codex-bridge.mjs';
 import { resolveTool } from './resolve-tool.mjs';
 

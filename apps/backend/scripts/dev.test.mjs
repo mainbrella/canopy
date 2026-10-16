@@ -17,7 +17,7 @@ async function run(t, { signal, fail = false, migrationFail, allImages = false, 
   const existingEnv = '# Preserve existing settings\nSTRIPE_SECRET_KEY="stripe-test-key"\n';
   writeFileSync(join(root, '.env'), existingEnv);
   if (devVars) writeFileSync(join(root, '.dev.vars'), `${existingEnv}GITHUB_BUILD_CLIENT_SECRET="old-local-secret"\n`);
-  copyFileSync(new URL('../containers/image-catalog.js', import.meta.url), join(root, 'containers/image-catalog.js'));
+  copyFileSync(new URL('../../linux/containers/image-catalog.js', import.meta.url), join(root, '../linux/containers/image-catalog.js'));
   for (const file of ['dev.mjs', 'local-proxy-cleanup.mjs', 'codex-bridge.mjs', 'resolve-tool.mjs']) copyFileSync(new URL(file, import.meta.url), join(root, 'scripts', file));
   writeFileSync(join(root, 'wrangler.jsonc'), JSON.stringify({ name: 'mainbrella-api', routes: [{ pattern: 'api.mainbrella.com' }], ai: { binding: 'AI' },
     vars: { R2_BILLING_MODE: 'charge', R2_CHARGE_FROM: '2026-10-11T00:00:00Z' }, compatibility_flags: ['nodejs_compat', 'global_fetch_strictly_public'] }));

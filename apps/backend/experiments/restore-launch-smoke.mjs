@@ -5,8 +5,8 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { UserContainerController } from '../containers/user-container-core.js';
-import * as restore from '../containers/restore-launch.js';
+import { UserContainerController } from '../../linux/containers/user-container-core.js';
+import * as restore from '@canopy/linux/contracts/launch';
 const command = promisify(execFile);
 const docker = async (...args) => (await command('docker', args, { timeout: 60_000, maxBuffer: 1024 * 1024 })).stdout.trim();
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -133,7 +133,7 @@ finally {
   }
   const leftovers = await docker('ps', '--all', '--quiet', '--filter', `label=mainbrella.restore-smoke=${tag}`);
   const report = { schemaVersion: 1, kind: 'local-docker-restore-launch-smoke', startedAt, completedAt: new Date().toISOString(), baseImage: base,
-    sourceSha256: hash(app), implementationSha256: hash(await readFile(new URL('../containers/restore-launch.js', import.meta.url))),
+    sourceSha256: hash(app), implementationSha256: hash(await readFile(new URL('@canopy/linux/contracts/launch', import.meta.url))),
     scope: 'Real Linux image snapshot/filesystem and PID-1 recipe with real HTTP and exec output. Docker adapter, not Cloudflare runtime qualification.',
     results, cleanup, noOwnedContainersRemain: leftovers === '', passed: !failure && cleanup.every(record => record.removed) && leftovers === '', failure: failure ?? null };
   await writeFile(join(directory, 'report.json'), JSON.stringify(report, null, 2) + '\n');

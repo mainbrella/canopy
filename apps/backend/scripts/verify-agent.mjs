@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { Mainbrella } from '../sdk/javascript/index.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
 
 export async function verifyAgent(client, { catalogId = 'node', managed = true } = {}) {
   const creationKey = randomUUID();

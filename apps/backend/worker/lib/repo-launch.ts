@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { normalizeRestoreLaunch } from '../../containers/restore-launch.js';
+import { normalizeRestoreLaunch } from '@canopy/linux/contracts/launch';
 
 import { repoName } from '../shared/github-git';
 export { repoName } from '../shared/github-git';

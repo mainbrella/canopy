@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { acceptPreviewObservation, observeRunningWorkspaces } from '../lib/acquisition-sources';
-import { accountResponse } from '../lib/container-service';
-import { handlePreviewGateway } from '../preview-gateway';
-import { previewDatabase } from '../lib/preview-test-helpers';
-import { previewTokenHash } from '../lib/preview-routing';
+import { accountResponse } from '../../../linux/worker/lib/container-service';
+import { handlePreviewGateway } from '../../../linux/worker/preview-gateway';
+import { previewDatabase } from '../../../linux/worker/lib/preview-test-helpers';
+import { previewTokenHash } from '../../../linux/worker/lib/preview-routing';
 
 const USER = 'source-user';
 const BASE = Date.UTC(2026, 9, 1, 12);

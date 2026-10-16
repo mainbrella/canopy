@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "shiki": "^4.5.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@canopy/linux": "*"
   },
   "devDependencies": {
     "@types/node": "^26.6.1",

@@ -1,12 +1,12 @@
-import { usageBillingConfigured } from '../lib/usage-billing';
+import { usageBillingConfigured } from '@canopy/linux/billing';
 import { prepaidBillingConfigured } from '../lib/prepaid-billing';
-import { entitlementHeaders } from '../../containers/plan-policy.js';
-import { USAGE_PRICING, validSpendLimit } from '../../containers/usage-policy.js';
+import { entitlementHeaders } from '@canopy/linux/contracts/plans';
+import { USAGE_PRICING, validSpendLimit } from '@canopy/linux/contracts/usage';
 import { redeemTrial } from '../lib/trial-coupons';
 import { authCorsHeaders, authJson, currentUser, readJSON, type StringHeaders } from "./auth-core";
 import { planPrices, stripeKeyAllowed, stripePublishableKeyAllowed, subscriptionPlan, billingSubscription, type Plan, stripeRequest, type BillingEnv, type CheckoutSession } from "../lib/stripe";
 import { resolveBillingState, syncSubscriptionRecord, type BillingRecord, type BillingState } from "../lib/entitlements";
-import { PLAN_DETAILS } from "../../containers/plan-policy.js";
+import { PLAN_DETAILS } from "@canopy/linux/contracts/plans";
 import { PLAN_ORDER, portalSession, releaseScheduledChange, scheduleDowngrade, scheduledChange, scheduleID } from "../lib/billing-changes";
 import { handleSubscriptionWebhook, type EntitlementChanged } from "./subscription-webhook";
 import { publicWebOrigin } from '../lib/deployment-environment';

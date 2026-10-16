@@ -1,5 +1,6 @@
+import './linux.ts';
 import { API_ORIGIN, createAuthClient } from './auth.ts';
-import { createProjectHosting, createProjectHostingClient, safeEndpointUrl } from './project-hosting.ts';
+import { createProjectHosting, createProjectHostingClient, safeEndpointUrl } from '@canopy/linux/web/hosting';
 
 interface Project { id: string; name: string; domain?: string | null; created_at: string; build_app_id?: string | null; git_version_id?: string | null; github_repo?: string | null; github_branch?: string | null; github_commit_id?: string | null; github_storage?: 'retained' | 'deleting' | 'github' | null }
 

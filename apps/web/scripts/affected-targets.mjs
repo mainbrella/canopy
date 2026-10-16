@@ -51,6 +51,8 @@ export function affectedTargetsForRepositoryPaths(paths) {
       if (!['apps/vibe/README.md', 'apps/vibe/AGENTS.md'].includes(path)) {
         for (const target of ALL_TARGETS) selected.add(target);
       }
+    } else if (path.startsWith('apps/linux/')) {
+      if (!['apps/linux/README.md', 'apps/linux/AGENTS.md'].includes(path)) selected.add('site');
     } else if (path.startsWith('apps/raindrop/')) {
       continue;
     } else if (ROOT_DOCUMENTATION.has(path)) {

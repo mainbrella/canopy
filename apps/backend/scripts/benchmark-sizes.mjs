@@ -4,8 +4,8 @@ import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
-import { Mainbrella } from '../sdk/javascript/index.js';
-import { MACHINE_SIZES, PLAN_DETAILS } from '../containers/plan-policy.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
+import { MACHINE_SIZES, PLAN_DETAILS } from '../../linux/containers/plan-policy.js';
 import { estimateResourceCost } from './estimate-resource-cost.mjs';
 import { workloadDefinitions, diagnosticCommand } from './benchmark-workloads.mjs';
 

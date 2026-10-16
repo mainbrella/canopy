@@ -10,12 +10,12 @@ if (args.length && (args.length !== 2 || args[0] !== '--out')) throw new Error('
 const output = resolve(args[1] || join(root, 'artifacts/agent-reference'));
 await mkdir(dirname(output), { recursive: true });
 await mkdir(output);
-const version = JSON.parse(await readFile(join(root, 'sdk/javascript/package.json'), 'utf8')).version;
+const version = JSON.parse(await readFile(join(root, '../linux/sdk/javascript/package.json'), 'utf8')).version;
 const skillDir = join(output, 'mainbrella-containers');
 await mkdir(join(skillDir, 'references'), { recursive: true });
 const sources = {
   'API.md': 'API.md', 'SKILL.md': 'SKILL.md',
-  'sdk/javascript.md': 'sdk/javascript/README.md', 'sdk/python.md': 'sdk/python/README.md',
+  'sdk/javascript.md': '../linux/sdk/javascript/README.md', 'sdk/python.md': '../linux/sdk/python/README.md',
 };
 const documents = {};
 for (const [name, path] of Object.entries(sources)) documents[name] = await readFile(join(root, path), 'utf8');

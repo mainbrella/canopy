@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { Mainbrella } from '../sdk/javascript/index.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
 import { preflight, verifyAgent } from './verify-agent.mjs';
 
 export async function statusCanary(client, options = {}) {

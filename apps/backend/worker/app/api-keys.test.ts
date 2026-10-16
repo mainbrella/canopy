@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { handleRequest } from './router';
-import { containerUser } from './container-auth';
+import { containerUser } from '../../../linux/worker/app/container-auth';
 import { hashToken } from './auth-core';
 import { paidContainerFixture, SESSION_ONE, SESSION_TWO, USER_ONE, USER_TWO } from './paid-container-test-helpers';
 

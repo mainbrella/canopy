@@ -1,4 +1,4 @@
-import { readFileBytes } from '../containers/file-contract.js';
+import { readFileBytes } from '@canopy/linux/contracts/file';
 export const NETWORK_PROBE_DEADLINE_MS = 120_000;
 const CA_PATH = '/etc/cloudflare/certs/cloudflare-containers-ca.crt';
 export function relayUrl(value) {

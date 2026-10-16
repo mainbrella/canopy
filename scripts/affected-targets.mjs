@@ -46,6 +46,15 @@ export function affectedTargets(paths) {
       } else {
         selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
       }
+    } else if (path.startsWith('apps/linux/')) {
+      const local = path.slice('apps/linux/'.length);
+      if (local === 'README.md' || local === 'AGENTS.md') selected.docs = true;
+      else if (local.startsWith('web/')) selected.site = true;
+      else {
+        // Linux runs in the API, container, and preview hosts. SDK qualification
+        // exercises its real runtime; shared API changes can affect every client.
+        selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
+      }
     } else if (path.startsWith('apps/web/')) {
       const local = path.slice('apps/web/'.length);
       if (!local) return allTargets();

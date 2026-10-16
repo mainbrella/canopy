@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
-import { readFileBytes } from '../containers/file-contract.js';
+import { readFileBytes } from '../../linux/containers/file-contract.js';
 
 export const RECEIVER_ORIGIN = 'https://mainbrella-webhook-qualification.crimson-dust-553b.workers.dev';
 const requireCheck = value => { if (!value) throw new Error('check_failed'); };

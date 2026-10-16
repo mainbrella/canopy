@@ -4,8 +4,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
-import { readFileBytes } from '../containers/file-contract.js';
-import { MAX_METRIC_RESPONSE_BYTES, queryMetrics } from '../worker/lib/workload-metrics';
+import { readFileBytes } from '../../linux/containers/file-contract.js';
+import { MAX_METRIC_RESPONSE_BYTES, queryMetrics } from '../../linux/worker/lib/workload-metrics';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;

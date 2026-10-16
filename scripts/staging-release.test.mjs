@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { IMAGE_CATALOG } from '../apps/backend/containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../apps/linux/containers/image-catalog.js';
 import { artifactHash } from './deploy.mjs';
 import { targetFor } from './deploy-targets.mjs';
 import { STAGING } from './staging-config.mjs';

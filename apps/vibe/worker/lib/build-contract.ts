@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MAX_FILE_BYTES } from '../../../backend/containers/file-contract.js';
+import { MAX_FILE_BYTES } from '@canopy/linux/contracts/file';
 
 export const BUILD_MODEL = '@cf/zai-org/glm-5.3';
 export const BUILD_MAX_APPS = 50;

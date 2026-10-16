@@ -3,12 +3,12 @@ import { storageMetered } from '../../../backend/worker/lib/r2-storage';
 import { storageRetention } from '../../../backend/worker/lib/r2-retention';
 import { buildModels, resolveBuildModel } from '../lib/build-models';
 import { authCorsHeaders, authJson, currentUser } from '../../../backend/worker/app/auth-core';
-import { readCommandBody } from '../../../backend/containers/command-contract.js';
-import { validExecutionId } from '../../../backend/containers/execution-contract.js';
-import { validIdempotencyKey } from '../../../backend/containers/container-account-core.js';
+import { readCommandBody } from '@canopy/linux/contracts/command';
+import { validExecutionId } from '@canopy/linux/contracts/execution';
+import { validIdempotencyKey } from '@canopy/linux/contracts/account';
 import { resolveEntitlement } from '../../../backend/worker/lib/entitlements';
-import { accountResponse, containerError } from '../../../backend/worker/lib/container-service';
-import { previewsConfigured } from '../../../backend/worker/lib/preview-routing';
+import { accountResponse, containerError } from '@canopy/linux/compute';
+import { previewsConfigured } from '@canopy/linux/compute';
 import { BUILD_MODEL, BUILD_MAX_APPS, BuildError, buildCreateSchema, buildRenameSchema, buildTurnSchema, buildRestoreSchema,
   buildName, buildStarter, ownedBuildApp, type BuildAppRow, type BuildContainer, type BuildTurnRow, type BuildPreview } from '../lib/build-contract';
 import { buildSourceZip } from '../lib/build-zip';

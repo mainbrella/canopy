@@ -1,16 +1,16 @@
 import { authCorsHeaders, authJson } from './auth-core';
-import { containerUser } from './container-auth';
-import { handleContainersRequest } from './containers';
-import { handleExecutionRequest } from './executions';
-import { handleContainerStartupRequest } from './container-startup';
-import { ownedImage } from './images';
+import { containerUser } from '@canopy/linux/routes';
+import { handleContainersRequest } from '@canopy/linux/routes';
+import { handleExecutionRequest } from '@canopy/linux/routes';
+import { handleContainerStartupRequest } from '@canopy/linux/routes';
+import { ownedImage } from '@canopy/linux/routes';
 import { downloadGitPack, githubUserToken, resolveUserRepository, suggestedPrivateSetup } from '../lib/github-import';
-import { MAX_FILE_BYTES } from '../../containers/file-contract.js';
+import { MAX_FILE_BYTES } from '@canopy/linux/contracts/file';
 import { resolveEntitlement } from '../lib/entitlements';
-import { containerError, runningContainer } from '../lib/container-service';
-import { validIdempotencyKey } from '../../containers/container-account-core.js';
-import { readCommandBody } from '../../containers/command-contract.js';
-import { validExecutionId } from '../../containers/execution-contract.js';
+import { containerError, runningContainer } from '@canopy/linux/compute';
+import { validIdempotencyKey } from '@canopy/linux/contracts/account';
+import { readCommandBody } from '@canopy/linux/contracts/command';
+import { validExecutionId } from '@canopy/linux/contracts/execution';
 import { cloneCommand, launchErrorDetails, launchOptionsSchema, LaunchError, previewCommand, repoCwd, repoName, repoRef,
   importPartPath, privateCloneCommand, resolveRepository, setupCommand, repositoryRestoreLaunch, type LaunchOptions, type ResolvedRepo } from '../lib/repo-launch';
 

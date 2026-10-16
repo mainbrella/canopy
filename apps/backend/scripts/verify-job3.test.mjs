@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { validExecution } from '../containers/execution-contract.js';
+import { validExecution } from '../../linux/containers/execution-contract.js';
 import { accessChecks, compareNetworkControls, replacementChecks, verifyJob3 } from './verify-job3.mjs';
 
 const names = ['dnsA', 'dnsAAAA', 'dnsTXT', 'publicHttp', 'publicHttps', 'hostnameHttps', 'directIpv4', 'directIpv6', 'alternateTcpPort', 'udpDns'];

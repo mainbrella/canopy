@@ -6,7 +6,7 @@ import { lookup } from 'node:dns/promises';
 import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { normalizeNetworkPolicy, publicAddress, ipAddress, targetAllowed, egressTarget, safeEgressHeaders,
-  validSecretValue, EGRESS_REQUEST_BYTES, EGRESS_RESPONSE_BYTES, EGRESS_TIMEOUT_MS } from '../containers/security-contract.js';
+  validSecretValue, EGRESS_REQUEST_BYTES, EGRESS_RESPONSE_BYTES, EGRESS_TIMEOUT_MS } from '@canopy/linux/contracts/security';
 
 const fail = () => { throw new Error('egress_denied'); };
 const MAX_ENVELOPE = Math.ceil(EGRESS_REQUEST_BYTES * 4 / 3) + 131072;

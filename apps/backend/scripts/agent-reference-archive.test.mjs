@@ -41,7 +41,7 @@ test('repeated reference builds produce identical archives readable by system ta
   try {
     const script = new URL('./build-agent-reference.mjs', import.meta.url);
     for (const name of ['first', 'second']) execFileSync(process.execPath, [script.pathname, '--out', join(work, name)], { env: { ...process.env, COPYFILE_DISABLE: '0' } });
-    const version = JSON.parse(await readFile(new URL('../sdk/javascript/package.json', import.meta.url))).version;
+    const version = JSON.parse(await readFile(new URL('../../linux/sdk/javascript/package.json', import.meta.url))).version;
     const path = name => join(work, name, `mainbrella-containers-${version}.tar.gz`);
     assert.deepEqual(await readFile(path('first')), await readFile(path('second')));
     const listing = execFileSync('tar', ['-tzf', path('first')], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim().split('\n');

@@ -13,7 +13,7 @@ import { resolveTool } from './resolve-tool.mjs';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const repository = 'mainbrella/backend';
 const config = JSON.parse(readFileSync(join(root, 'wrangler.containers.jsonc'), 'utf8'));
-const dockerfileHash = createHash('sha256').update(readFileSync(join(root, 'containers/Dockerfile'))).digest('hex');
+const dockerfileHash = createHash('sha256').update(readFileSync(join(root, '../linux/containers/Dockerfile'))).digest('hex');
 const args = process.argv.slice(2);
 const securityArgs = args.filter(arg => arg.startsWith('--security-account='));
 if (securityArgs.length > 1 || securityArgs.some(arg => !/^[A-Za-z0-9_-]{1,128}$/.test(arg.slice('--security-account='.length)))) {

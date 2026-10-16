@@ -48,7 +48,7 @@ async function qualificationSources() {
       else if (item.isFile() && (/\.(js|mjs|ts|py|json|toml|md)$/.test(item.name) || item.name === 'LICENSE')) paths.push(path);
     }
   }
-  for (const directory of ['sdk', 'containers', 'worker', 'experiments']) await walk(directory);
+  for (const directory of ['../linux/sdk', '../linux/containers', '../linux/worker', 'worker', 'experiments']) await walk(directory);
   return Promise.all([...new Set(paths)].sort().map(async path => ({ path,
     sha256: createHash('sha256').update(await readFile(join(root, path))).digest('hex') })));
 }
@@ -58,18 +58,18 @@ async function stage(language, files) {
   await mkdir(target);
   for (const file of files) {
     await mkdir(dirname(join(target, file)), { recursive: true });
-    await copyFile(join(root, 'sdk', language, file), join(target, file));
+    await copyFile(join(root, '../linux/sdk', language, file), join(target, file));
   }
   // The repository license is authoritative. Never relicense a staged artifact.
   const license = await readFile(join(root, 'LICENSE'));
-  assert.deepEqual(await readFile(join(root, 'sdk', language, 'LICENSE')), license, `${language} license has drifted`);
+  assert.deepEqual(await readFile(join(root, '../linux/sdk', language, 'LICENSE')), license, `${language} license has drifted`);
   await copyFile(join(root, 'LICENSE'), join(target, 'LICENSE'));
   return target;
 }
 
 async function pythonSources(directory = 'mainbrella') {
   const files = [];
-  for (const entry of await readdir(join(root, 'sdk/python', directory), { withFileTypes: true })) {
+  for (const entry of await readdir(join(root, '../linux/sdk/python', directory), { withFileTypes: true })) {
     if (entry.name.startsWith('.') || entry.name === '__pycache__') continue;
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await pythonSources(path));
@@ -88,7 +88,7 @@ try {
   await mkdir(dirname(output), { recursive: true });
   await mkdir(output, { recursive: false });
   createdOutput = true;
-  const sourceMetadata = JSON.parse(await readFile(join(root, 'sdk/javascript/package.json'), 'utf8'));
+  const sourceMetadata = JSON.parse(await readFile(join(root, '../linux/sdk/javascript/package.json'), 'utf8'));
   assert.ok(sourceMetadata.files.every(file => /^[a-zA-Z0-9_.-]+$/.test(file)), 'SDK package files must be an explicit flat allowlist');
   const jsFiles = [...new Set(['package.json', 'README.md', ...sourceMetadata.files])].sort();
   const js = await stage('javascript', jsFiles);
@@ -107,13 +107,13 @@ try {
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--offline', join(output, pack.filename)], { cwd: consumer });
   const installed = join(consumer, 'node_modules/@mainbrella/sdk');
   assert.equal(await readFile(join(installed, 'LICENSE'), 'utf8'), await readFile(join(root, 'LICENSE'), 'utf8'));
-  const jsTests = (await readdir(join(root, 'sdk/javascript'))).filter(file => file.endsWith('.test.mjs')).sort();
-  for (const file of jsTests) await copyFile(join(root, 'sdk/javascript', file), join(consumer, file));
+  const jsTests = (await readdir(join(root, '../linux/sdk/javascript'))).filter(file => file.endsWith('.test.mjs')).sort();
+  for (const file of jsTests) await copyFile(join(root, '../linux/sdk/javascript', file), join(consumer, file));
   run(process.execPath, ['--test', ...jsTests], { cwd: consumer, env: {
     MAINBRELLA_SDK_MODULE: '@mainbrella/sdk', MAINBRELLA_SDK_CLI: pathToFileURL(join(installed, 'cli.mjs')).href,
     MAINBRELLA_SDK_MCP: pathToFileURL(join(installed, 'mcp.mjs')).href,
     MAINBRELLA_SDK_NETWORK_POLICY: pathToFileURL(join(installed, 'network-policy.js')).href,
-    MAINBRELLA_SERVER_SECURITY: pathToFileURL(join(root, 'containers/security-contract.js')).href,
+    MAINBRELLA_SERVER_SECURITY: pathToFileURL(join(root, '../linux/containers/security-contract.js')).href,
   } });
   assert.equal(run(join(consumer, 'node_modules/.bin/mainbrella'), ['--version'], { cwd: consumer, capture: true }).trim(), metadata.version);
   await copyFile(join(root, 'scripts/sdk-types.ts'), join(consumer, 'sdk-types.ts'));
@@ -129,11 +129,11 @@ try {
   run(python, ['-m', 'pip', 'install', '--disable-pip-version-check', '-r', join(root, 'scripts/sdk-build-requirements.txt')]);
   run(python, ['-m', 'build', '--outdir', output, py]);
   run(python, ['-m', 'twine', 'check', ...((await readdir(output)).filter(file => /\.(whl|tar\.gz)$/.test(file)).map(file => join(output, file)))]);
-  run(python, [join(root, 'scripts/qualify-python-artifact.py'), output, join(root, 'LICENSE'), metadata.version, join(root, 'sdk/python/mainbrella')]);
+  run(python, [join(root, 'scripts/qualify-python-artifact.py'), output, join(root, 'LICENSE'), metadata.version, join(root, '../linux/sdk/python/mainbrella')]);
   const tests = join(work, 'python-tests');
   await mkdir(tests);
-  for (const file of (await readdir(join(root, 'sdk/python'))).filter(file => /^test_.*\.py$/.test(file)).sort()) {
-    await copyFile(join(root, 'sdk/python', file), join(tests, file));
+  for (const file of (await readdir(join(root, '../linux/sdk/python'))).filter(file => /^test_.*\.py$/.test(file)).sort()) {
+    await copyFile(join(root, '../linux/sdk/python', file), join(tests, file));
   }
   for (const artifact of (await readdir(output)).filter(file => /\.(whl|tar\.gz)$/.test(file))) {
     const envDir = join(work, artifact.endsWith('.whl') ? 'wheel-env' : 'sdist-env');

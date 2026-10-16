@@ -1,5 +1,5 @@
-import { readFileBytes } from '../containers/file-contract.js';
-import { verifyWebhookSignature } from '../sdk/javascript/index.js';
+import { readFileBytes } from '@canopy/linux/contracts/file';
+import { verifyWebhookSignature } from '../../linux/sdk/javascript/index.js';
 
 export const RECEIVER_LIFETIME_MS = 10 * 60_000;
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;

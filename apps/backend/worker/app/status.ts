@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { authCorsHeaders, authJson, hashToken } from './auth-core';
-import { readCommandBody } from '../../containers/command-contract.js';
+import { readCommandBody } from '@canopy/linux/contracts/command';
 import { publicApiOrigin, publicWebOrigin } from '../lib/deployment-environment';
 
 export const STATUS_COMPONENTS = ['website', 'api', 'auth', 'provisioning', 'ssh', 'images', 'billing'] as const;

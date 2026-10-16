@@ -20,8 +20,8 @@ import { BUILD_IMAGE_MODEL, buildImageBytes, generateBuildImage } from '../lib/b
 import { proposeBuildOperation, startBuildOperation, readBuildOperation, recordBuildOperation, retainBuildSource } from '../lib/build-journal';
 import { paidContainerFixture, SESSION_ONE, SESSION_TWO, USER_ONE, USER_TWO, GENERATION_ONE, EXPIRES_AT } from '../../../backend/worker/app/paid-container-test-helpers';
 import { readBuildSource, storeBuildSource, buildSourceEntries } from '../lib/build-storage';
-import { MAX_COMMAND_BYTES } from '../../../backend/containers/command-contract.js';
-import { MAX_FILE_BYTES } from '../../../backend/containers/file-contract.js';
+import { MAX_COMMAND_BYTES } from '../../../linux/containers/command-contract.js';
+import { MAX_FILE_BYTES } from '../../../linux/containers/file-contract.js';
 
 const event = (data: unknown) => `data: ${typeof data === 'string' ? data : JSON.stringify(data)}\r\n\r\n`;
 const delta = (value: unknown) => event({ choices: [{ delta: value, finish_reason: null }] });

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { usageBillingSchema, usagePricingSchema } from "./openapi-usage-billing";
-import { limitsSchema, machineSizeSchema } from "./openapi-containers";
+import { usageBillingSchema, usagePricingSchema } from "@canopy/linux/schemas";
+import { limitsSchema, machineSizeSchema } from "@canopy/linux/schemas";
 import { cookieSecurity, errors, jsonResponse, planSchema, register, requestBody, type LegacyHandler, type OpenAPIApi } from "./openapi-shared";
 
 const subscriptionState = z.object({

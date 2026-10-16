@@ -32,7 +32,7 @@ for (const app of manifest.imports) {
   assert.equal(json(`${app.path}/package.json`).name, `@canopy/${app.app}`);
   assert.equal(existsSync(join(root, app.path, 'package-lock.json')), false, 'Install from the root lockfile.');
   for (const [path, expected] of Object.entries(app.licenses)) {
-    assert.equal(hash(read(`${app.path}/${path}`)), expected, `${app.app}/${path}: imported license changed`);
+    assert.equal(hash(read(app.app === 'backend' && path.startsWith('sdk/') ? `apps/linux/${path}` : `${app.path}/${path}`)), expected, `${app.app}/${path}: imported license changed`);
   }
   for (const [path, expected] of Object.entries(baseline ? app.configs : {})) {
     const config = json(`${app.path}/${path}`);

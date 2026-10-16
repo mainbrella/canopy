@@ -4,7 +4,7 @@ import {resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {parseEnv} from 'node:util';
 import {execFileSync} from 'node:child_process';
-import {Mainbrella} from '../sdk/javascript/index.js';
+import {Mainbrella} from '../../linux/sdk/javascript/index.js';
 const check=(value,code)=>{if(!value)throw new Error(code);};
 const expected=async(action,status)=>{try{await action();}catch(error){check(error.status===status,'unexpected_rejection');return;}throw new Error('isolation_failed');};
 export async function verifyWorkspaces(client,secondary,{checkpoint=async()=>{},verifyArchive=()=>{}}={}){

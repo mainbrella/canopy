@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { Mainbrella } from '../sdk/javascript/index.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
 import { fetchLocalPreview } from './local-preview.mjs';
 
 // Local platform prototype: three starts total, never more than two Lite guests

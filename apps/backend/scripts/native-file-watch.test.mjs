@@ -6,10 +6,10 @@ import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
-import { NATIVE_WATCH_GUEST } from '../sdk/javascript/watch-guest.js';
+import { NATIVE_WATCH_GUEST } from '../../linux/sdk/javascript/watch-guest.js';
 
 test('both SDKs package identical native watch code within the managed command budget', async () => {
-  const source = await readFile(new URL('../sdk/python/mainbrella/_watch_guest.py', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../../linux/sdk/python/mainbrella/_watch_guest.py', import.meta.url), 'utf8');
   const result = spawnSync(process.env.PYTHON || 'python3', ['-c', source + '\nprint(NATIVE_WATCH_GUEST, end="")'], { encoding: 'utf8' });
   assert.equal(result.status, 0); assert.equal(result.stdout, NATIVE_WATCH_GUEST);
   assert.ok(Buffer.byteLength(JSON.stringify(['node', '-e', NATIVE_WATCH_GUEST, '/workspace', 'true'])) < 16384);

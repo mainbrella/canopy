@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { billingFixture, billingRequest, TEST_CUSTOMER, TEST_USER } from './billing-test-helpers';
-import { invoiceAccountUsage, invoiceCanceledUsage, invoiceResourceUsage, type UsageInvoice } from '../lib/usage-billing';
+import { invoiceAccountUsage, invoiceCanceledUsage, invoiceResourceUsage, type UsageInvoice } from '../../../linux/worker/lib/usage-billing';
 import { resolveEntitlement } from '../lib/entitlements';
 import { subscriptionPlan } from '../lib/stripe';
 import { handleSubscriptionRequest } from './subscription';

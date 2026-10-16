@@ -1,4 +1,4 @@
-import { boundedPrivateBody } from "../../containers/private-services-contract.js";
+import { boundedBody as boundedPrivateBody } from '../shared/bounded-body.js';
 import { MarketingEmailPreferenceError, sendMarketingEmail } from "../lib/marketing-email";
 import { marketingEmailSchema, marketingUnsubscribeSchema } from "../shared/marketing-email-contract";
 import { ADMIN_EMAIL } from "../shared/admin";

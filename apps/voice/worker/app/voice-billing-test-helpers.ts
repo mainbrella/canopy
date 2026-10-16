@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
-import { ContainerAccountController } from '../../../backend/containers/container-account-core.js';
+import { ContainerAccountController } from '../../../linux/containers/container-account-core.js';
 import { appendAccountingEvent } from '../../../backend/worker/lib/accounting-ledger';
 
 export async function voiceBillingFixture(env: Env, sqlite: DatabaseSync, userId: string) {

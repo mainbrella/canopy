@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { IMAGE_CATALOG } from '../apps/backend/containers/image-catalog.js';
+import { IMAGE_CATALOG } from '../apps/linux/containers/image-catalog.js';
 import { targetFor } from './deploy-targets.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');

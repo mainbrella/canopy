@@ -23,7 +23,7 @@ try {
   const manifest = JSON.parse(await readFile(join(bundle, 'manifest.json'), 'utf8'));
   for (const [name, hash] of Object.entries(manifest.files)) {
     const source = ['llms-full.txt', 'llms.txt'].includes(name) ? join(bundle, name) : name.startsWith('references/')
-      ? join(bundle, 'mainbrella-containers', name) : join(backend, name.replace(/^sdk\/(javascript|python)\.md$/, 'sdk/$1/README.md'));
+      ? join(bundle, 'mainbrella-containers', name) : join(backend, name.replace(/^sdk\/(javascript|python)\.md$/, '../linux/sdk/$1/README.md'));
     const target = join(root, (['API.md', 'SKILL.md'].includes(name) || name.startsWith('scripts/')) ? name : `public/${name}`);
     const bytes = await readFile(source);
     if (createHash('sha256').update(bytes).digest('hex') !== hash) throw new Error(`Source hash mismatch: ${name}`);

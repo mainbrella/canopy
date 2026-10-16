@@ -1,5 +1,5 @@
 // Run separately in test and live mode. This does not migrate subscriptions.
-import { USAGE_PRICING } from '../containers/usage-policy.js';
+import { USAGE_PRICING } from '../../linux/containers/usage-policy.js';
 const key = process.env.STRIPE_SECRET_KEY;
 if (!key || (!process.argv.includes('--live') && !key.startsWith('sk_test_'))) {
   throw new Error('Set STRIPE_SECRET_KEY to a test key, or pass --live explicitly.');

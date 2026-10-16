@@ -8,7 +8,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Mainbrella } from '../sdk/javascript/index.js';
+import { Mainbrella } from '../../linux/sdk/javascript/index.js';
 import { deploymentPreflight, verifyDeployedSDK } from './sdk-deployed-workflow.mjs';
 import { parseQualificationArgs, readCandidate, qualifyDeployedArtifacts } from './qualify-sdk-deployed.mjs';
 
@@ -100,7 +100,7 @@ async function pythonWorkflow(t, fixture) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const output = join(directory, 'python.json');
   const child = spawn(process.env.PYTHON || 'python3', ['scripts/sdk-deployed-workflow.py'], {
-    cwd: root, env: { ...process.env, PYTHONPATH: join(root, 'sdk/python'), MAINBRELLA_API_KEY: key,
+    cwd: root, env: { ...process.env, PYTHONPATH: join(root, '../linux/sdk/python'), MAINBRELLA_API_KEY: key,
       MAINBRELLA_API_URL: fixture.baseUrl, MAINBRELLA_SDK_REPORT: output }, stdio: 'ignore',
   });
   const timer = setTimeout(() => child.kill('SIGKILL'), 10_000);

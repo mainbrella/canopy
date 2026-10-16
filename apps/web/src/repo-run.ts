@@ -1,5 +1,6 @@
+import './linux.ts';
 import { API_ORIGIN, createAuthClient } from './auth.ts';
-import { createPreviewClient } from './container-previews.ts';
+import { createPreviewClient } from '@canopy/linux/web/previews';
 import { launchIdentity, normalizeRepo, repoRunUrl, type RepoRunDiagnostics, type RepoRunExecutionDiagnostics, type RepoRunOptions, type RepositoryLaunch } from './repo-run-contract.ts';
 import { repoSetupPrompt, validRepo } from './repo-run-prompt.ts';
 import { parseRepoRunConfig, stringifyRepoRunConfig, validateRepoRunConfig } from './repo-run-config.ts';
@@ -519,7 +520,7 @@ function openTerminal() {
   if (!active || !launch?.container || launch.phase === 'stopped' || terminal) return;
   terminalHost.hidden = false;
   terminalClosed = false;
-  void import('./container-terminal.ts').then(({ openContainerTerminal }) => {
+  void import('@canopy/linux/web/terminal').then(({ openContainerTerminal }) => {
     if (stopped || !active || terminal || terminalClosed || !launch?.container || launch.phase === 'stopped') return;
     terminal = openContainerTerminal(terminalHost, { ...launch.container, onClose: () => { terminal = undefined; terminalClosed = true; } });
   });

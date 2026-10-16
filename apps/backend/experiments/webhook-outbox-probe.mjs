@@ -1,6 +1,6 @@
-import { UserContainerController } from '../containers/user-container-core.js';
-import { ManagedExecutions } from '../containers/executions.js';
-import { WorkloadWebhooks } from '../containers/webhooks.js';
+import { UserContainerController } from '../../linux/containers/user-container-core.js';
+import { ManagedExecutions } from '../../linux/containers/executions.js';
+import { WorkloadWebhooks } from '../../linux/containers/webhooks.js';
 import { RECEIVER_LIFETIME_MS } from './webhook-receiver-core.mjs';
 
 const receiver = 'https://mainbrella-webhook-qualification.crimson-dust-553b.workers.dev';

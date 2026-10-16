@@ -1,4 +1,4 @@
-import { boundedPrivateBody } from '../../containers/private-services-contract.js';
+import { boundedBody as boundedPrivateBody } from '../shared/bounded-body.js';
 import { isStaging } from './deployment-environment';
 
 export class DomainError extends Error {

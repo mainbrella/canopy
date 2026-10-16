@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { publicApiOrigin, publicWebOrigin } from '../lib/deployment-environment';
 import { githubCallbackURL } from '../lib/github-import';
 import { githubBuildCallbackURL } from '../../../vibe/worker/lib/github-build';
-import { imageBuildsConfigured } from '../lib/image-build-options';
+import { imageBuildsConfigured } from '../../../linux/worker/lib/image-build-options';
 import { stripeKeyAllowed, stripeRequest, type BillingEnv } from '../lib/stripe';
-import { handleImageBuildRequest } from './images';
-import { handleSSHRequest } from './ssh';
+import { handleImageBuildRequest } from '../../../linux/worker/app/images';
+import { handleSSHRequest } from '../../../linux/worker/app/ssh';
 import { registrarConfigured } from '../lib/namecom';
 import { voiceEnabled } from '../../../voice/worker/lib/voice';
 

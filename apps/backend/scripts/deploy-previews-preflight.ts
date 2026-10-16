@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveTool } from './resolve-tool.mjs';
-import { previewDomain } from '../worker/lib/preview-routing';
+import { previewDomain } from '../../linux/worker/lib/preview-routing';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 class PreviewPreflightError extends Error {}

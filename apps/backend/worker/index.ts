@@ -7,15 +7,15 @@ import { inventoryStoragePage, expireUnfundedStorage } from './lib/r2-maintenanc
 import { handleRequest } from "./app/router";
 import { AppState } from "./durable-objects/app-state";
 import { collectStatus } from './app/status';
-import { handleApplicationGateway } from './preview-gateway';
+import { handleApplicationGateway } from '@canopy/linux/gateway';
 import { reconcileAcquisitionBilling } from './lib/acquisition-billing';
 import { cleanupDeletedBuildGit, cleanupStorageOrphans } from '@canopy/vibe/maintenance';
 import { reconcileBuildTurns } from '@canopy/vibe/routes';
 
 export { AppState };
 export { ReceptionistCall } from '@canopy/voice/call';
-export { ContainerAccount } from "./durable-objects/container-account";
-export { AccountActivity } from './durable-objects/account-activity';
+export { ContainerAccount } from "@canopy/linux/account";
+export { AccountActivity } from '@canopy/linux/account';
 export { BuildWorkflow } from '@canopy/vibe/workflow';
 
 export default {

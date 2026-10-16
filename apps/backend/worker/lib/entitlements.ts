@@ -2,7 +2,7 @@ import { activeTrial, type Trial } from './trial-coupons';
 import { billingSubscription, planPrices, stripeRequest, subscriptionPlan, type BillingEnv, type Plan, type StripeSubscription } from "./stripe";
 import { accountBillingRequest, prepaidAccount } from './prepaid-billing';
 
-export interface Entitlement { plan: Plan | null; active: boolean; validUntil: number | null; checkedAt?: number; billing?: import('../../containers/usage-policy.js').BillingPeriod }
+export interface Entitlement { plan: Plan | null; active: boolean; validUntil: number | null; checkedAt?: number; billing?: import('@canopy/linux/contracts/usage').BillingPeriod }
 export interface BillingRecord { stripe_customer_id: string; checkout_session_id: string | null }
 export interface BillingState { record: BillingRecord | null; subscription: StripeSubscription | null; entitlement: Entitlement; trial?: Trial | null }
 const unpaid = (): Entitlement => ({ plan: null, active: false, validUntil: null });
