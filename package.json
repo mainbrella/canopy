@@ -16,6 +16,7 @@
     "db:create:staging": "node scripts/wrangler.mjs staging create-db",
     "db:migrate:staging": "node scripts/wrangler.mjs staging migrate",
     "deploy:staging": "npm run check && npm run build:staging && npm run db:migrate:staging && node scripts/wrangler.mjs staging deploy:api && node scripts/wrangler.mjs staging deploy:console",
+    "deploy:staging:site": "npm run build:staging --workspace @canopy/console && node scripts/wrangler.mjs staging deploy:console",
     "smoke:staging": "node scripts/smoke-staging.mjs",
     "test:browser": "playwright test && playwright test --config playwright.google.config.ts"
   },

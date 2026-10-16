@@ -215,6 +215,13 @@ actions; existing local commands remain restricted. Credentials, logs, snapshots
 and caches stay inside ignored `.cache/`. Do not recreate the existing staging
 database or migrate production data. CI includes staging dry runs but no deploy.
 
+Added `npm run deploy:staging:site` on **2026-10-16** for fast frontend-only
+updates. It builds the console in staging mode once and uses the existing
+restricted `staging deploy:console` action. It skips checks, tests, local builds,
+dry runs, migrations, and API deployment; use the full command for backend
+changes. The staging console build and console Wrangler dry run passed. No
+remote deployment was performed while adding this command.
+
 Verification passed: all TypeScript checks, 23 auth/client tests, local and
 staging builds, 14 local browser tests, and a real hosted Chromium email smoke
 test. The hosted test verified signup, returning login, reload, logout/revocation,

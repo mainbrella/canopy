@@ -30,6 +30,8 @@ The browser command runs two stacks sequentially: the existing email suite with 
 
 The local build produces `platform/accounts/dist/` and `platform/console/dist/`. `npm run build:staging` produces separate `dist-staging/` outputs and checks both staging Wrangler configurations without deploying. `npm run deploy:staging` checks, builds, migrates the dedicated staging D1, and deploys the two staging Workers. The staging console calls the staging API directly; Vite's development proxy is not part of that build. Canopy has no production deployment configuration.
 
+For fast frontend-only updates, run `npm run deploy:staging:site`. It builds the staging console once and deploys only `stg.mainbrella.com`, skipping checks, tests, API deployment, and database migrations. Use the full deployment command for changes that also need backend updates.
+
 ### Console configuration
 
 The dark console has a product home, shared header/footer, and an account dropdown. Compute, Builder, and Voice each have a **Not installed** placeholder page. There are no product APIs, install actions, or resource provisioning in this slice. The Appflare link opens its external catalog; Canopy does not read or manage Appflare installs.

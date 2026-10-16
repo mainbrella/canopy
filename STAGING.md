@@ -77,7 +77,22 @@ a fresh identity database only; never point them at `delta` or an imported
 production database. Keep the existing filenames and SQL unchanged.
 
 Repeat deployment uses the existing recorded database; do not run the database
-creation command again. After deployment, run the explicitly remote smoke test:
+creation command again.
+
+For frontend-only changes (HTML, CSS, browser code, and public assets), use:
+
+```sh
+npm run deploy:staging:site
+```
+
+This builds the console once in staging mode, then deploys only
+`canopy-console-stg` at `stg.mainbrella.com` through the restricted Wrangler
+wrapper. It skips type checks, tests, local builds, Wrangler dry runs, database
+migrations, and API deployment. The staging API configuration and Google-disabled
+build settings still apply. Use the full `npm run deploy:staging` when changes
+also require API or database updates; run checks separately as needed.
+
+After deployment, run the explicitly remote smoke test:
 
 ```sh
 PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run smoke:staging
