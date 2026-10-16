@@ -1,0 +1,28 @@
+# Copy to .dev.vars and replace this password before starting local development.
+ADMIN_PASSWORD="replace-with-a-random-password-at-least-16-characters"
+
+# Calling is disabled in local development; settings and history work offline.
+# See README.md for explicit live Workers AI setup.
+# Phone webhooks need a deployed HTTPS origin, not this local address.
+VOICE_PUBLIC_ORIGIN="http://127.0.0.1:8791"
+
+# Optional Twilio connection:
+# TWILIO_AUTH_TOKEN=""
+# TWILIO_ACCOUNT_SID=""
+# TWILIO_PHONE_NUMBER=""
+# TWILIO_SIP_URI=""
+
+# Optional Telnyx connection:
+# TELNYX_API_KEY=""
+# TELNYX_PUBLIC_KEY=""
+# TELNYX_ACCOUNT_SID=""
+# TELNYX_CONNECTION_ID=""
+# TELNYX_PHONE_NUMBER=""
+# TELNYX_SIP_URI=""
+
+# Optional multilingual speech through an existing Cloudflare AI Gateway:
+# VOICE_AI_GATEWAY_ACCOUNT_ID=""
+# VOICE_AI_GATEWAY_ID=""
+# VOICE_AI_GATEWAY_TOKEN=""
+# DEEPGRAM_API_KEY=""
+# CARTESIA_API_KEY=""

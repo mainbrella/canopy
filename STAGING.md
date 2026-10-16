@@ -155,3 +155,10 @@ Deployed and verified on **2026-10-16**:
 
 Real Google authentication remains unverified and disabled on staging. No
 production OAuth client or origins were reused or modified.
+
+Voice was extracted into `products/voice` on **2026-10-16** and verified locally.
+It has no staging Worker, database, domain, or installation record. Staging deploy
+commands continue to target only the console and accounts resources above. A real
+Voice install requires a separately authorized target and dedicated resources;
+see [Voice installation](products/voice/docs/installation.md). Local fixtures and
+dry-run builds do not extend this deployment record.

@@ -12,3 +12,5 @@ test-results/
 .dev.vars.*
 .DS_Store
 *.tsbuildinfo
+!products/voice/.dev.vars.example
+products/voice/wrangler.install.jsonc

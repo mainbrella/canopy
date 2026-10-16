@@ -12,6 +12,10 @@
     "raindrop": {
       "url": "https://github.com/mainbrella/raindrop",
       "commit": "be89935ae248cb3f5ccd9ceb5585e1bba097a7ba"
+    },
+    "ai-receptionist": {
+      "url": "https://github.com/mainbrella/ai-receptionist",
+      "commit": "7d3e023318f36f7a45e5d155c46d96e3896f9502"
     }
   },
   "files": [
@@ -168,6 +172,531 @@
       "destination": "platform/console/src/style.css",
       "sha256": "c4cfa40bb3d150d709b48712383f61d46bc911e1d6ff8efae0b20f31a4e5512c",
       "change": "Adapt compact header/footer and right-aligned account panel patterns to the existing dark green console palette. Preserve existing auth form and account density; add responsive product rows, visible focus and reduced-motion support without the marketing stylesheet."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": ".dev.vars.example",
+      "destination": "products/voice/.dev.vars.example",
+      "sha256": "d200af3d8f973a5f41efe5e42ab75d278f66ff547b4a362a42beedadd438b1ac",
+      "change": "Document the isolated Canopy local port and calling-disabled defaults; credentials remain placeholders only."
+    },
+    {
+      "repository": "backend",
+      "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+      "source": "LICENSE",
+      "destination": "products/voice/LICENSE",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "NOTICE.md",
+      "destination": "products/voice/NOTICE.md",
+      "sha256": "10f91fdeed47e58e38f728e5256189fc40bebeb9d82d0e2137728fd81349a8dc",
+      "change": "Preserve original attribution and record the current hosted/standalone source comparison and Canopy distribution ownership."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "README.md",
+      "destination": "products/voice/README.md",
+      "sha256": "8b7c70474ab07c348b1f36192c41c2e02acbc83772582bf6d466a248061cecab",
+      "change": "Rewrite for the Canopy workspace, offline local development, independent source export, and explicit installation/verification boundaries."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "appflare.jsonc",
+      "destination": "products/voice/appflare.jsonc",
+      "sha256": "790687c7ba0b08b8a3e8602c4aa60036f0429a3b02f12cb439283a9912366e74",
+      "change": "Point the unpublished template at mainbrella/canopy, the product Wrangler subpath, and the workspace client build; retain original product settings and sentinel SHA."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "docs/appflare.md",
+      "destination": "products/voice/docs/appflare.md",
+      "sha256": "edf2981925fb838706e1e909435f39ad2a285ba3b16a43f56e5baf11f0d0a368",
+      "change": "Replace sibling catalog-write instructions with the monorepo pin/build path and pending pack/live-install verification."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "docs/telephony.md",
+      "destination": "products/voice/docs/telephony.md",
+      "sha256": "14aa3462e135a4571505d53be73a334c1e4c830d5cc74379a48b073d2dc05380",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "docs/voice-languages.md",
+      "destination": "products/voice/docs/voice-languages.md",
+      "sha256": "3cb009208e10ef3c1695c5f4298e0feb75bc56aa4896222542f6e68b5f698d00",
+      "change": "Retain speech guidance; name the explicit operator install config when setting secrets."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "index.html",
+      "destination": "products/voice/index.html",
+      "sha256": "3f466787b847ec1a0d55eca8237664abc2a719496072043487104d5d0826087b",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "login.html",
+      "destination": "products/voice/login.html",
+      "sha256": "c5e6ce14198aaa70ad81f10d41b98afbfaee45ac74b9a20818bbca7935783cd3",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "migrations/0001_receptionist.sql",
+      "destination": "products/voice/migrations/0001_receptionist.sql",
+      "sha256": "49a064b7fbfc23c6a2d3d3eb148a3617e8b24241a005f4e98b3a5dd6051444ce",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "migrations/0002_voice_settings.sql",
+      "destination": "products/voice/migrations/0002_voice_settings.sql",
+      "sha256": "764bc5257902bc7371b6b03cbbf325a4661e171e1fea749056f4c3405888c11f",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "migrations/0003_number_search.sql",
+      "destination": "products/voice/migrations/0003_number_search.sql",
+      "sha256": "3530e6dc1d696639d2b77ecd95017f6a3843e29b55fb756633330e3713330896",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "package.json",
+      "destination": "products/voice/package.json",
+      "sha256": "3e38b7c0004af8fd1c7ebe361d886ab604114cf09d71f923aae34f553de844b9",
+      "change": "Name the Canopy product workspace; use product-local restricted Wrangler scripts, workspace-aligned Workers types/Wrangler and patched Miniflare; retain runtime SDK dependencies and independent scripts."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "public/base.css",
+      "destination": "products/voice/public/base.css",
+      "sha256": "9d8f9ea27e05c9533b6037b30ffc8c153690d74a4744428517c779432dd0593e",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "public/voice.css",
+      "destination": "products/voice/public/voice.css",
+      "sha256": "d95fe1a2fc6381011cf16580ee69def454e0cb57b00b3f431c3a1d93e36d0632",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "scripts/catalog-manifest.mjs",
+      "destination": "products/voice/scripts/catalog-manifest.mjs",
+      "sha256": "8112815f0bd4f4b485d9e03f20603090799e13400c566acfbf5d33e3e2bdb7a5",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "src/auth.ts",
+      "destination": "products/voice/src/auth.ts",
+      "sha256": "c035db9bc1d021576ac67679be0df46ff570b9e07e24721271bbbf7d79e8022b",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "src/login.ts",
+      "destination": "products/voice/src/login.ts",
+      "sha256": "7d762e73c5824683af89027b594f97285a6c572807a0d8e1305a869e4b98ad1f",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "src/voice-api.test.ts",
+      "destination": "products/voice/src/voice-api.test.ts",
+      "sha256": "7a9ba15d51f331ca1e43de265d840baf362e2e065066ac9c078179ea6179b88b",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "src/voice-api.ts",
+      "destination": "products/voice/src/voice-api.ts",
+      "sha256": "400d7776dc4e84607a06b9fcaf0975e7a8f84af60c0273c9c2967bdad0117a22",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "web",
+      "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+      "source": "src/voice-number-search.test.ts",
+      "destination": "products/voice/src/voice-number-search.test.ts",
+      "sha256": "21ec771c8dd23cd621a848fc581395105b703b1f2d5979afe56ffbae612a72dd",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "src/voice-number-search.ts",
+      "destination": "products/voice/src/voice-number-search.ts",
+      "sha256": "12670f5219ec0fe87f76898f687de2a988f6d4017fae169692868292d72a4cfe",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "web",
+      "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+      "source": "src/voice-transport.ts",
+      "destination": "products/voice/src/voice-transport.ts",
+      "sha256": "422fc8d657ce6d9e5ab0ccaf5ea11a7f3a7a838053fd7f26db0496c15fe5f34a",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "src/voice.ts",
+      "destination": "products/voice/src/voice.ts",
+      "sha256": "f06fb804b624caf0f6f633726eba807fcc489fe12dd2f6f8964a730f5df4a385",
+      "change": "Retain the standalone workspace, Telnyx/Twilio status, transcripts and owner sign-out. Refer to Voice deployment settings rather than assuming an Appflare installation."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "test/fixture-worker.ts",
+      "destination": "products/voice/test/fixture-worker.ts",
+      "sha256": "0f603780c3329106a8c6f5ad53fb1d9bbb92fd75063b1a17cb9c08abc0416d3d",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "test/migrations.test.ts",
+      "destination": "products/voice/test/migrations.test.ts",
+      "sha256": "9e682c8e573799793f50c6d1f45ebd920ea1bd15322b6d78eb8cfb1d75b73bbd",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "test/runtime.test.ts",
+      "destination": "products/voice/test/runtime.test.ts",
+      "sha256": "38ae02962dd87344ea339daeca2806904419c6fd406fdef4b575ea50ebe975f5",
+      "change": "Import explicit Env; verify the isolated Canopy Voice cookie. Preserve actual local D1/DO/WebSocket/VoiceClient tests with deterministic inference and carrier fixtures."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "test/voice-backchannel.test.ts",
+      "destination": "products/voice/test/voice-backchannel.test.ts",
+      "sha256": "2ea75c80a2c81d1f0a69302316adacb59817868d04cfcb635f2db3c680500c22",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "test/voice-number-search.test.ts",
+      "destination": "products/voice/test/voice-number-search.test.ts",
+      "sha256": "689ef5eba1f5b2846424ee4fbf10834615196326dc1191b2a0662d180b8aee4b",
+      "change": "Import explicit Env and use the isolated Canopy Voice cookie; retain validation, authorization, provider and search-limit regressions."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "test/voice-speech.test.ts",
+      "destination": "products/voice/test/voice-speech.test.ts",
+      "sha256": "fcd54a5b14dd8f4bd667992542bf1d7306a47318e5a0eccdb0c5d62c0b296897",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "tsconfig.client.json",
+      "destination": "products/voice/tsconfig.client.json",
+      "sha256": "4371d15a58d426609b454ff2a0879a94f0cf852a78a18e61de14da1c4be54d6e",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "tsconfig.worker.json",
+      "destination": "products/voice/tsconfig.worker.json",
+      "sha256": "98fdfeb3e82c2f1c17768bc509959aa9b0bf8222ba654b1c70a8ce26f83ecae4",
+      "change": "Check Worker code with only Worker runtime globals and ES2022, avoiding Node/DOM Buffer collisions; bindings are imported explicitly from their module."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "vite.config.ts",
+      "destination": "products/voice/vite.config.ts",
+      "sha256": "e9cadaebcf2a2508d9a10bbfab6140fc7d8a299c2bd0aa05efb59a7fb567bcb0",
+      "change": "Unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/app/auth-core.ts",
+      "destination": "products/voice/worker/app/auth-core.ts",
+      "sha256": "55b51137b13aa287081757d8790244bbe9017e6e0182488667e3e34b968632c7",
+      "change": "Import explicit Env and rename the session cookie to canopy_voice_session to avoid sibling localhost collisions. Retain owner password verification, hash storage, rotation, origin checks and eight-hour lifetime."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/app/voice-number-search.ts",
+      "destination": "products/voice/worker/app/voice-number-search.ts",
+      "sha256": "5a21e81d9793044d6df760aaaa513f448f71b8003ca3f1bef9b7e1af2e76e03e",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/app/voice-telnyx.ts",
+      "destination": "products/voice/worker/app/voice-telnyx.ts",
+      "sha256": "d007dc95e416f6704b847026100a960a9942d862adbfb7ffea394a0eeb79ded0",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/app/voice-twilio.ts",
+      "destination": "products/voice/worker/app/voice-twilio.ts",
+      "sha256": "4e850b95b6018ebeedfb0daa608f553185e48e7302cb6f388409204b96028065",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/app/voice.ts",
+      "destination": "products/voice/worker/app/voice.ts",
+      "sha256": "ca4b5f7b406055ceef45187a0447d0d5095cafa2076d884eba4c30bf5337532b",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/durable-objects/receptionist-call.ts",
+      "destination": "products/voice/worker/durable-objects/receptionist-call.ts",
+      "sha256": "dc324809c3abf5c78141c873979de8b00faf9f5f8c04a3f081ab0800d58e879b",
+      "change": "Import explicit Env and use that product environment in the Agent generic. Preserve the standalone speech/conversation engine, guards, retries, retention and legacy backchannel behavior; no hosted wallet adapter."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/env.d.ts",
+      "destination": "products/voice/worker/env.ts",
+      "sha256": "ff390cd76e39fd6d47bcb3448489b0fa80d7c175152a30c0804788677ef7b64d",
+      "change": "Convert the ambient Env to an exported module with explicit Cloudflare binding types; keep the product environment isolated."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/index.ts",
+      "destination": "products/voice/worker/index.ts",
+      "sha256": "b4a1dbc059979b97525c5711545f9ae2e91823f7c5d1a6930b7efa1e00216572",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/lib/voice-backchannel.ts",
+      "destination": "products/voice/worker/lib/voice-backchannel.ts",
+      "sha256": "79d4d2bc4a91ec55cf251e2c06c065a6a4fc92fbf19c4825da3290872a0ad114",
+      "change": "Guard clearTimeout when its timer is undefined for the Worker-only typecheck; preserve backchannel timing and cancellation."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/lib/voice-options.ts",
+      "destination": "products/voice/worker/lib/voice-options.ts",
+      "sha256": "acfd79714f80f4e4fc07a093b311cdb0e095daf825d0a40674b3a152d7afb3cc",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "backend",
+      "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+      "source": "worker/lib/voice-speech.ts",
+      "destination": "products/voice/worker/lib/voice-speech.ts",
+      "sha256": "44c7944940ff59c73ce1991111e4a85f6b34753b27cf84c191b9184da66175d9",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "backend",
+      "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+      "source": "worker/lib/voice-telephony.ts",
+      "destination": "products/voice/worker/lib/voice-telephony.ts",
+      "sha256": "0e7982cb90c4cc3154dcbedf7afee69e007db04950b05bf62cf9dbcfcec5ecc5",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/lib/voice-telnyx.ts",
+      "destination": "products/voice/worker/lib/voice-telnyx.ts",
+      "sha256": "8f1fbbec9706fb3717a9094b4664939324a4ebfbd7596203ce1174a7bb8fd1be",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/lib/voice.ts",
+      "destination": "products/voice/worker/lib/voice.ts",
+      "sha256": "8da2ee8a158dc769726c163f21dffbb3a56891b4f90f37a23437b81efb701213",
+      "change": "Add an explicit product Env type import; behavior unchanged."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "wrangler.jsonc",
+      "destination": "products/voice/wrangler.jsonc",
+      "sha256": "0a891d60e462eaaf8bc150f19fead652d2c781661dabec209f945fb2ac8fc34e",
+      "change": "Use unbound canopy-voice resource names, no account/domain/production IDs, disabled preview URLs and calling-off defaults. Preserve static assets, D1 migration directory, Durable Object class/migration, cron, and Workers AI binding."
     }
-  ]
+  ],
+  "voiceExtraction": {
+    "inspectedOn": "2026-10-16",
+    "implementationSource": "products/voice",
+    "distribution": "Product-only source export and a monorepo Appflare template; no catalog update or deployment performed.",
+    "boundary": "Adopt the existing standalone single-owner adapter and call engine. Preserve speech, telephony, limits and transcript lifecycle; hosted identity/wallet/billing convergence remains separate. Sibling implementations are unchanged deployment references.",
+    "hostedComparison": [
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/app/voice.ts",
+        "sha256": "6a679a93e47d6a9af4b26f87bc804385c73fd4f6137cd2cf1bc9eb6c022202f4"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/app/voice-twilio.ts",
+        "sha256": "16ab1b02425945ec46f56cc74aa31c473a9baef9481b9980c42ce584fda3bed5"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/app/voice-telnyx.ts",
+        "sha256": "5f27c61e2314e78a17f28e2938ce6c1166930bc3ef85e088d03a5f65c340ec7d"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/app/voice-number-search.ts",
+        "sha256": "cbedae35fff4cc100f363b7386de36053465fb1b1c69d720950c23542e3fa5f2"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/durable-objects/receptionist-call.ts",
+        "sha256": "4e5467301d72c5fb570ff514107dd33ec0947573b513dd92a3d77a415c07826b"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/lib/voice.ts",
+        "sha256": "d044cb6df4815e830d712f9e14005a6eeba9a0a570eab455b4ba5499c873eb19"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/lib/voice-options.ts",
+        "sha256": "4ac850b4d49eed34621385a1bf5a904645b972dab5564f23289fc179f142ec09"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "worker/lib/voice-billing.ts",
+        "sha256": "e64df0adf564e2a13028a800e2caedfb550594e21e66177cfca6901f83e60746"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "migrations/043_voice_receptionist.sql",
+        "sha256": "c4076491e221d02a6acd0fa224b88e60090229ce8144db22ae08967e3b73686e"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "migrations/044_voice_billing.sql",
+        "sha256": "709d1e15efce04da695415c65b4f095c2d9138e8d64ff7af61d58e5cf583886c"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "migrations/045_voice_sip.sql",
+        "sha256": "9b833f152c90cb15b328e1131a4b783730fd2467510b280a5afa0985e3154d2c"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "migrations/046_voice_telnyx.sql",
+        "sha256": "de5f39d5a83b73f7392dd6f1823016b6d1f8dd28b0917f81b20f9ccbf699b241"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "migrations/047_voice_logic.sql",
+        "sha256": "642a7d957304374906762bf654bf0d38053b8569d4ab6e4796a3eeddf267912a"
+      },
+      {
+        "repository": "backend",
+        "revision": "0bc20dec148c1a78b40aa252a76735103d1dbe1f",
+        "source": "migrations/048_voice_languages.sql",
+        "sha256": "5944e997328a292bc9d6c00c484e9b45d5e60f0d606ea0aad5e0574d65bc5427"
+      },
+      {
+        "repository": "web",
+        "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+        "source": "voice/app/index.html",
+        "sha256": "7eceadb5b5c6ebd37ba577a9011b9b3990a9442ada241aa9a1253eafe3cafed9"
+      },
+      {
+        "repository": "web",
+        "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+        "source": "src/voice.ts",
+        "sha256": "8686485a9ef8e73e2ebb3c522aa40b584d6d3af70bfa2e3423f48ad14f344077"
+      },
+      {
+        "repository": "web",
+        "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+        "source": "src/voice-api.ts",
+        "sha256": "27a205774be82a435f4975e8e4d2f3811365176529a11500527ab41f345f3a1b"
+      },
+      {
+        "repository": "web",
+        "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+        "source": "src/voice-api.test.ts",
+        "sha256": "762d72cc17ead67d579440afc2940caa56f634dd6284dd08a65072c5f8d22d6d"
+      },
+      {
+        "repository": "web",
+        "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+        "source": "src/voice-number-search.ts",
+        "sha256": "5df64d73a8a03fde41234b9679d5acae336e807b410e8d1ddb0499b4fb3e9be1"
+      },
+      {
+        "repository": "web",
+        "revision": "3dcea8975e2936ec26da95395b5df3f9042fa5f0",
+        "source": "public/voice.css",
+        "sha256": "de093ae8c03fad33f44ffa31c3dc1ed4902407d38b1d0ef6035ba07df26b32aa"
+      }
+    ],
+    "appflareInspection": {
+      "revision": "ccafe08b4958d8e2f80299ee310b99a7f5d00eca",
+      "guide": "https://appflare.dev/catalog/submit/",
+      "result": "Single-Worker Voice bindings fit the documented artifact path. New Canopy source pin, pack and real install remain pending."
+    }
+  }
 }

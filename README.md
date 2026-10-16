@@ -2,7 +2,7 @@
 
 Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. It should also serve as an example of running Mainbrella in your own Cloudflare account, choosing which products to run, and using Appflare for other apps. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
 
-The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. Isolated hosted staging is available at **https://stg.mainbrella.com**, with its API at **https://api-stg.mainbrella.com**; staging currently uses email/password only. See [STAGING.md](STAGING.md) for resources, deployment, verification, and teardown. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their production services.
+The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. [Voice](products/voice/README.md) now has its own runtime, UI, owner authentication, migrations, tests, and standalone source export under `products/voice`. Console installation and account handoff remain unfinished. Isolated hosted staging is available at **https://stg.mainbrella.com**, with its API at **https://api-stg.mainbrella.com**; staging currently uses email/password only. See [STAGING.md](STAGING.md) for resources, deployment, verification, and teardown. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their production services.
 
 Canopy is one repository for these products; it is not every repository in the Mainbrella organization. A normal user installing Voice, Compute, or Builder should only need that product's supported build and runtime requirements, not a clone of the whole repository or every service in it.
 
@@ -20,7 +20,7 @@ Open **http://127.0.0.1:5175** for the product home, then choose **Sign in** to 
 `npm run dev` checks that ports 5175 and 8789 are free, applies the three local identity migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. Email sign-in needs no Cloudflare login, sibling checkout, Docker, secrets, or external service. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
 
 ```sh
-npm run check          # TypeScript, auth regressions, Worker dry-run and console build
+npm run check          # TypeScript, account/Voice regressions, Worker dry runs and UI builds
 npm run test:browser   # Browser integration, error states, keyboard and responsive checks
 ```
 
@@ -34,7 +34,7 @@ For fast frontend-only updates, run `npm run deploy:staging:site`. It builds the
 
 ### Console configuration
 
-The dark console has a product home, shared header/footer, and an account dropdown. Compute, Builder, and Voice each have a **Not installed** placeholder page. There are no product APIs, install actions, or resource provisioning in this slice. The Appflare link opens its external catalog; Canopy does not read or manage Appflare installs.
+The dark console has a product home, shared header/footer, and an account dropdown. Compute, Builder, and Voice each have a **Not installed** placeholder page. Voice's independent runtime is packaged, but the console has no installation API, account handoff, or provisioning flow yet. The Appflare link opens its external catalog; Canopy does not read or manage Appflare installs.
 
 Edit [console-config.ts](platform/console/src/console-config.ts) to rename your instance, reorder products, or set an entry's `visible` to `false`. The home list and detail routes use the same configuration; an unlisted product has no detail page. An empty catalog is supported. Vite reloads the configuration during development; rebuild before deploying changes.
 
@@ -76,6 +76,7 @@ The real Google smoke test remains separate from automated verification: use the
 | `platform/console/` | Optional Google control, email form and read-only account details | Minimal TypeScript/Vite UI; Google loader adapted from Raindrop |
 | `packages/contracts/` | Public user/session types and runtime response guards | Backend's public user fields and Raindrop's validation pattern |
 | `packages/platform-client/` | Credentialed email/Google/session client without UI globals | `web/src/auth.ts` and `raindrop/src/auth.ts` |
+| `products/voice/` | Self-contained Voice Worker/UI, single-owner auth, D1/DO lifecycle, speech/telephony, transcript history and standalone export | Backend/web Voice via the existing `ai-receptionist` extraction, with current hosted sources compared and recorded |
 
 [migration-sources.json](migration-sources.json) records exact source commits, file hashes, destination paths, and adaptations. These are deliberate subset copies with provenance, not a Git history merge. Canopy's builds and tests resolve everything from this checkout and its root lockfile; nothing imports a sibling repo.
 
@@ -94,7 +95,24 @@ Intentional adaptations include explicit environment bindings, a configurable or
 
 `user` contains only `id`, `email`, `name`, `dob`, and `created_at`. JSON responses are not cached. Error bodies use `{ error }`: invalid input/weak new passwords (400), invalid email or Google credentials (401), rejected origins (403), missing routes (404), wrong methods (405), identity conflicts (409), rate limiting (429 with `Retry-After: 60`), or unavailable infrastructure/provider (503). Google errors use `invalid_google_credential`, `identity_conflict`, and `google_unavailable`; infrastructure failures use `auth_unavailable`. The email endpoint retains its 20-attempts/minute/IP limiter; Google has a separate limiter with the same limit. Allowed browser origins can preflight with `OPTIONS`. This is the browser auth subset of the existing API, not its native/OpenAPI surface.
 
-Native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, and product runtimes have not moved. No account data, production database, wallet, Worker, public URL, or deployment has changed. Before using hosted accounts, review required side effects and the complete migration history, and verify the existing session/API contracts against an isolated hosted environment.
+Native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, Compute, and Builder have not moved. Voice uses a separate single-owner adapter; shared Canopy account handoff and hosted billing remain deferred. No production data, wallet, Worker, or public URL has changed.
+
+## Run Voice independently
+
+Voice's UI and runtime are in [products/voice](products/voice/README.md). From the Canopy root:
+
+```sh
+cp products/voice/.dev.vars.example products/voice/.dev.vars
+# Set a private ADMIN_PASSWORD of at least 16 characters.
+npm run db:migrate:local --workspace @canopy/voice
+npm run dev:voice
+```
+
+Open **http://127.0.0.1:8791**. Local development supports owner login and persisted settings/history with calling disabled and remote bindings off. The deterministic call runtime tests need no Cloudflare credentials. Real conversations require an explicitly configured Workers AI deployment.
+
+`npm run test:voice`, `npm run build:voice`, and `npm run test:browser:voice` verify the product. `npm run export:voice` produces a product-only source tree and lockfile under `products/voice/dist/source` from a clean commit; `-- --allow-dirty` permits a clearly marked local verification export. That output supports its own `npm ci`, type checks, tests, build, and local development without Canopy platform services or sibling imports.
+
+The [installation boundary](products/voice/docs/installation.md) records resources, secrets, authorization, retention, and cleanup. [Appflare packaging](products/voice/docs/appflare.md) targets the monorepo at a future immutable source pin. No Voice deployment, catalog update, or console installation is claimed by this extraction. The original three standalone SQL migrations are preserved byte-for-byte and belong only to Voice's own database.
 
 ## Source inventory — 2026-10-16
 
@@ -103,16 +121,16 @@ Native sign-in, password recovery, welcome email, analytics/consent integrations
 | `backend` at `0bc20dec148c` | Main API owns auth plus Compute/Builder/Voice orchestration; separate admin, marketing, container, preview, egress-relay and security-ack configs. `delta` identity data and the `CONTAINER_ACCOUNT` wallet are still authoritative there. | Extract local browser email/Google/session code. |
 | `web` at `3dcea8975e29` | Plain TypeScript/Vite, with separate site and Builder builds. Auth currently also invokes cookie-consent and acquisition/analytics code. | Reuse the auth transport conventions without importing site/product screens. |
 | `raindrop` at `be89935ae248` | Separate Vite admin UI and deployment; its copied auth client already validates responses. | Reuse validation/client and Google loader behavior. Admin authorization and screens stay there. |
-| `ai-receptionist` | Independently packaged Voice with its own Cloudflare setup and owner auth. | Leave standalone Voice and engine convergence for a later milestone. |
+| `ai-receptionist` at `7d3e023318f3` | Independently packaged Voice with its own Cloudflare setup and owner auth. | Adopt the existing standalone boundary in `products/voice`, preserving tests and migrations; distribute from Canopy's source export. Hosted convergence remains separate. |
 | `ssh-gateway`, `ios`, upstream forks and other sibling tools | Separate entry points and release concerns. | Remain outside this first extraction. |
 
 The inspected `web` and `raindrop` worktrees were clean. `backend` had an untracked `docs/source-ownership.md`; it describes a broader source reorganization that is absent from the actual tree (implementation is still in `worker/app`, `worker/lib`, and `web/src`). It was left untouched and is not treated as evidence that those moves occurred. Existing source, Wrangler configs, package scripts, and tracked migration files determined this inventory.
 
-The next checkpoint is a real Google smoke test with an explicit test client, then a separately scoped isolated staging milestone with its own database and routing. This does not authorize changing production resources. The product migration plan below remains the longer-term direction.
+The next product checkpoint is an authorized install/status/open flow for Voice in the console, including persistent installation identity and explicit authentication handoff, followed by a recorded real installation into dedicated test resources. Product packaging is complete; provisioning and live-provider verification are not. Real Google verification is separately pending and does not block this work. Existing staging authorization does not authorize a new Voice deployment.
 
 ## Repository shape
 
-The proposed layout gives product code clear ownership and makes shared platform services explicit. It does not require one directory to become one Worker: a product may deploy several Workers and other Cloudflare resources.
+The layout below remains the broader plan. `products/voice`, `platform/accounts`, `platform/console`, `packages/contracts`, and `packages/platform-client` exist; other entries are proposed. A product may deploy several Workers and other Cloudflare resources.
 
 ```text
 products/
@@ -164,7 +182,7 @@ Maintain one Voice engine for hosted and standalone use. The engine should own s
 - The hosted adapter connects Mainbrella identity, permissions, and billing.
 - The standalone adapter uses local owner/password authentication and the owner's Cloudflare and carrier accounts.
 
-Today, `ai-receptionist` is a modified standalone extraction while hosted Voice lives in `backend` and `web`. Those implementations need to converge; the shared engine is not already present. Keep the standalone repository until there is a supported way to consume and release the shared implementation. Avoid creating another maintained copy during migration.
+Canopy now owns the extracted standalone implementation in `products/voice`; its source export and Appflare template distribute that same code. The existing `ai-receptionist` repository and hosted Voice in `backend`/`web` remain unchanged references and deployment sources until an intentional release transition. No `voice-engine` package or hosted identity/billing adapter is claimed yet. Add that shared boundary only when a second real consumer needs it; do not independently maintain another copy of this standalone engine.
 
 ### Compute
 
@@ -228,13 +246,13 @@ Migrate in small stages while preserving the current services and their state:
 
 Existing evidence should guide the moves. The backend already deploys API, admin, marketing, containers, and ingress/previews independently. `backend/worker/shared/service-routing.ts` preserves `api.mainbrella.com` paths, and `scripts/check-worker-boundaries.mjs` prevents admin and marketing bundles from absorbing unrelated code. The web repository already has separate site and Builder static builds/deployments. Raindrop is a separate admin GUI with a copied auth client. Keep those deployment boundaries until a concrete change justifies altering them.
 
-Hosted backend, web, and Raindrop source can move into Canopy progressively with provenance and history preserved by a deliberate migration. Keep iOS, the SSH gateway, independent Parsequerade, and upstream Appflare/catalog forks separate while their release cycles justify it. Keep `ai-receptionist` separate until the shared Voice engine has a supported distribution path. This plan does not rename or remove sibling repositories, merge histories, or rewrite deployments now.
+Hosted backend, web, and Raindrop source can move into Canopy progressively with provenance and history preserved by a deliberate migration. Keep iOS, the SSH gateway, independent Parsequerade, and upstream Appflare/catalog forks separate while their release cycles justify it. Voice's standalone source export now provides a product-only distribution boundary; adoption by existing releases is a separate step. This plan does not rename or remove sibling repositories, merge histories, or rewrite deployments now.
 
 ## Appflare distribution
 
 Appflare should receive installable **products or supported bundles**, not internal engine or contracts packages. A catalog change is a PR to [appflare/catalog](https://github.com/appflare/catalog), adding `apps/<slug>/appflare.jsonc`. The manifest should point at the public Canopy repository and an exact commit, then describe the product build, configuration, settings, and requirements. Monorepo subpaths are supported, so a product does not need its own Git repository. The product build includes the shared library code it uses in its deployable output; users do not install those libraries separately. The pin makes the submitted product reviewable and reproducible.
 
-For Voice, the source would live in Canopy's `products/voice` and `packages/voice-engine`, while the catalog submission would be `apps/mainbrella-voice/appflare.jsonc` in `appflare/catalog`. The manifest selects Voice's build command and Wrangler configuration. The resulting install should contain Voice's frontend, Worker code, and required resources, without provisioning unrelated Mainbrella products or hosted services.
+Voice now lives in `products/voice`, which includes a monorepo catalog template and a generator that requires a clean committed source pin. A future catalog update belongs at `apps/mainbrella-voice/appflare.jsonc` in `appflare/catalog`. The manifest selects Voice's client build and Wrangler configuration. No shared engine package is needed for the current single consumer. Packaging and a live install of the new catalog pin still require verification.
 
 Voice is the clearest first candidate if its standalone installation is complete. The catalog entry must deploy the product's required runtime as a self-contained artifact. Service, Durable Object, or Workflow bindings cannot depend on unrelated external Mainbrella Workers; multiple Workers can be part of one catalog entry when the packaging path supports them.
 

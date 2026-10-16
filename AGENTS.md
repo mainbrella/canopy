@@ -28,7 +28,8 @@
 
 ## Where work stopped
 
-Handoff updated **2026-10-16**, after commit `2f5956e`. Completed milestones:
+Handoff updated **2026-10-16**, with Voice extraction in the working tree after
+commit `3d09706e`. Completed milestones:
 
 | Milestone | Commit | Status |
 | --- | --- | --- |
@@ -38,11 +39,14 @@ Handoff updated **2026-10-16**, after commit `2f5956e`. Completed milestones:
 | Dark console theme | `570ffa6` | Implemented and locally verified; deployment not recorded |
 | Product shell, catalog placeholders, account menu | `61180e1` | Implemented and locally verified; deployment not recorded |
 | Fast frontend-only staging deployment command | `2f5956e` | Implemented; staging build and dry run verified |
+| Standalone Voice product extraction | Working tree | Implemented and locally verified; no deployment or console installation |
 
-**Next implementation milestone: install and open one real product from Canopy.**
-No product runtime, installation API, persistent installation state, or provisioning
-flow exists yet. The current catalog is presentation only. Real Google verification
-remains pending but does not block this next milestone; email/password is available.
+**Next implementation milestone: install and open Voice from the Canopy console.**
+Voice's runtime, UI, owner adapter, and independent build/export now exist in
+`products/voice`. No console installation API, persistent installation state,
+provisioning flow, or account handoff exists yet. The console catalog is still
+presentation only. Real Google verification remains pending but does not block
+this next milestone; email/password is available.
 This sequencing supersedes the older next-checkpoint paragraph in the README;
 the README's broader product architecture remains a plan, not completed work.
 
@@ -93,6 +97,7 @@ Implemented:
 | `platform/console/` | Dark Vite/TypeScript product shell, configurable public catalog, account dropdown, email form, optional Google control with loading/retry, and read-only account details |
 | `packages/contracts/` | Public user/session types and runtime response validation |
 | `packages/platform-client/` | Shared credentialed auth client with injectable fetch and no browser globals |
+| `products/voice/` | Self-contained Voice Worker/UI, single-owner auth, D1/DO lifecycle, speech/telephony, transcript history and independent source export |
 | `scripts/` | Local stack startup/cleanup, restricted Wrangler commands, staging deployment and hosted smoke test |
 | `.github/workflows/ci.yml` | Clean install, type checks, auth tests, local/staging builds, and browser checks; no deployment |
 
@@ -139,7 +144,9 @@ Important boundaries and implementation notes:
   may be linked. Both providers use the existing session/cookie/logout code.
 - Native sign-in, password recovery, welcome email, analytics/consent
   integrations, profile editing, API keys, billing, projects, admin screens,
-  Compute, Builder, and Voice are outside the completed milestone.
+  Compute, and Builder are outside the completed milestones. Voice is packaged
+  separately with owner authentication; hosted identity/billing and console
+  installation remain unfinished.
 - At the initial inventory, `backend/docs/source-ownership.md` was untracked and
   described a source layout absent from the actual tree. Do not assume those
   moves occurred; inspect current source and the recorded revisions. That file
@@ -194,6 +201,62 @@ tests do not authenticate with Google; Worker tests stub Google's key response.
 A real Google smoke test was **not run** because no explicit test OAuth client
 was supplied.
 
+## Completed slice — standalone Voice extraction
+
+The user requested moving Voice from `../backend` and `../web`, using the existing
+standalone extraction as reference. The adopted implementation is in
+`products/voice`, based on `ai-receptionist` at
+`7d3e023318f36f7a45e5d155c46d96e3896f9502`, compared against backend
+`0bc20dec148c1a78b40aa252a76735103d1dbe1f` and web
+`3dcea8975e2936ec26da95395b5df3f9042fa5f0`. Identical hosted speech/telephony helpers,
+browser transport and number-search tests were copied directly where applicable.
+`migration-sources.json` records all copied hashes, actual revisions, adaptations,
+and the hosted comparison inventory. All siblings remained read-only.
+
+The product retains one receptionist, owner password authentication, browser/text
+calls, Twilio/Telnyx webhooks and media bridges, speech/language settings, number
+search, call history, transcript deletion/retention, limits and replay protection.
+Its three standalone SQL migrations are unchanged; they belong to Voice's own D1,
+never the accounts database or `delta`. The class `ReceptionistCall`, Durable Object
+migration `v1`, and provider routes are preserved. The runtime has no sibling
+imports, shared platform database access, hosted wallet, or production bindings.
+
+Use `npm run dev:voice` after setting a private password in
+`products/voice/.dev.vars` and running
+`npm run db:migrate:local --workspace @canopy/voice`. The product runs at
+`http://127.0.0.1:8791`; normal local runs disable remote bindings and calling.
+The `canopy_voice_session` cookie is distinct from Canopy accounts and older
+standalone localhost installs. Worker bindings use an explicit Env module, with
+Worker and client globals checked separately. Runtime SDK dependencies are
+retained; Wrangler/Worker types and the patched Miniflare test runtime align with
+the existing workspace toolchain.
+
+Canopy is the maintained source for this extracted product. `npm run export:voice`
+from a clean commit creates `products/voice/dist/source` with the product source,
+license, provenance, source revision and its own lockfile. It preserves every
+dependency resolution from the root lock and needs no platform workspace to build.
+`-- --allow-dirty` marks verification exports as not releases. This export and the
+monorepo Appflare template distribute the same implementation; no third engine
+or speculative shared package was introduced. Existing sibling deployments still
+use their existing code until an intentional release transition.
+
+Verification: `npm run check` passed 23 account/client tests and 64 Voice tests,
+all type checks and builds. `npm run build:staging` and 21 existing account/console/
+Google browser tests passed. Six new Voice browser tests passed owner login,
+save/reload, a full text turn through the real local call runtime, history,
+transcript deletion, logout, errors/retry, keyboard controls and all four target
+viewports including dialogs. Screenshots were inspected. A product-only export
+passed a separate install, type checks, build and 64 tests. Normal local Wrangler
+startup, migrations and unauthenticated access checks also passed. Tests use
+deterministic AI/carrier fixtures; no paid inference or real phone call was made.
+
+The [installation boundary](products/voice/docs/installation.md) records ownership,
+operator authorization, credentials, retention, direct Wrangler setup and cleanup.
+The [Appflare template](products/voice/docs/appflare.md) targets a future published
+Canopy pin and has not been packed or installed remotely. No target account or live
+Voice resources were selected. Staging commands still deploy only accounts and the
+console. This completes packaging, not the full install/status/open milestone.
+
 ## Next milestone — first product installation
 
 The goal is one complete path: an authorized operator chooses a product in Canopy,
@@ -201,15 +264,12 @@ installs it into the operator's Cloudflare account, sees its actual installation
 status after reload, and opens a working product. A catalog link, a configuration
 toggle, or a successful build alone does not complete this milestone.
 
-Start with **Voice as the provisional first candidate**, following the existing
-README plan and its standalone `../ai-receptionist` reference. This is a candidate,
-not a claim that its current packaging is ready. Before implementation, inspect
-the current standalone and hosted sources read-only, record their revisions, and
-identify the smallest independently usable slice, required resources, credentials,
-authentication, and external services. Confirm the product and supported install
-path from that evidence. Do not bundle full hosted/standalone engine convergence
-into this first install unless the selected slice requires it, or create a third
-maintained Voice implementation.
+**Voice is selected and packaged** with the single-owner standalone boundary
+described above. Continue from that code and its installation documentation.
+Recheck the source pin and current Appflare packaging when implementing the adapter.
+Do not repeat the extraction or bundle full hosted/standalone engine convergence
+into the first install unless required by the chosen path. The product source
+export is its independent distribution boundary.
 
 Work in these independently verifiable slices:
 
