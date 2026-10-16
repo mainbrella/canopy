@@ -185,6 +185,27 @@ jobs:
       - run: python -m unittest discover -s scripts/tests -p 'test_*.py'
         working-directory: apps/raindrop
 
+  staging:
+    needs: changes
+    if: needs.changes.outputs.backend_full == 'true' || needs.changes.outputs.site == 'true' || needs.changes.outputs.builder == 'true' || needs.changes.outputs.raindrop_ui == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      # This path uses offline resource IDs and never discovers, creates,
+      # migrates, or publishes Cloudflare resources. No token is provided.
+      - run: npm run stg:check
+
   docs:
     needs: changes
     if: needs.changes.outputs.docs == 'true'
@@ -205,7 +226,7 @@ jobs:
 
   # Keep the existing required status name and reject an unexpectedly skipped job.
   test:
-    needs: [changes, backend-full, backend-services, sdk-artifacts, web, raindrop, operations, docs]
+    needs: [changes, backend-full, backend-services, sdk-artifacts, web, raindrop, operations, staging, docs]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -233,6 +254,7 @@ jobs:
             ['web', scope.site === 'true' || scope.builder === 'true'],
             ['raindrop', scope.raindrop_ui === 'true'],
             ['operations', scope.ops === 'true'],
+            ['staging', scope.backend_full === 'true' || scope.site === 'true' || scope.builder === 'true' || scope.raindrop_ui === 'true'],
             ['docs', scope.docs === 'true'],
           ];
           for (const [name, selected] of expected) {

@@ -1,5 +1,6 @@
 import { accountBillingRequest } from './prepaid-billing';
 import { storageCharging, STORAGE_DAY_MS, STORAGE_RETENTION_DAYS, storageFundingQuote } from './r2-storage';
+import { emailDeliveryEnabled, publicWebOrigin } from './deployment-environment';
 
 export type StorageRetention = {
   writesBlocked: boolean; deletionAt: number | null; notice: string | null;
@@ -33,7 +34,7 @@ export async function notifyStorageRetention(env: Env) {
     WHERE a.writes_blocked=1 AND a.expired_at IS NULL AND a.user_id>? ORDER BY a.user_id LIMIT 50`)
     .bind(cursor?.value ?? '').all<RetentionRow & { email: string | null }>();
   for (const row of rows.results) {
-    if (!row.email || !env.WELCOME_EMAIL || row.delete_after === null) continue;
+    if (!row.email || !env.WELCOME_EMAIL || !emailDeliveryEnabled(env) || row.delete_after === null) continue;
     const remaining = row.delete_after - Date.now();
     const column = row.email_warned_at === null ? 'email_warned_at'
       : remaining <= STORAGE_DAY_MS && row.reminder_one_at === null ? 'reminder_one_at'
@@ -44,7 +45,7 @@ export async function notifyStorageRetention(env: Env) {
     try {
       await env.WELCOME_EMAIL.send({ from: { email: 'andrew@mainbrella.com', name: 'Mainbrella' }, to: row.email,
         subject: column === 'email_warned_at' ? 'Action needed: your Mainbrella storage funding' : 'Reminder: download or fund your Mainbrella files',
-        text: `Storage funding could not be renewed. Your saved source and Git history are read-only and scheduled for deletion on ${new Date(deadline).toISOString()}.\n\nAdd funds or download your repositories at https://mainbrella.com/balance/ before that date. You can also export each app from its Build page. Funding renewal cancels deletion.\n\nIf you need help, reply to this email.` });
+        text: `Storage funding could not be renewed. Your saved source and Git history are read-only and scheduled for deletion on ${new Date(deadline).toISOString()}.\n\nAdd funds or download your repositories at ${publicWebOrigin(env)}/balance/ before that date. You can also export each app from its Build page. Funding renewal cancels deletion.\n\nIf you need help, reply to this email.` });
       if (column === 'email_warned_at') await env.DB.prepare(`UPDATE r2_accounts SET warned_at=COALESCE(warned_at,?),email_warned_at=?,delete_after=MAX(delete_after,?)
         WHERE user_id=? AND delete_after=? AND writes_blocked=1 AND expired_at IS NULL AND email_warned_at IS NULL`)
         .bind(Date.now(), Date.now(), deadline, row.user_id, row.delete_after).run();

@@ -2,6 +2,7 @@ import { validPreviewId, validPreviewToken } from '../containers/preview-contrac
 import { handleProjectGateway } from './project-gateway';
 import type { ProjectHostingEnv } from './lib/project-hosting';
 import { reportPreviewDocument } from './lib/acquisition-sources';
+import { publicWebOrigin } from './lib/deployment-environment';
 import { previewDomain, previewOrigin, previewsConfigured, previewTokenHash, prunePreviewRoutes, validPreviewGeneration,
   type PreviewRoute, type PreviewRoutingEnv } from './lib/preview-routing';
 
@@ -19,7 +20,7 @@ export async function handlePreviewGateway(request: Request, env: PreviewRouting
   if (!domain || (host && host.toLowerCase() !== url.host)) return unavailable();
   if (env.LOCAL_DEV !== 'true' && (url.protocol !== 'https:' || url.port)) return unavailable();
   if (url.hostname === domain) {
-    const target = new URL('https://mainbrella.com/');
+    const target = new URL(publicWebOrigin(env));
     target.pathname = url.pathname;
     target.search = url.search;
     return Response.redirect(target.href, 308);

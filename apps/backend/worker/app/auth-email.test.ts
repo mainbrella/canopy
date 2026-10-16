@@ -87,6 +87,44 @@ Best,
   assert.notEqual(f.sqlite.prepare("SELECT password_hash FROM users WHERE email = ?").get("other@example.com")?.password_hash, stored);
 });
 
+test('staging origins and browser sessions remain separate from production', async t => {
+  const f = fixture(t);
+  const production = await f.login();
+  assert.equal(production.status, 200);
+  const productionCookie = production.headers.get('set-cookie')!.split(';')[0];
+  assert.match(productionCookie, /^mainbrella_session=/);
+  assert.equal((await f.login('person@example.com', 'a strong password', 'https://stg.mainbrella.com')).status, 403);
+
+  f.env.DEPLOYMENT_ENVIRONMENT = 'staging';
+  const request = (path: string, origin: string, cookie?: string, method = 'GET') =>
+    handleRequest(new Request(`https://api-stg.mainbrella.com${path}`, {
+      method, headers: { Origin: origin, ...(cookie ? { Cookie: cookie } : {}) },
+    }), f.env);
+  for (const origin of ['https://mainbrella.com', 'https://www.mainbrella.com', 'https://raindrop.mainbrella.com', 'http://localhost:5173']) {
+    assert.equal((await request('/auth/me', origin)).status, 403, origin);
+  }
+  assert.equal((await request('/auth/me', 'https://stg.mainbrella.com', productionCookie)).status, 200);
+  assert.deepEqual(await (await request('/auth/me', 'https://stg.mainbrella.com', productionCookie)).json(), { user: null });
+  const stage = await f.login('person@example.com', 'a strong password', 'https://stg.mainbrella.com');
+  assert.equal(stage.status, 200);
+  assert.equal(stage.headers.get('access-control-allow-origin'), 'https://stg.mainbrella.com');
+  const stageCookie = stage.headers.get('set-cookie')!.split(';')[0];
+  assert.match(stageCookie, /^mainbrella_session_stg=/);
+  await Promise.all(f.background);
+  assert.equal(f.emails.length, 1);
+  const stageMe = await request('/auth/me', 'https://raindrop-stg.mainbrella.com', stageCookie);
+  assert.equal((await stageMe.json() as { user: { email: string } }).user.email, 'person@example.com');
+  const logout = await request('/auth/logout', 'https://stg.mainbrella.com', stageCookie, 'POST');
+  assert.equal(logout.status, 200);
+  assert.match(logout.headers.get('set-cookie')!, /^mainbrella_session_stg=; Max-Age=0/);
+  assert.deepEqual(await (await request('/auth/me', 'https://stg.mainbrella.com', stageCookie)).json(), { user: null });
+  f.env.DEPLOYMENT_ENVIRONMENT = 'production';
+  const productionMe = await handleRequest(new Request('https://api.mainbrella.com/auth/me', {
+    headers: { Origin: 'https://mainbrella.com', Cookie: productionCookie },
+  }), f.env);
+  assert.equal((await productionMe.json() as { user: { email: string } }).user.email, 'person@example.com');
+});
+
 test("new accounts require valid email and bounded passwords", async t => {
   const f = fixture(t);
   for (const [email, password, error] of [

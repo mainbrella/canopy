@@ -1,4 +1,5 @@
 import { LaunchError, repoName, resolvePublicRepo, resolveRepository, type LaunchOptions, type ResolvedRepo } from './repo-launch';
+import { publicApiOrigin } from './deployment-environment';
 
 export interface GithubCredentials { access_token: string; refresh_token?: string; expires_in?: number; refresh_token_expires_in?: number }
 interface Connection { credentials: string; expires_at: number; github_user_id: string; github_login: string }
@@ -90,7 +91,7 @@ export async function resolveUserRepository(env: Env, owner: string, repo: strin
 }
 
 export function githubCallbackURL(env: Env) {
-  return `${env.LOCAL_DEV === 'true' ? 'http://localhost:8787' : 'https://api.mainbrella.com'}/github/import/callback`;
+  return `${env.LOCAL_DEV === 'true' ? 'http://localhost:8787' : publicApiOrigin(env)}/github/import/callback`;
 }
 
 export async function suggestedPrivateSetup(env: Env, owner: string, repo: ResolvedRepo, cwd: string): Promise<LaunchOptions> {

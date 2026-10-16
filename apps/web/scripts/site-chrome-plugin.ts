@@ -123,8 +123,10 @@ function appChrome(path: string) {
 
 // Render shared chrome into HTML so navigation works without JavaScript.
 export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: boolean } = {}): Plugin {
+  let staging = false;
   return {
     name: 'site-chrome',
+    configResolved(config) { staging = config.mode === 'staging'; },
     transformIndexHtml: {
       order: 'pre',
       async handler(html, context) {
@@ -151,6 +153,7 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
         }
         // A separate static deployment bundles its own copy of shared images.
         if (bundleAssets) html = html.replaceAll('"/images/logo.png"', '"/public/images/logo.png"');
+        if (staging) html = html.replaceAll('https://api.mainbrella.com', 'https://api-stg.mainbrella.com');
         return html.replace('</body>', '<script type="module" src="/src/acquisition.ts"></script>\n  </body>');
       },
     },

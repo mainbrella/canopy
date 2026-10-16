@@ -143,7 +143,7 @@ function turnInsert(env: Env, appId: string, userId: string, turnId: string, key
 
 export async function handleBuildRequest(request: Request, env: Env): Promise<Response> {
   if (request.method === 'GET' && storageMetered(env) && (/\/build\/apps\//.test(new URL(request.url).pathname) || new URL(request.url).pathname === '/build/events')) {
-    const cors = authCorsHeaders(request);
+    const cors = authCorsHeaders(request, env);
     if (cors === null) return authJson({ error: 'origin_not_allowed' }, 403, {});
     const user = await currentUser(env, request);
     if (!user) return authJson({ error: 'not_authenticated' }, 401, cors);
@@ -159,7 +159,7 @@ export async function handleBuildRequest(request: Request, env: Env): Promise<Re
   return buildRequest(request, env);
 }
 async function buildRequest(request: Request, env: Env): Promise<Response> {
-  const cors = authCorsHeaders(request);
+  const cors = authCorsHeaders(request, env);
   if (cors === null) return authJson({ error: 'origin_not_allowed' }, 403, {});
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   const url = new URL(request.url);

@@ -13,7 +13,7 @@ export async function apiKeyUser(env: Env, token: string): Promise<AuthUser | nu
 }
 
 export async function handleAPIKeysRequest(request: Request, env: Env): Promise<Response> {
-  const cors = authCorsHeaders(request);
+  const cors = authCorsHeaders(request, env);
   if (cors === null) return authJson({ error: "origin_not_allowed" }, 403, {});
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   const url = new URL(request.url);

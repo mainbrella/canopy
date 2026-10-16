@@ -1,9 +1,9 @@
-import { stripeRequest, type BillingEnv } from './stripe';
+import { stripeKeyAllowed, stripeRequest, type BillingEnv } from './stripe';
 import { recordFunding, type AccountingCharge } from './accounting-stripe';
 
 export const MIN_TOPUP_CENTS = 500;
 export const MAX_TOPUP_CENTS = 100000;
-export const prepaidBillingConfigured = (env: BillingEnv): boolean => Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PREPAID_PRICE_ID);
+export const prepaidBillingConfigured = (env: BillingEnv): boolean => stripeKeyAllowed(env) && Boolean(env.STRIPE_PREPAID_PRICE_ID);
 export const validTopupAmount = (amount: unknown): amount is number => Number.isSafeInteger(amount) && Number(amount) >= MIN_TOPUP_CENTS && Number(amount) <= MAX_TOPUP_CENTS;
 export const stripeID = (value: unknown, prefix: string): value is string => typeof value === 'string' && new RegExp(`^${prefix}_[A-Za-z0-9_]+$`).test(value);
 export interface PrepaidAccount { user_id: string; stripe_customer_id: string; payment_method_id: string | null; latest_payment_intent_id: string | null }

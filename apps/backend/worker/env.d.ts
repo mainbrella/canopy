@@ -1,6 +1,8 @@
 // Legacy application modules support these optional integrations. Keep their
 // declarations separate from Wrangler's generated deployment bindings.
 interface Env {
+  DEPLOYMENT_ENVIRONMENT?: 'production' | 'staging';
+  EMAIL_DELIVERY_ENABLED?: string;
   VOICE_ENABLED?: string;
   VOICE_PHONE_MICRO_USD_PER_MINUTE?: string;
   VOICE_SIP_MICRO_USD_PER_MINUTE?: string;

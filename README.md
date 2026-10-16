@@ -13,8 +13,8 @@ release targets.
 All three source histories were imported with `git subtree add` without squashing.
 [The import manifest](migration/imports.json) records exact origins, source commits,
 licenses, dependency versions, and worker configuration fingerprints. Canopy's
-original history, `main`, and `origin` are preserved. The migration work is on
-`codex/monorepo-migration`.
+original history and `origin` are preserved. The migration is merged into `main`;
+production cutover remains pending.
 
 ## Development
 
@@ -64,6 +64,27 @@ configuration and dependency changes.
 Production cutover is **pending**. [The cutover checklist](migration/CUTOVER.md)
 records repository integrations, external release owners, and remaining rollout
 work. No infrastructure or production publishing was performed by this migration.
+
+### Staging
+
+Staging uses `stg.mainbrella.com`, `api-stg.mainbrella.com`, and
+`raindrop-stg.mainbrella.com`, with separate workers, databases, storage, sessions,
+and deployment controls. Production hosts and resource bindings stay unchanged.
+See [the staging setup and release guide](STAGING.md) for the one-time GitHub,
+Cloudflare, preview DNS/TLS, and Google sign-in setup.
+
+```sh
+npm run stg:plan                  # Show reserved hosts and resources
+npm run stg:check                 # Test and bundle all targets without publishing
+npm run stg:bootstrap             # First installation, through GitHub Actions
+npm run stg:deploy -- api         # Subsequent release of one staging target
+```
+
+The staging workflow has its own `CANOPY_STAGING_DEPLOYS_ENABLED` gate and never
+enables the production release workflow. Staging starts with empty data and
+external purchases and email delivery disabled.
+
+### Production
 
 After cutover, select exactly one target:
 

@@ -97,6 +97,34 @@ async function document() {
   return response.json() as Promise<any>;
 }
 
+test('staging documentation is isolated without changing production schema or docs configuration', async () => {
+  const productionEnv = {} as Env;
+  const stagingEnv = { DEPLOYMENT_ENVIRONMENT: 'staging' } as Env;
+  const getDocument = (env: Env) => handleRequest(new Request('https://api-stg.mainbrella.com/openapi.json'), env);
+  const before = await (await getDocument(productionEnv)).text();
+  const stagingFirst = await (await getDocument(stagingEnv)).text();
+  const after = await (await getDocument(productionEnv)).text();
+  const stagingSecond = await (await getDocument(stagingEnv)).text();
+  assert.equal(after, before);
+  assert.equal(stagingSecond, stagingFirst);
+  const production = JSON.parse(before);
+  const staging = JSON.parse(stagingFirst);
+  assert.deepEqual(production.servers, [{ url: 'https://api.mainbrella.com' }, { url: 'http://localhost:8787', description: 'Local development' }]);
+  assert.deepEqual(staging.servers, [{ url: 'https://api-stg.mainbrella.com' }]);
+  assert.equal(production.components.securitySchemes.cookieAuth.name, 'mainbrella_session');
+  assert.equal(staging.components.securitySchemes.cookieAuth.name, 'mainbrella_session_stg');
+  assert.match(staging.components.securitySchemes.apiKeyBearer.description, /stg\.mainbrella\.com\/api-keys\//);
+  assert.doesNotMatch(staging.components.securitySchemes.apiKeyBearer.description, /(?:^|\s)mainbrella\.com\/api-keys\//);
+  assert.deepEqual(staging.paths, production.paths);
+  for (const path of ['/docs', '/redocs']) {
+    const response = await handleRequest(new Request(`https://api-stg.mainbrella.com${path}`), stagingEnv);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /\/openapi\.json/);
+    assert.doesNotMatch(html, /https:\/\/api\.mainbrella\.com/);
+  }
+});
+
 test('streamed downloads publish the length contract required by SDK consumers', async () => {
   const { paths } = await document();
   const download = paths['/containers/files/transfer'].get;

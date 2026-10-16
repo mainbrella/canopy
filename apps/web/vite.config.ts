@@ -15,6 +15,7 @@ const publicPages = ['docs', 'docs/containers', 'docs/execute', 'docs/files', 'd
   'e2b-alternative', 'daytona-alternative', 'cloudflare-sandbox'];
 
 const legacyPricingRoutes = ['builder', 'pro', 'scale'];
+let staging = false;
 
 // Preserve the public script URL while maintaining its source in TypeScript.
 async function homepageScript() {
@@ -27,6 +28,15 @@ export default defineConfig({
   publicDir: "public",
   plugins: [
     siteChromePlugin(),
+    {
+      name: 'staging-noindex',
+      configResolved(config) { staging = config.mode === 'staging'; },
+      generateBundle() {
+        if (!staging) return;
+        this.emitFile({ type: 'asset', fileName: 'robots.txt', source: 'User-agent: *\nDisallow: /\n' });
+        this.emitFile({ type: 'asset', fileName: '_headers', source: '/*\n  X-Robots-Tag: noindex, nofollow\n' });
+      },
+    },
     blogPaginationPlugin(),
     agentDocsPlugin(),
     {

@@ -6,7 +6,7 @@ import { checkGithubWriteAccess, githubProject, publicGithubProject, migrateGith
 import { storeBuildSource } from '../lib/build-storage';
 
 export async function handleProjectGithubRequest(request: Request, env: Env): Promise<Response> {
-  const cors = authCorsHeaders(request);
+  const cors = authCorsHeaders(request, env);
   if (cors === null) return authJson({ error: 'origin_not_allowed' }, 403, {});
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   const deleting = new URL(request.url).pathname === '/projects/github/storage';

@@ -202,7 +202,7 @@ async function advance(request: Request, env: Env, owner: string, id: string, di
 
 export async function handleRepoLaunchRequest(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const receivedAt = Date.now();
-  const cors = authCorsHeaders(request);
+  const cors = authCorsHeaders(request, env);
   if (cors === null) return authJson({ error: 'origin_not_allowed' }, 403, {});
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   const url = new URL(request.url);

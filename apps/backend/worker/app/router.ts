@@ -55,10 +55,10 @@ async function handleLegacyRequest(
   if (url.pathname === '/domains' || url.pathname.startsWith('/domains/')) return handleDomainsRequest(request, env);
   const service = serviceForPath(url.pathname);
   if (service === "admin") {
-    return forwardServiceRequest(request, env.ADMIN_API, "admin_unavailable");
+    return forwardServiceRequest(request, env.ADMIN_API, "admin_unavailable", env);
   }
   if (service === "marketing") {
-    return forwardServiceRequest(request, env.MARKETING_API, "marketing_unavailable");
+    return forwardServiceRequest(request, env.MARKETING_API, "marketing_unavailable", env);
   }
   if (url.pathname.startsWith('/github/import/')) return handleGithubImportRequest(request, env);
   if (url.pathname.startsWith('/github/build/')) return handleGithubBuildRequest(request, env);

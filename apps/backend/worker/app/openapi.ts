@@ -43,6 +43,7 @@ import { registerSecurityInfrastructureRoutes } from './openapi-security-infrast
 import { registerVoiceRoutes } from './openapi-voice';
 import { registerVoiceTelnyxRoutes } from './openapi-voice-telnyx';
 import { registerVoiceNumberSearchRoutes } from './openapi-voice-number-search';
+import { isStaging, publicApiOrigin, publicWebOrigin } from '../lib/deployment-environment';
 
 // Independent service documents keep infrastructure routes off the customer API.
 export function createSecurityInfrastructureApp(kind: 'relay' | 'ack', handler: LegacyHandler) {
@@ -59,6 +60,24 @@ export function createSecurityInfrastructureApp(kind: 'relay' | 'ack', handler: 
 
 export function createOpenAPIApp(handler: LegacyHandler) {
   const app = new Hono<{ Bindings: Env }>();
+  // Chanfana owns the static document. Rewrite only the response for a staging
+  // request so production's generated schema and cached registry stay intact.
+  app.use('/openapi.json', async (context, next) => {
+    await next();
+    if (context.req.method !== 'GET' || !isStaging(context.env) || !context.res.ok) return;
+    const schema = await context.res.json() as {
+      servers: { url: string }[];
+      components: { securitySchemes: {
+        cookieAuth: { name: string };
+        apiKeyBearer: { description: string };
+      } };
+    };
+    schema.servers = [{ url: publicApiOrigin(context.env) }];
+    schema.components.securitySchemes.cookieAuth.name = 'mainbrella_session_stg';
+    schema.components.securitySchemes.apiKeyBearer.description = schema.components.securitySchemes.apiKeyBearer.description
+      .replace('mainbrella.com/api-keys/', `${new URL(publicWebOrigin(context.env)).host}/api-keys/`);
+    context.res = new Response(JSON.stringify(schema), { status: context.res.status, headers: context.res.headers });
+  });
   const api = fromHono(app, {
     docs_url: "/docs", redoc_url: "/redocs", openapi_url: "/openapi.json",
     schema: {

@@ -3,11 +3,22 @@ import { fileURLToPath } from "node:url";
 import { copyFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
+let staging = false;
+
 export default defineConfig({
   base: "/",
   publicDir: "public",
   server: { port: 5174, strictPort: true },
   plugins: [
+    {
+      name: 'staging-noindex',
+      configResolved(config) { staging = config.mode === 'staging'; },
+      generateBundle() {
+        if (!staging) return;
+        this.emitFile({ type: 'asset', fileName: 'robots.txt', source: 'User-agent: *\nDisallow: /\n' });
+        this.emitFile({ type: 'asset', fileName: '_headers', source: '/*\n  X-Robots-Tag: noindex, nofollow\n' });
+      },
+    },
     {
       name: "admin-route-pages",
       async writeBundle(options) {
