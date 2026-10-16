@@ -29,9 +29,11 @@
 ## Where work stopped
 
 Last implementation handoff: **2026-10-16**. The first account milestone is in
-commit `94f620c` (`first brella under`). The Google browser sign-in milestone is
-implemented in the current working tree. The tree was clean at the start of this
-slice. The [README](README.md) contains setup instructions, the inspected source
+commit `94f620c` (`first brella under`). The **Google browser sign-in milestone is
+complete** in commit `922cf30` (`google`), including the optional console control,
+shared client, Worker verification, identity-conflict protection, and automated
+regressions. Real Google login remains an outstanding verification checkpoint.
+The [README](README.md) contains setup instructions, the inspected source
 inventory, and the broader migration plan; distinguish that plan from working code.
 
 Implemented:
@@ -114,7 +116,7 @@ An installed Chrome/Chromium executable can instead be selected with
 to be free, and create test accounts in the local development database.
 Screenshots are in ignored `test-results/`.
 
-Last implementation verification passed:
+Verification recorded for the completed Google milestone:
 
 - All TypeScript checks, Worker dry-run build, and console build. No dependencies
   were added; the initial milestone had also verified a fresh `npm ci`.
@@ -137,18 +139,33 @@ deployment or a completed remote CI run. Google browser tests do not authenticat
 with Google; Worker tests stub Google's key response. A real Google smoke test
 was **not run** because no explicit test OAuth client was supplied.
 
-## Next checkpoint — real Google smoke test, then isolated staging
+## Next checkpoint — real Google smoke test
 
-The local Google browser slice is implemented. Its sources were reinspected at
-the same revisions recorded in `migration-sources.json`; copied identity
-migrations and sibling repositories remain unchanged. Stop this slice here.
+The implementation milestone is done; do not repeat the Google extraction or
+bundle another product into it. Its sources were reinspected at the revisions
+recorded in `migration-sources.json`.
 
-1. With an explicitly supplied separate test Web OAuth client, follow the README
-   configuration and use `http://localhost:5175`. Test Google creation, repeat
-   login, reload, logout, and password-account conflicts. Report actual Google
-   behavior separately from the stubbed tests. Do not change production OAuth
-   origins or use the sibling production client as a fallback.
-2. Separately scope an isolated staging milestone with its own database and
-   explicit console/API routing. Review hosting, HTTPS cookies, origin policy,
-   provider configuration, key caching and the full migration stream before any
-   deployment. This recommendation is not authorization to create hosted resources.
+Use an explicitly supplied separate test Web OAuth client, follow the README
+configuration, and open `http://localhost:5175`. Verify Google account creation,
+repeat login, reload, logout, and rejection of a password account with the same
+email. Record the real provider result separately from the automated tests and
+update these notes. Without that test client, leave this checkpoint pending and
+keep Google optional. Do not change production OAuth origins or use the sibling
+production client as a fallback.
+
+## Next milestone — isolated staging preparation
+
+After the real Google flow is verified, scope a separate staging slice for the
+accounts Worker and console:
+
+1. Define an isolated database and explicit console/API routing so the built
+   console can reach auth without Vite's development proxy.
+2. Review HTTPS session cookies, the exact origin allowlist, separate test OAuth
+   configuration, Google key caching, and the migration history required for a
+   fresh staging database. Preserve all existing local auth behavior.
+3. Prepare the configuration and relevant checks inside Canopy, then document
+   the proposed resources, validation steps, and teardown before deployment.
+
+Staging is proposed work, not an existing deployment or authorization to create
+hosted resources. Keep production databases, OAuth settings, domains, and sibling
+deployments unchanged; defer billing, Raindrop, and product migrations.
