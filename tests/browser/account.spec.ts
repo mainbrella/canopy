@@ -6,6 +6,8 @@ test("create account, reload, sign out, reject a wrong password, and sign back i
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
+  await expect(page.locator("#google-sign-in")).toBeHidden();
+  expect(await page.locator('script[src="https://accounts.google.com/gsi/client"]').count()).toBe(0);
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Continue with email" }).click();

@@ -2,11 +2,11 @@
 
 Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
 
-The first working milestone is a local email/password account flow: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their running services.
+The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their running services.
 
 Canopy is one repository for these products; it is not every repository in the Mainbrella organization. A normal user installing Voice, Compute, or Builder should only need that product's supported build and runtime requirements, not a clone of the whole repository or every service in it.
 
-## Run the first milestone
+## Run the account milestone
 
 Use Node 22.13 or newer (Node 22 is used in CI) and npm 10 or newer. From this repository:
 
@@ -17,7 +17,7 @@ npm run dev
 
 Open **http://127.0.0.1:5175**. Continue with an email and password to create a local account, inspect its details, reload to check the session, and sign out. An existing email signs in instead of creating a second account. New passwords need 8–128 characters, matching the current backend. These are new local accounts; existing Mainbrella accounts and customer data have not been imported.
 
-`npm run dev` checks that ports 5175 and 8789 are free, applies the three local identity migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. No Cloudflare login, sibling checkout, Docker, secrets, or external service is needed. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
+`npm run dev` checks that ports 5175 and 8789 are free, applies the three local identity migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. Email sign-in needs no Cloudflare login, sibling checkout, Docker, secrets, or external service. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
 
 ```sh
 npm run check          # TypeScript, auth regressions, Worker dry-run and console build
@@ -26,48 +26,75 @@ npm run test:browser   # Browser integration, error states, keyboard and respons
 
 For the browser suite, install Chromium once with `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npx playwright install chromium`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run test:browser`. Alternatively set `CANOPY_CHROMIUM_PATH` to an existing Chromium/Chrome executable. CI installs its browser automatically. The browser tests start their own local stack, refuse occupied ports, and create disposable accounts in the local development database. Screenshots go in ignored `test-results/`.
 
+The browser command runs two stacks sequentially: the existing email suite with Google disabled, then the Google UI suite with an explicit fake client ID and stubbed Google script/API responses. These settings override local console configuration during tests. Worker tests use locally generated RSA keys and stubbed Google key responses with real signature verification and SQLite. No automated test signs into Google or uses a production OAuth client.
+
 The build produces `platform/accounts/dist/` and `platform/console/dist/`. There is no deployment command or production configuration. The static console build needs the same `/auth/*` routing when a hosting target is introduced; Vite's development proxy is not part of that build.
+
+### Optional Google browser sign-in
+
+Google is disabled by default. To try a real login, use a separate **test Web application OAuth client** with `http://localhost` and `http://localhost:5175` authorized, following [Google's local setup instructions](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid). Do not reuse or modify the existing production client. Put the same test client ID in these two ignored local files:
+
+```dotenv
+# platform/accounts/.dev.vars
+GOOGLE_CLIENT_ID=your-test-client.apps.googleusercontent.com
+```
+
+```dotenv
+# platform/console/.env.local
+VITE_GOOGLE_CLIENT_ID=your-test-client.apps.googleusercontent.com
+```
+
+Restart `npm run dev` and open **http://localhost:5175** for the Google smoke test. The configured origin must match the browser address; localhost and 127.0.0.1 have separate cookies. The Vite development server supplies Google's recommended localhost referrer policy. This is the popup/callback flow, so no client secret or redirect endpoint is needed. The console client ID is public and embedded at build time; the Worker independently verifies the token audience against its own configuration. Both settings must match.
+
+With no console client ID, the Google control is absent and its script is never requested. With no Worker client ID, `/auth/google` fails closed with `google_unavailable` (503). A blocked or stalled Google script offers a retry while email stays usable. Google logout uses the same session revocation as email and disables automatic account selection.
+
+The verifier retains Google's RS256 signature, issuer, audience, expiry and verified-email checks, plus the source's issued-at tolerance. It rejects malformed numeric claims, unsupported critical headers, future `nbf` claims and invalid email shapes. The public key request uses Google's fixed HTTPS endpoint with a five-second timeout; no test key endpoint or token bypass is exposed in runtime configuration. [Google's verification guidance](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token) describes the underlying checks.
+
+Accounts are identified by the stable Google subject. A Google credential cannot claim a password account or a different Google subject with the same normalized email; the API returns `identity_conflict` (409). Concurrent creation/linking rechecks the saved identity before issuing a session. Legacy rows without either credential may be linked, as in the source. A changed Google email does not rewrite the existing account profile.
+
+The real smoke test remains separate from automated verification: use the configured test client to create an account, reload, sign out, sign back in, and check that a password account with the same email is rejected by Google sign-in. **No real Google smoke test has been run for this handoff**, because no test OAuth client was supplied. Native sign-in and hosted deployment remain outside this slice.
 
 ## What has moved
 
 | Canopy location | Working responsibility | Source |
 | --- | --- | --- |
-| `platform/accounts/` | Email/password signup and sign-in, session lookup/revocation, local D1 | Browser subset of `backend/worker/app/auth*.ts` |
-| `platform/console/` | Sign-in and read-only account details | New minimal UI using the existing TypeScript/Vite approach |
+| `platform/accounts/` | Email/password and Google browser signup/sign-in, session lookup/revocation, local D1 | Browser subset of `backend/worker/app/auth*.ts` |
+| `platform/console/` | Optional Google control, email form and read-only account details | Minimal TypeScript/Vite UI; Google loader adapted from Raindrop |
 | `packages/contracts/` | Public user/session types and runtime response guards | Backend's public user fields and Raindrop's validation pattern |
-| `packages/platform-client/` | Credentialed email/session client without UI globals | `web/src/auth.ts` and `raindrop/src/auth.ts` |
+| `packages/platform-client/` | Credentialed email/Google/session client without UI globals | `web/src/auth.ts` and `raindrop/src/auth.ts` |
 
 [migration-sources.json](migration-sources.json) records exact source commits, file hashes, destination paths, and adaptations. These are deliberate subset copies with provenance, not a Git history merge. Canopy's builds and tests resolve everything from this checkout and its root lockfile; nothing imports a sibling repo.
 
 This milestone preserves scrypt password parameters, normalized email lookup, concurrent-signup checks, SHA-256 session-token storage, 30-day sessions, and the existing public user fields. The copied SQL migrations `001_initial.sql`, `002_auth_sessions.sql`, and `012_email_password.sql` are unchanged, including their names. They form a **fresh local identity database only**, not the complete migration stream for the live `delta` database. Never apply this subset to an existing hosted database.
 
-Intentional adaptations are limited to explicit environment bindings, a configurable origin allowlist, streamed JSON size limits, and local development. The development cookie is `canopy_session`, HttpOnly and SameSite=Lax, so it does not overwrite sibling apps' `mainbrella_session` cookie. That exception requires both the local flag and a loopback request; other hosts retain the original Secure/SameSite=None cookie behavior. Missing database or rate-limit bindings fail closed. The local Wrangler configuration names only a local database placeholder and contains no production resource bindings or routes.
+Intentional adaptations include explicit environment bindings, a configurable origin allowlist, streamed JSON size limits, local development, and the Google validation/race safeguards described above. The development cookie is `canopy_session`, HttpOnly and SameSite=Lax, so it does not overwrite sibling apps' `mainbrella_session` cookie. That exception requires both the local flag and a loopback request; other hosts retain the original Secure/SameSite=None cookie behavior. Missing database or rate-limit bindings fail closed. The local Wrangler configuration names only a local database placeholder and contains no production resource bindings or routes.
 
 ### Account API in this milestone
 
 | Method and path | Request | Success |
 | --- | --- | --- |
 | `POST /auth/email` | JSON `{ email, password }` | `{ user, created }` and an HttpOnly session cookie |
+| `POST /auth/google` | JSON `{ credential }` containing a Google ID token | `{ user, created }` and the same HttpOnly session cookie |
 | `GET /auth/me` | Optional session cookie | `{ user }`, or `{ user: null }` when anonymous or expired |
 | `POST /auth/logout` | Optional session cookie | `{ ok: true }`, revoking that session and expiring its cookie |
 
-`user` contains only `id`, `email`, `name`, `dob`, and `created_at`. JSON responses are not cached. Error bodies use `{ error }`: invalid input/weak new passwords (400), invalid credentials (401), rejected origins (403), missing routes (404), wrong methods (405), rate limiting (429 with `Retry-After: 60`), or unavailable infrastructure (503). The email endpoint retains the 20-attempts/minute/IP limiter. Allowed browser origins can preflight with `OPTIONS`. This is the email/session subset of the existing auth API, not its full Google/native/OpenAPI surface.
+`user` contains only `id`, `email`, `name`, `dob`, and `created_at`. JSON responses are not cached. Error bodies use `{ error }`: invalid input/weak new passwords (400), invalid email or Google credentials (401), rejected origins (403), missing routes (404), wrong methods (405), identity conflicts (409), rate limiting (429 with `Retry-After: 60`), or unavailable infrastructure/provider (503). Google errors use `invalid_google_credential`, `identity_conflict`, and `google_unavailable`; infrastructure failures use `auth_unavailable`. The email endpoint retains its 20-attempts/minute/IP limiter; Google has a separate limiter with the same limit. Allowed browser origins can preflight with `OPTIONS`. This is the browser auth subset of the existing API, not its native/OpenAPI surface.
 
-Google and native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, and product runtimes have not moved. No account data, production database, wallet, Worker, public URL, or deployment has changed. Before using hosted accounts, bring over their required providers and side effects, review the complete migration history, and verify the existing session/API contracts against an isolated hosted environment.
+Native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, and product runtimes have not moved. No account data, production database, wallet, Worker, public URL, or deployment has changed. Before using hosted accounts, review required side effects and the complete migration history, and verify the existing session/API contracts against an isolated hosted environment.
 
 ## Source inventory — 2026-10-16
 
 | Sibling | Inspected state and boundary | Decision for this pass |
 | --- | --- | --- |
-| `backend` at `0bc20dec148c` | Main API owns auth plus Compute/Builder/Voice orchestration; separate admin, marketing, container, preview, egress-relay and security-ack configs. `delta` identity data and the `CONTAINER_ACCOUNT` wallet are still authoritative there. | Extract only local browser email/session code. |
+| `backend` at `0bc20dec148c` | Main API owns auth plus Compute/Builder/Voice orchestration; separate admin, marketing, container, preview, egress-relay and security-ack configs. `delta` identity data and the `CONTAINER_ACCOUNT` wallet are still authoritative there. | Extract local browser email/Google/session code. |
 | `web` at `3dcea8975e29` | Plain TypeScript/Vite, with separate site and Builder builds. Auth currently also invokes cookie-consent and acquisition/analytics code. | Reuse the auth transport conventions without importing site/product screens. |
-| `raindrop` at `be89935ae248` | Separate Vite admin UI and deployment; its copied auth client already validates responses. | Reuse validation/client behavior. Admin authorization and screens stay there. |
+| `raindrop` at `be89935ae248` | Separate Vite admin UI and deployment; its copied auth client already validates responses. | Reuse validation/client and Google loader behavior. Admin authorization and screens stay there. |
 | `ai-receptionist` | Independently packaged Voice with its own Cloudflare setup and owner auth. | Leave standalone Voice and engine convergence for a later milestone. |
 | `ssh-gateway`, `ios`, upstream forks and other sibling tools | Separate entry points and release concerns. | Remain outside this first extraction. |
 
 The inspected `web` and `raindrop` worktrees were clean. `backend` had an untracked `docs/source-ownership.md`; it describes a broader source reorganization that is absent from the actual tree (implementation is still in `worker/app`, `worker/lib`, and `web/src`). It was left untouched and is not treated as evidence that those moves occurred. Existing source, Wrangler configs, package scripts, and tracked migration files determined this inventory.
 
-The next useful checkpoint is to review this local account slice before choosing another small move. The product migration plan below remains the longer-term direction.
+The next checkpoint is a real Google smoke test with an explicit test client, then a separately scoped isolated staging milestone with its own database and routing. This does not authorize changing production resources. The product migration plan below remains the longer-term direction.
 
 ## Repository shape
 

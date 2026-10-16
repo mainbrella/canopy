@@ -29,22 +29,24 @@
 ## Where work stopped
 
 Last implementation handoff: **2026-10-16**. The first account milestone is in
-commit `94f620c` (`first brella under`). The worktree was clean before adding this
-file. The [README](README.md) contains setup instructions, the inspected source
+commit `94f620c` (`first brella under`). The Google browser sign-in milestone is
+implemented in the current working tree. The tree was clean at the start of this
+slice. The [README](README.md) contains setup instructions, the inspected source
 inventory, and the broader migration plan; distinguish that plan from working code.
 
 Implemented:
 
 | Location | Responsibility |
 | --- | --- |
-| `platform/accounts/` | Local Cloudflare Worker, email/password signup and sign-in, browser sessions, logout, and identity SQL migrations |
-| `platform/console/` | Small Vite/TypeScript sign-in form and read-only account details |
+| `platform/accounts/` | Local Cloudflare Worker, email/password and Google browser signup/sign-in, shared sessions/logout, and identity SQL migrations |
+| `platform/console/` | Small Vite/TypeScript email form, optional Google control with loading/retry, and read-only account details |
 | `packages/contracts/` | Public user/session types and runtime response validation |
 | `packages/platform-client/` | Shared credentialed auth client with injectable fetch and no browser globals |
 | `scripts/` | Local stack startup/cleanup and a Wrangler wrapper for local commands and dry-run builds |
 | `.github/workflows/ci.yml` | Clean install, type checks, auth tests, builds, and browser checks; no deployment |
 
-Current API: `POST /auth/email`, `GET /auth/me`, and `POST /auth/logout`.
+Current API: `POST /auth/email`, `POST /auth/google`, `GET /auth/me`, and
+`POST /auth/logout`.
 An unused email creates a new local account; an existing email authenticates it.
 Session responses retain the backend's `id`, `email`, `name`, `dob`, and
 `created_at` fields. Preserve the existing scrypt parameters, password checks,
@@ -66,7 +68,20 @@ Important boundaries and implementation notes:
   Node types caused a `Buffer` collision; keep the module-based approach.
 - Vite's `/auth` proxy is development-only. A future hosted console needs explicit
   routing; building the static files alone does not provide an API.
-- Google/native sign-in, password recovery, welcome email, analytics/consent
+- Google is optional: set the same explicit test client ID as `GOOGLE_CLIENT_ID`
+  in `platform/accounts/.dev.vars` and `VITE_GOOGLE_CLIENT_ID` in
+  `platform/console/.env.local`. Both files are ignored. With no console client
+  ID, no Google control or script is loaded; with no Worker client ID, the route
+  fails closed. There is no production client fallback or configurable key URL.
+- Google verification uses the source's RS256 signature, issuer, audience,
+  expiry, issued-at and verified-email checks, with strict claim types, email
+  validation, a bounded key-fetch timeout, and private provider errors. Google
+  has a separate 20-attempts/minute/IP limiter; email limits are unchanged.
+- Google subject lookup is stable across email changes. A Google credential
+  cannot claim a password account or another Google subject. Conditional SQL
+  guards concurrent signup/linking; only legacy rows with neither credential
+  may be linked. Both providers use the existing session/cookie/logout code.
+- Native sign-in, password recovery, welcome email, analytics/consent
   integrations, profile editing, API keys, billing, projects, admin screens,
   Compute, Builder, and Voice are outside the completed milestone.
 - At the initial inventory, `backend/docs/source-ownership.md` was untracked and
@@ -101,47 +116,39 @@ Screenshots are in ignored `test-results/`.
 
 Last implementation verification passed:
 
-- Fresh `npm ci`, all TypeScript checks, Worker dry-run build, and console build.
-- 12 auth/client tests, including password hashing, signup races, session expiry
-  and revocation, rejected origins, rate limits, and unavailable infrastructure.
-- 6 browser tests covering real local D1 signup/sign-in/reload/logout, failure
-  recovery, keyboard controls, and all four viewport sizes. Screenshots were
-  visually inspected.
+- All TypeScript checks, Worker dry-run build, and console build. No dependencies
+  were added; the initial milestone had also verified a fresh `npm ci`.
+- 22 auth/client tests, including real local RSA signing and signature checks,
+  invalid claims/keys, provider failures, identity conflicts, concurrent
+  signup/linking, plus the existing password/session/origin/rate regressions.
+- 14 browser tests: 6 existing email/session tests against real local D1 and
+  8 Google UI tests with a stubbed SDK/API. These cover configured/absent Google,
+  script timeout/retry, email fallback, duplicate/late callbacks, logout,
+  keyboard controls and all four viewport sizes. Screenshots were inspected;
+  Google screenshots use the test button, not Google's hosted iframe.
 - Source hashes matched the provenance manifest; all three migration copies
   were unchanged; sibling Git statuses were unchanged.
-- Browser teardown released both ports. The first teardown attempt left child
-  processes running; process-group cleanup and Playwright graceful shutdown
-  fixed it. Preserve that behavior when changing the development runner.
+- Browser teardown released both ports. Preserve the process-group cleanup and
+  Playwright graceful shutdown from the first milestone. npm may log exit 143
+  when Vite is terminated during teardown; the browser command exits successfully.
 
 These are local results from the implementation handoff, not evidence of a live
-deployment or a completed remote CI run.
+deployment or a completed remote CI run. Google browser tests do not authenticate
+with Google; Worker tests stub Google's key response. A real Google smoke test
+was **not run** because no explicit test OAuth client was supplied.
 
-## Next milestone — recommended: Google browser sign-in
+## Next checkpoint — real Google smoke test, then isolated staging
 
-Complete the other existing browser sign-in method while keeping the same small
-console and isolated local accounts. This is the proposed next implementation
-slice, not work already completed or authorization to deploy.
+The local Google browser slice is implemented. Its sources were reinspected at
+the same revisions recorded in `migration-sources.json`; copied identity
+migrations and sibling repositories remain unchanged. Stop this slice here.
 
-1. Reinspect `../backend/worker/app/auth-core.ts` and `auth-login.ts`, plus
-   `../web/src/auth.ts` and `../raindrop/src/auth.ts`/`login.ts`. Extract only the
-   browser Google verification/login behavior; leave native tokens, review-account
-   shortcuts, welcome email, and product dependencies outside Canopy.
-2. Add `POST /auth/google`, its shared client method, and an optional Google
-   sign-in control. Configure the client ID explicitly; with no configuration,
-   email sign-in must remain fully usable and the Google control should be absent.
-   Do not hard-code the production client or change its authorized origins.
-3. Preserve token signature/issuer/audience/expiry checks and verified-email
-   requirements. Preserve the identity-conflict rule: a Google credential must
-   not silently claim an existing password account. Both providers should use
-   the same session lookup and logout behavior.
-4. Test with local signing keys and stubbed Google key responses: valid and
-   invalid tokens, account creation/repeat login, identity conflicts, and
-   provider failures. Cover the optional UI states and rerun the existing email
-   and browser regressions. A real Google smoke test needs an explicitly
-   configured test client; report it separately from mocked verification.
-5. Update README API/setup notes and source provenance. Stop after this slice;
-   do not bundle Raindrop, billing, product migrations, or hosted deployment.
-
-After browser auth is proven, consider a separate isolated staging milestone
-with its own database and routing before moving another platform feature. The
-existing production resources and sibling repositories remain unchanged.
+1. With an explicitly supplied separate test Web OAuth client, follow the README
+   configuration and use `http://localhost:5175`. Test Google creation, repeat
+   login, reload, logout, and password-account conflicts. Report actual Google
+   behavior separately from the stubbed tests. Do not change production OAuth
+   origins or use the sibling production client as a fallback.
+2. Separately scope an isolated staging milestone with its own database and
+   explicit console/API routing. Review hosting, HTTPS cookies, origin policy,
+   provider configuration, key caching and the full migration stream before any
+   deployment. This recommendation is not authorization to create hosted resources.

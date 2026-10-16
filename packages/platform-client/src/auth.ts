@@ -45,6 +45,23 @@ export function createAuthClient({ baseUrl = "", fetcher = fetch }: { baseUrl?: 
       }
       return { user: result.user, created: result.created };
     },
+    async signInWithGoogle(credential?: string): Promise<SignInResult> {
+      if (!credential) throw new Error("Google sign-in could not be completed. Please try again.");
+      const { response, result } = await request("/auth/google", {
+        method: "POST", body: JSON.stringify({ credential }),
+      });
+      if (!response.ok || !isSignInResult(result)) {
+        const messages: Record<string, string> = {
+          identity_conflict: "This email already belongs to another sign-in method. Use the method you used to create the account.",
+          invalid_google_credential: "Google could not verify that sign-in. Please try again.",
+          google_unavailable: "Google sign-in is unavailable. Try again or continue with email.",
+          rate_limited: "Too many attempts. Please wait a minute and try again.",
+        };
+        const code = isRecord(result) && typeof result.error === "string" ? result.error : "";
+        throw new Error(messages[code] || "Could not finish signing you in. Please try again.");
+      }
+      return { user: result.user, created: result.created };
+    },
     async signOut(): Promise<void> {
       const { response, result } = await request("/auth/logout", { method: "POST" });
       if (!response.ok || !isRecord(result) || result.ok !== true) {

@@ -1,44 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { handleRequest } from "../src/index.ts";
 import { hashToken } from "../src/auth-core.ts";
-import type { Env } from "../src/env.ts";
 import type { SignInResult } from "@canopy/contracts/auth";
 import type { D1Database, RateLimit } from "@cloudflare/workers-types/index.ts";
-
-// Adapted from backend/worker/app/auth-email.test.ts. Run real SQL and password
-// hashing; only the Cloudflare D1/limiter transport is adapted for node:test.
-function fixture(t: test.TestContext) {
-  const sqlite = new DatabaseSync(":memory:");
-  t.after(() => sqlite.close());
-  sqlite.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["001_initial.sql", "002_auth_sessions.sql", "012_email_password.sql"]) {
-    sqlite.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), "utf8"));
-  }
-  let limited = false;
-  const keys: string[] = [];
-  const env = {
-    AUTH_ORIGINS: "http://127.0.0.1:5175",
-    LOCAL_DEVELOPMENT: "true",
-    EMAIL_AUTH_LIMIT: { async limit({ key }: { key: string }) { keys.push(key); return { success: !limited }; } },
-    DB: { prepare(sql: string) {
-      let values: SQLInputValue[] = [];
-      return {
-        bind(...args: SQLInputValue[]) { values = args; return this; },
-        async first() { return sqlite.prepare(sql).get(...values) ?? null; },
-        async run() { return sqlite.prepare(sql).run(...values); },
-      };
-    } },
-  } as unknown as Env;
-  const request = (path: string, init: RequestInit = {}) => handleRequest(new Request(`http://127.0.0.1:8789${path}`, init) as Request, env);
-  const login = (email: unknown = "person@example.com", password: unknown = "a strong password", origin = "http://127.0.0.1:5175") => request("/auth/email", {
-    method: "POST", headers: { "content-type": "application/json", Origin: origin, "CF-Connecting-IP": "192.0.2.1" },
-    body: JSON.stringify({ email, password }),
-  });
-  return { sqlite, env, request, login, keys, setLimited() { limited = true; } };
-}
+import { fixture } from "./fixture.ts";
 
 test("signup, returning login, session read and logout preserve the existing auth contract", async t => {
   const f = fixture(t);
@@ -180,7 +146,7 @@ test("malformed and oversized bodies, unsupported routes and methods are rejecte
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: "invalid_request" });
   }
-  assert.equal((await f.request("/auth/google", { method: "POST" })).status, 404);
+  assert.equal((await f.request("/auth/native/google", { method: "POST" })).status, 404);
   const wrongMethod = await f.request("/auth/logout");
   assert.equal(wrongMethod.status, 405);
   assert.equal(wrongMethod.headers.get("allow"), "POST, OPTIONS");

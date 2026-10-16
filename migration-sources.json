@@ -55,21 +55,35 @@
       "source": "worker/app/auth.ts",
       "destination": "platform/accounts/src/index.ts",
       "sha256": "b5d60186727d516f449aec996fcc12e2db09c6240dd36b5f597fb1137e0b7187",
-      "change": "Only email/me/logout routes; explicit Env; method handling and loopback rate-limit key for local dev."
+      "change": "Browser email/Google/me/logout routes; explicit Env; method handling, separate Google rate limiter, and loopback rate-limit keys for local dev."
     },
     {
       "repository": "backend",
       "source": "worker/app/auth-login.ts",
       "destination": "platform/accounts/src/index.ts",
       "sha256": "685319e9681ca59416c33b28b0857da40eed2909bcb8dd2b5211cc702c2a43c1",
-      "change": "Inline email-login response and error handling; Google/native flows omitted."
+      "change": "Inline email and browser Google login responses with shared sessions and machine-readable errors; native flows and product side effects omitted."
     },
     {
       "repository": "backend",
       "source": "worker/app/auth-email.test.ts",
       "destination": "platform/accounts/test/auth.test.ts",
       "sha256": "503eca59055408d907ec6358bc50e529f69a80cf1c0d537451846e29a9e19320",
-      "change": "Adapt SQLite fixture and regression cases for extracted auth routes; omit Google/welcome-email cases."
+      "change": "Adapt email regression cases for extracted auth routes; shared SQLite fixture is now in test/fixture.ts. Google coverage is implemented separately with local RSA keys; welcome email remains omitted."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-email.test.ts",
+      "destination": "platform/accounts/test/fixture.ts",
+      "sha256": "503eca59055408d907ec6358bc50e529f69a80cf1c0d537451846e29a9e19320",
+      "change": "Shared real-SQLite D1 adapter for email and Google tests; loads Canopy's local migrations and stubs the two rate limiters."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-core.ts",
+      "destination": "platform/accounts/src/auth-google.ts",
+      "sha256": "19c7f9670ee233aac18c862082d47254625305d09b653f957a9b7da942a70566",
+      "change": "Extract browser RS256 verification and Google identity lookup/linking only. Explicit optional client ID; fixed JWKS endpoint with timeout and response validation; strict numeric claims, email/subject bounds, nbf and critical-header checks. Conditional SQL and one saved-identity reread guard creation/linking races and return persisted fields. No welcome email, review users, native tokens, or recursive retry."
     },
     {
       "repository": "backend",
@@ -83,7 +97,7 @@
       "source": "src/auth.ts",
       "destination": "packages/platform-client/src/auth.ts",
       "sha256": "97829974795fb6e10e98284b561e8d4d16bdea2b5b01525ea0d29822e2821813",
-      "change": "Extract email/me/logout transport and validation; injectable fetch, same-origin default, no browser globals or Google calls."
+      "change": "Extract email/Google/me/logout transport and validation; injectable fetch, same-origin default, strict created/user validation, readable provider errors, no browser globals or logout side effects."
     },
     {
       "repository": "raindrop",
@@ -97,7 +111,21 @@
       "source": "src/auth.ts",
       "destination": "packages/platform-client/src/auth.ts",
       "sha256": "fa634b28059e248f0fd3a2755d1744edc00f0cada42a0796ac720af6ec5962ad",
-      "change": "Preserve credentialed endpoint and error conventions; acquisition, analytics, cookie-consent and Google side effects stay outside this package."
+      "change": "Preserve credentialed email/Google/session endpoint conventions; normalize Google errors and validate results. Acquisition, analytics, cookie-consent and browser SDK side effects stay outside this package."
+    },
+    {
+      "repository": "raindrop",
+      "source": "src/login.ts",
+      "destination": "platform/console/src/google-sign-in.ts",
+      "sha256": "8933d7c0ea64a422e944f5ab22da7b06ac9438c7a8de34121da33826f9410a1d",
+      "change": "Extract optional Google script loading, 12-second timeout, retry, initialize and renderButton behavior. Explicit client ID, one initialization, light button theme, inert provider host while authenticating, SDK logout handling; no admin/product screens."
+    },
+    {
+      "repository": "raindrop",
+      "source": "src/login.ts",
+      "destination": "platform/console/src/main.ts",
+      "sha256": "8933d7c0ea64a422e944f5ab22da7b06ac9438c7a8de34121da33826f9410a1d",
+      "change": "Adapt shared email/Google sign-in callback and busy-state pattern into the existing compact console. Google is absent without configuration, late callbacks are ignored, and provider failures leave email available. No admin checks or product effects."
     }
   ]
 }

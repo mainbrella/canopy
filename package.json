@@ -12,7 +12,7 @@
     "test": "tsx --test platform/accounts/test/*.test.ts packages/platform-client/test/*.test.ts",
     "build": "npm run build --workspaces --if-present",
     "check": "npm run type-check && npm test && npm run build",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test && playwright test --config playwright.google.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",

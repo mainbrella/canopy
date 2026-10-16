@@ -15,11 +15,34 @@ test("client sends the existing credentialed paths and normalizes email", async 
   } });
   assert.deepEqual(await auth.readSession(), { user });
   assert.deepEqual(await auth.signInWithEmail(" Person@Example.com ", " secret password "), { user, created: true });
+  assert.deepEqual(await auth.signInWithGoogle("signed.google.credential"), { user, created: true });
   await auth.signOut();
-  assert.deepEqual(calls.map(call => call.url), ["https://accounts.example/auth/me", "https://accounts.example/auth/email", "https://accounts.example/auth/logout"]);
+  assert.deepEqual(calls.map(call => call.url), ["https://accounts.example/auth/me", "https://accounts.example/auth/email", "https://accounts.example/auth/google", "https://accounts.example/auth/logout"]);
   assert.ok(calls.every(call => call.init?.credentials === "include"));
   assert.equal(calls[1].init?.method, "POST");
   assert.equal(calls[1].init?.body, JSON.stringify({ email: "person@example.com", password: " secret password " }));
+  assert.equal(calls[2].init?.method, "POST");
+  assert.equal(calls[2].init?.body, JSON.stringify({ credential: "signed.google.credential" }));
+  assert.deepEqual(calls[2].init?.headers, { accept: "application/json", "content-type": "application/json" });
+});
+
+test("Google errors and malformed responses cannot report a successful sign-in", async () => {
+  let requests = 0;
+  const missing = createAuthClient({ fetcher: async () => { requests++; return Response.json({ user, created: true }); } });
+  await assert.rejects(missing.signInWithGoogle(), /could not be completed/);
+  assert.equal(requests, 0);
+  for (const [code, message] of [
+    ["identity_conflict", /another sign-in method/], ["invalid_google_credential", /could not verify/],
+    ["google_unavailable", /unavailable/], ["rate_limited", /Too many attempts/], ["private error", /Could not finish/],
+  ] as const) {
+    await assert.rejects(client({ error: code }, 409).signInWithGoogle("token"), message);
+  }
+  for (const result of [null, {}, { user }, { user, created: "true" }, { user: { ...user, id: 5 }, created: false }]) {
+    await assert.rejects(client(result).signInWithGoogle("token"), /Could not finish/);
+  }
+  await assert.rejects(client({ user, created: false }, 503).signInWithGoogle("token"), /Could not finish/);
+  const offline = createAuthClient({ fetcher: async () => { throw new Error("private network details"); } });
+  await assert.rejects(offline.signInWithGoogle("token"), /Could not reach sign-in/);
 });
 
 test("anonymous and expired sessions differ from malformed or unavailable responses", async () => {

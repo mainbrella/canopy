@@ -1,5 +1,6 @@
 import { createAuthClient } from "@canopy/platform-client/auth";
-import type { User } from "@canopy/contracts/auth";
+import type { SignInResult, User } from "@canopy/contracts/auth";
+import { createGoogleSignIn } from "./google-sign-in.ts";
 import "./style.css";
 
 const auth = createAuthClient();
@@ -17,10 +18,15 @@ const form = element<HTMLFormElement>("sign-in");
 const fields = form.querySelector("fieldset")!;
 const email = element<HTMLInputElement>("email");
 const password = element<HTMLInputElement>("password");
-const submit = form.querySelector("button")!;
+const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
 const account = element("account");
 const signOut = element<HTMLButtonElement>("sign-out");
 let busy = false;
+const googleClientID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+const google = googleClientID ? createGoogleSignIn(element("google-sign-in"), googleClientID, credential => {
+  void signIn(() => auth.signInWithGoogle(credential));
+}) : null;
+if (google) element("sign-in-prompt").textContent = "Continue with Google or email to sign in or create an account.";
 
 function clearError() { error.hidden = true; error.textContent = ""; }
 function showError(cause: unknown) {
@@ -33,6 +39,7 @@ function setBusy(value: boolean, message = "") {
   fields.disabled = value;
   signOut.disabled = value;
   retry.disabled = value;
+  google?.setBusy(value);
   status.textContent = message;
   form.setAttribute("aria-busy", String(value));
   account.setAttribute("aria-busy", String(value));
@@ -49,6 +56,7 @@ function showUser(user: User | null, focus = false) {
   const date = user ? new Date(user.created_at) : null;
   element("created").textContent = date && Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { dateStyle: "medium" }) : "—";
   if (focus) heading.focus();
+  if (!user) void google?.load();
 }
 
 async function checkSession() {
@@ -63,18 +71,23 @@ async function checkSession() {
 form.addEventListener("submit", async event => {
   event.preventDefault();
   if (busy || !form.reportValidity()) return;
+  await signIn(() => auth.signInWithEmail(email.value, password.value), true);
+});
+
+async function signIn(authenticate: () => Promise<SignInResult>, withEmail = false) {
+  if (busy || form.hidden) return;
   clearError();
   setBusy(true, "Signing in…");
-  submit.textContent = "Continuing…";
+  if (withEmail) submit.textContent = "Continuing…";
   let message = "";
   try {
-    const result = await auth.signInWithEmail(email.value, password.value);
+    const result = await authenticate();
     password.value = "";
     showUser(result.user, true);
     message = result.created ? "Account created." : "Signed in.";
   } catch (cause) { showError(cause); }
   finally { setBusy(false, message); submit.textContent = "Continue with email"; }
-});
+}
 
 signOut.addEventListener("click", async () => {
   if (busy) return;
@@ -83,6 +96,7 @@ signOut.addEventListener("click", async () => {
   let message = "";
   try {
     await auth.signOut();
+    google?.disableAutoSelect();
     password.value = "";
     showUser(null, true);
     message = "Signed out.";
