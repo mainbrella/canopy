@@ -1,9 +1,0 @@
-{
-  "name": "@canopy/platform-client",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": { "./auth": "./src/auth.ts", "./products": "./src/products.ts" },
-  "dependencies": { "@canopy/contracts": "0.0.0" },
-  "scripts": { "type-check": "tsc -p tsconfig.json" }
-}
