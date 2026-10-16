@@ -1,12 +1,13 @@
 import type { Env } from "../env";
 import { authJson, canopyConfigured, cookie, hashToken, readJSON, validPlatformSession } from "./auth-core";
+import { voiceURL } from "../lib/routing";
 
 const token = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, "0")).join("");
 const identifier = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(value);
 
 export async function handleCanopy(request: Request, env: Env): Promise<Response> {
   if (!canopyConfigured(env)) return authJson({ error: "not_found" }, 404);
-  const url = new URL(request.url);
+  const url = voiceURL(request, env);
   if (url.search) return authJson({ error: "invalid_request" }, 400);
   if (url.pathname === "/auth/canopy") {
     if (request.method !== "POST") return authJson({ error: "method_not_allowed" }, 405);

@@ -15,8 +15,8 @@ export default {
       if(path==='/__test/reset'){
         await env.DB.prepare('DELETE FROM product_installations').run();await env.DB.prepare('DELETE FROM product_install_requests').run();
       }else if(path==='/__test/voice'){
-        await env.DB.prepare(`INSERT OR REPLACE INTO product_installations(product,installation_id,account_id,worker_name,origin,version,source_revision,state,updated_at)
-          VALUES('voice','browser-install','test-account','test-worker','http://127.0.0.1:8794','browser-version','test-source','installed',?)`).bind(new Date().toISOString()).run();
+        await env.DB.prepare(`INSERT OR REPLACE INTO product_installations(product,installation_id,account_id,worker_name,origin,version,source_revision,state,updated_at,base_path)
+          VALUES('voice','browser-install','test-account','test-worker','http://127.0.0.1:5175','browser-version','test-source','installed',?,'/installed/voice')`).bind(new Date().toISOString()).run();
         await env.DB.prepare("UPDATE product_install_requests SET state='complete' WHERE product='voice'").run();
       }else if(path==='/__test/cut'){
         await env.DB.prepare(`INSERT OR REPLACE INTO product_installations(product,installation_id,account_id,worker_name,origin,version,source_revision,state,updated_at,provisioner,capabilities_json,verification_json)

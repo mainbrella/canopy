@@ -1,4 +1,4 @@
-export const API_ORIGIN = window.location.origin;
+export const API_ORIGIN = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}`;
 
 type Session = { user: { id: string } } | null;
 

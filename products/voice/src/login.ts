@@ -14,7 +14,7 @@ async function initialize() {
   section.setAttribute('aria-busy', 'true');
   try {
     if (await auth.readSession()) {
-      window.location.replace('/');
+      window.location.replace(import.meta.env.BASE_URL);
       return;
     }
     status.textContent = 'Enter your password to continue.';
@@ -43,7 +43,7 @@ form.addEventListener('submit', async event => {
   submit.textContent = 'Signing in…';
   try {
     await auth.signIn(password.value);
-    window.location.replace('/');
+    window.location.replace(import.meta.env.BASE_URL);
   } catch (caught) {
     error.textContent = caught instanceof Error ? caught.message : 'Could not sign you in. Please try again.';
     error.hidden = false;

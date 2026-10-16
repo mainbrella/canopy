@@ -1,6 +1,6 @@
 # Operator-owned core and products
 
-Implemented locally on 2026-10-16. This workflow has not yet been used for a real installation. See [the live verification plan](milestone-deployment.md) before provisioning anything.
+Implemented on 2026-10-16. Established staging has a real connected Voice installation; see [its deployment record](../STAGING.md). The separate fresh-core/Appflare milestone remains pending in [the live verification plan](milestone-deployment.md).
 
 ## Access boundary
 
@@ -25,6 +25,8 @@ npm run setup:core -- --config config/operator.json --deploy
 ```
 
 Without `--deploy`, setup generates only ignored local Wrangler configs and private state. With `--plan`, it prints the target without authentication or writing config. With `--deploy`, it checks existing names/domains, creates a dedicated core D1, applies the additive core migrations, builds the console for the configured API, and deploys accounts plus console. Origins currently require custom domains in the chosen account; own-account setup does not provision DNS zones or an Appflare manager. Mainbrella production and established staging origins remain reserved for their existing commands.
+
+New generated Voice targets default to the console's `/installed/voice/` path. Voice still owns its Worker, D1, Durable Objects and assets; console and accounts receive an optional private `VOICE` service binding only when Voice is installed. No new Voice hostname or certificate is required. An explicit separate `voiceOrigin` retains the older origin-based mode. A later core redeploy preserves an already-installed Voice binding; core-only setup still installs zero products.
 
 Open the console, create your account, put its ID in `operatorUserId`, and rerun setup/deploy. Protect that account's password. Do this before installing Voice; public signup alone grants no paid use. Generated targets/state are in `.cache/core-installs/ACCOUNT-PREFIX/`. Keep an encrypted backup outside the public repository. No credentials belong in checked-in configuration.
 
@@ -55,7 +57,24 @@ The installer waits up to five minutes for transient DNS, connection timeouts an
 
 A lost D1 creation response is ambiguous. The runner refuses to adopt a matching name without its recorded UUID, even if creation intent exists. Review the account, creation time and private intent against Cloudflare evidence, then explicitly pass `--recover-database UUID` with the original private state. Core setup supports the same recovery flag. A name alone never authorizes adoption.
 
-`GET /products/voice` reports `not_installed`, `pending`, `installing`, `failed`, `unavailable`, or `ready`, plus caller access and operator controls. `ready` requires exact installation ID/version, schema queries and configured AI/DO/calling bindings. It does not prove real inference. **Open Voice** obtains a short-lived single-use cross-host handoff; no cross-host cookie sharing or password fallback occurs in Canopy mode.
+`GET /products/voice` reports `not_installed`, `pending`, `installing`, `failed`, `unavailable`, or `ready`, plus caller access and operator controls. Mounted installations return the console `origin` plus `basePath: "/installed/voice"`; accounts checks readiness and issues handoffs through the private binding. `ready` requires exact installation ID/version, schema queries and configured AI/DO/calling bindings. It does not prove real inference. **Open Voice** obtains a short-lived single-use product handoff; product sessions still validate platform logout and access revocation. There is no password fallback in Canopy mode.
+
+## Move an existing Voice installation to the console path
+
+After reviewing and testing the intended source, use the existing target and preserved private state:
+
+```sh
+npm run install:voice -- --config config/voice.staging.json --mount --plan
+npm run install:voice -- --config config/voice.staging.json --mount
+```
+
+This is an explicit one-time URL/source transition, not a general automatic upgrade. The installer verifies the previous inventory, refuses active calls or configured carriers requiring callback review, and leases the same installation ID and version transition. It retains the database, namespace, secret, workspaces and grants. Migration `015` adds a mount path to core inventory; existing rows keep their origin until explicitly moved. The original product SQL migrations are unchanged.
+
+The move saves previous inventory/configuration as `before-mount.json` in the original private directory. Its recorded transition pins both old and new target/source versions for interrupted retries. Until completion, retry with the same `--mount` command and source; after success the target file contains the mounted URL and stable private `stateKey`, so normal installer/runner commands resume without `--mount`. Preserve the entire original private directory. Successful repeated verification does not redeploy an installed matching version.
+
+Voice is built with `VOICE_BASE_PATH=/installed/voice` and the same prefix in its Worker configuration. Its standalone/Appflare build remains at `/` with no platform dependency. The console gateway forwards only Voice session cookies, passes WebSocket upgrades, and exposes only a secret-authenticated non-browser readiness probe under `/_canopy/`; account handoffs use the private binding. The existing `__Host-canopy_voice_session` cookie remains Secure/HttpOnly/SameSite=Strict with `Path=/`, distinct from accounts cookies. Mounted Voice shares the console's browser origin and is suitable for this maintained product; third-party Appflare apps retain separate origins.
+
+The old Voice hostname is retained as a GET/HEAD redirect to the mounted app, preserving existing bookmarks. It no longer serves the old application or accepts mutation requests. New mounted installations have no product hostname at all. This move does not delete resources or configure carrier providers.
 
 ## Carrier ownership
 

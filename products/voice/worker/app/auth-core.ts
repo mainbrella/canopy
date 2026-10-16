@@ -1,4 +1,5 @@
 import type { Env } from "../env";
+import { voiceURL } from "../lib/routing";
 const COOKIE = "canopy_voice_session";
 const SESSION_MS = 8 * 60 * 60 * 1000;
 export const OWNER_ID = "owner";
@@ -102,7 +103,7 @@ export async function readJSON(request: Request, limit = 16_384): Promise<unknow
 }
 
 export async function handleAuth(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
+  const url = voiceURL(request, env);
   if (authCorsHeaders(request) === null ||
     (request.method !== "GET" && request.headers.get("Origin") !== url.origin)) {
     return authJson({ error: "origin_not_allowed" }, 403);

@@ -7,5 +7,8 @@
   "workerName": "canopy-voice-stg",
   "databaseName": "canopy-voice-stg",
   "operatorUserId": "0406e934-d13d-4d47-a826-62de3e02faa4",
-  "origin": "https://voice-stg.mainbrella.com"
+  "origin": "https://stg.mainbrella.com",
+  "basePath": "/installed/voice",
+  "stateKey": "bb5c3a21c28c623d",
+  "legacyOrigin": "https://voice-stg.mainbrella.com"
 }

@@ -595,7 +595,7 @@ element<HTMLButtonElement>('voice-sign-out').addEventListener('click', async eve
   error.hidden = true;
   try {
     await createAuthClient().signOut();
-    window.location.replace('/login.html');
+    window.location.replace(`${import.meta.env.BASE_URL}login.html`);
   } catch (caught) {
     showError(error, caught, 'Could not sign you out. Please try again.');
     button.disabled = false;

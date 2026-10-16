@@ -21,13 +21,15 @@ const forward=async(worker,request)=>worker.dispatchFetch(request.url,{method:re
 accounts=new Miniflare(convertV4MiniflareOptions({host:"127.0.0.1",port:8793,workers:[{name:"accounts-installation-test",modules:true,script:bundles[0].outputFiles[0].text,
   compatibilityDate:"2026-09-18",compatibilityFlags:["nodejs_compat"],d1Databases:["DB"],
   bindings:{AUTH_ORIGINS:"http://127.0.0.1:5175",LOCAL_DEVELOPMENT:"true",VOICE_AUTH_SECRET:secret},
+  serviceBindings:{VOICE:request=>forward(voice,request)},
   outboundService:request=>new URL(request.url).port==="8795"?new Response("Cut reachability fixture"):voice?forward(voice,request):new Response("starting",{status:503})}]}));
 voice=new Miniflare(convertV4MiniflareOptions({host:"127.0.0.1",port:8794,workers:[{name:"voice-installation-test",modules:true,script:bundles[1].outputFiles[0].text,
   compatibilityDate:"2026-09-18",compatibilityFlags:["nodejs_compat"],d1Databases:["DB"],
   durableObjects:{RECEPTIONIST_CALL:{className:"ReceptionistCall",useSQLite:true}},
   assets:{directory:`${root}products/voice/dist/client`,binding:"ASSETS",run_worker_first:true,routerConfig:{has_user_worker:true}},
   bindings:{VOICE_AUTH_MODE:"canopy",CANOPY_AUTH_SECRET:secret,CANOPY_INSTALLATION_ID:"browser-install",CANOPY_SOURCE_VERSION:"browser-version",
-    CANOPY_ACCOUNTS_ORIGIN:"http://127.0.0.1:8793",CANOPY_CONSOLE_ORIGIN:"http://127.0.0.1:5175",VOICE_ENABLED:"true"},
+    CANOPY_ACCOUNTS_ORIGIN:"http://127.0.0.1:8793",CANOPY_CONSOLE_ORIGIN:"http://127.0.0.1:5175",VOICE_ENABLED:"true",
+    VOICE_BASE_PATH:'/installed/voice',VOICE_PUBLIC_ORIGIN:'http://127.0.0.1:5175'},
   outboundService:request=>new URL(request.url).origin==="http://127.0.0.1:8793"?forward(accounts,request):new Response("External requests disabled",{status:503})}]}));
 let stopping=false;
 for(const signal of ["SIGINT","SIGTERM"])process.on(signal,async()=>{

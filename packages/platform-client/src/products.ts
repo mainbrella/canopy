@@ -39,13 +39,14 @@ export function createProductClient({ baseUrl = "", fetcher = fetch }: { baseUrl
       if (!response.ok || !isVoiceInstallation(body) || body.product !== "voice") throw new Error("Could not check Voice. Please try again.");
       return body;
     },
-    async openVoice(origin: string): Promise<string> {
+    async openVoice(origin: string, basePath = ""): Promise<string> {
+      if (basePath !== "" && basePath !== "/installed/voice") throw new Error("Could not open Voice. Please try again.");
       const { response, body } = await request("/products/voice/open", "POST");
       if (response.status === 401) throw new Error("Sign in again to open Voice.");
       if (response.status === 403) throw new Error("The operator must grant you access to Voice.");
       if (!response.ok || typeof body?.url !== "string") throw new Error("Could not open Voice. Please try again.");
       const url = new URL(body.url);
-      if (url.origin !== origin || url.pathname !== "/handoff.html" || url.search || !/^#[a-f0-9]{64}$/.test(url.hash)) {
+      if (url.origin !== origin || url.pathname !== `${basePath}/handoff.html` || url.search || !/^#[a-f0-9]{64}$/.test(url.hash)) {
         throw new Error("Could not open Voice. Please try again.");
       }
       return url.href;

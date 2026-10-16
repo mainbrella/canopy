@@ -77,7 +77,7 @@ export function createVoiceProduct(getUser: () => User | null | undefined) {
     const product = selected(); const installation = product && installations.get(product);
     if (busy || !product || !getUser() || !installation || !installation.origin) return;
     busy = true; error.hidden = true; render();
-    try { location.assign(await (product === "voice" ? api.openVoice(installation.origin) : api.openCut(installation.origin))); }
+    try { location.assign(await (product === "voice" ? api.openVoice(installation.origin, installation.basePath) : api.openCut(installation.origin))); }
     catch (cause) { showError(cause); }
     finally { busy = false; render(); }
   });

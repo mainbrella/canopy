@@ -18,6 +18,8 @@ export interface Env {
   VOICE_CARRIER_AGENT_ID?: string;
   VOICE_CARRIER_USER_ID?: string;
   VOICE_PUBLIC_ORIGIN?: string;
+  VOICE_BASE_PATH?: string;
+  VOICE_LEGACY_ORIGIN?: string;
   TRANSCRIPT_RETENTION_DAYS?: string;
   VOICE_AI_GATEWAY_ACCOUNT_ID?: string;
   VOICE_AI_GATEWAY_ID?: string;

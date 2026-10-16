@@ -24,3 +24,14 @@ test("malformed or unsuccessful product responses cannot become ready or open",a
     await assert.rejects(client.openVoice("https://voice.example"),/Could not open Voice/);
   }
 });
+
+test('mounted handoffs stay on the installed origin and exact product path',async()=>{
+  let url=`https://console.example/installed/voice/handoff.html#${'a'.repeat(64)}`;
+  const client=createProductClient({fetcher:(async()=>Response.json({url})) as typeof fetch});
+  assert.equal(await client.openVoice('https://console.example','/installed/voice'),url);
+  for(const path of ['/handoff.html','/installed/cut/handoff.html','/installed/voice/handoff.html?next=elsewhere']){
+    url=`https://console.example${path}#${'a'.repeat(64)}`;
+    await assert.rejects(client.openVoice('https://console.example','/installed/voice'),/Could not open Voice/);
+  }
+  await assert.rejects(client.openVoice('https://console.example','/installed/voice/../cut'),/Could not open Voice/);
+});

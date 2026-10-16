@@ -12,17 +12,19 @@ function readinessFixture(fetcher) {
 test('readiness waits for new-domain DNS and transient routing without accepting another installation', async () => {
   let attempts = 0;
   const fixture = readinessFixture(async (url, options) => {
-    assert.equal(url, 'https://voice.example/_canopy/ready');
+    assert.equal(url, 'https://voice.example/installed/voice/_canopy/ready');
     assert.equal(options.redirect, 'error');
     assert.equal(options.headers.authorization, 'Bearer private-secret');
     attempts++;
     if (attempts === 1) throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
     if (attempts === 2) return new Response('Routing pending', { status: 503 });
     if (attempts === 3) throw new DOMException('Request timed out', 'TimeoutError');
+    if (attempts === 4) return new Response(null,{status:404});
     return Response.json({ ready: true, installationId: 'install', version: 'v1' });
   });
+  fixture.target.basePath='/installed/voice';
   assert.equal((await waitForVoiceReady(fixture)).ready, true);
-  assert.equal(attempts, 4);
+  assert.equal(attempts, 5);
   for (const response of [
     { ready: true, installationId: 'another-install', version: 'v1' },
     { ready: true, installationId: 'install', version: 'v2' },
@@ -79,6 +81,9 @@ test("installation target refuses shared identity and production resource names"
   assert.throws(()=>validateTarget(target,{...accounts,name:"mainbrella-api"},consoleConfig),/dedicated/);
   assert.throws(()=>validateTarget({...target,databaseName:"accounts-test"},accounts,consoleConfig),/dedicated/);
   assert.throws(()=>validateTarget({...target,accountId:"b".repeat(32)},accounts,consoleConfig),/dedicated/);
+  assert.equal(validateTarget({...target,origin:target.consoleOrigin,basePath:'/installed/voice'},accounts,consoleConfig),'account-db');
+  assert.throws(()=>validateTarget({...target,origin:target.consoleOrigin},accounts,consoleConfig),/Invalid/);
+  assert.throws(()=>validateTarget({...target,basePath:'/installed/cut'},accounts,consoleConfig),/Invalid/);
 });
 
 test('atomic identity claims reject concurrent checkouts and recover only the same identity after expiry',async()=>{
@@ -87,7 +92,7 @@ test('atomic identity claims reject concurrent checkouts and recover only the sa
   const { claimInstallation }=await import('../install-voice.mjs');
   const db=new DatabaseSync(':memory:');
   try{
-    for(const file of ['001_initial.sql','002_auth_sessions.sql','012_email_password.sql','013_product_installations.sql','014_product_access.sql'])db.exec(await readFile(new URL(`../../platform/accounts/migrations/${file}`,import.meta.url),'utf8'));
+    for(const file of ['001_initial.sql','002_auth_sessions.sql','012_email_password.sql','013_product_installations.sql','014_product_access.sql','015_voice_mount.sql'])db.exec(await readFile(new URL(`../../platform/accounts/migrations/${file}`,import.meta.url),'utf8'));
     const query=async(sql,params=[])=>db.prepare(sql).all(...params);
     const target={accountId:'a'.repeat(32),workerName:'canopy-voice-test',origin:'https://voice.example'};
     const source={version:'v1',revision:'b'.repeat(40),dirty:false};
@@ -135,7 +140,7 @@ test('provisioning resumes after deployment interruption and readiness mismatch 
   await writeFile(`${directory}/target.json`,JSON.stringify(target));
   const db=new DatabaseSync(':memory:');
   try{
-    for(const file of ['001_initial.sql','013_product_installations.sql','014_product_access.sql'])db.exec(await readFile(new URL(`../../platform/accounts/migrations/${file}`,import.meta.url),'utf8'));
+    for(const file of ['001_initial.sql','013_product_installations.sql','014_product_access.sql','015_voice_mount.sql'])db.exec(await readFile(new URL(`../../platform/accounts/migrations/${file}`,import.meta.url),'utf8'));
     db.exec("INSERT INTO users(id,email) VALUES('operator','operator@example.com'); INSERT INTO product_install_requests VALUES('voice','request','operator','pending','today')");
     let databases=[],workers=[],voiceBindings=[],creates=0,deploys=0,interrupt=true,readyMismatch=true,consoleFailure=true;
     const dependencies={productDirectory,privateDirectory:`${directory}/private`,source:{version:'fixture-v1',revision:'b'.repeat(40),dirty:false,fingerprint:'fixture',hashes:{}},
@@ -162,7 +167,7 @@ test('provisioning resumes after deployment interruption and readiness mismatch 
       },
       fetcher:async()=>{
         const state=JSON.parse(await readFile(`${directory}/private/private.json`,'utf8'));
-        return Response.json({ready:true,installationId:readyMismatch?'wrong':state.installationId,version:'fixture-v1'});
+        return Response.json({ready:true,installationId:readyMismatch?'wrong':state.installationId,version:dependencies.source.version});
       },buildConsole:async()=>{},
     };
     const args=['--config',`${directory}/target.json`];
@@ -182,6 +187,28 @@ test('provisioning resumes after deployment interruption and readiness mismatch 
     const inventory=JSON.parse(await readFile(`${directory}/private/inventory.json`,'utf8'));
     assert.equal(inventory.deployedVersions['fixture-voice'][0].version_id,'deployed-fixture-version');
     const previousDeploys=deploys;await main(args,dependencies);assert.equal(deploys,previousDeploys);
+    dependencies.source={...dependencies.source,version:'fixture-mounted-v2'};
+    await assert.rejects(main(args,dependencies),/Automatic upgrades/);
+    dependencies.voiceQuery=async()=>[{n:1}];
+    await assert.rejects(main([...args,'--mount'],dependencies),/End active Voice calls/);
+    dependencies.voiceQuery=async()=>[{n:0}];
+    consoleFailure=true;
+    await assert.rejects(main([...args,'--mount'],dependencies),/simulated console deployment failure/);
+    assert.equal(db.prepare('SELECT state FROM product_installations').get().state,'failed');
+    await main([...args,'--mount'],dependencies);
+    const moved=db.prepare('SELECT * FROM product_installations').get();
+    assert.equal(moved.installation_id,row.installation_id);assert.equal(moved.database_id,row.database_id);
+    assert.equal(moved.namespace_id,row.namespace_id);assert.equal(moved.state,'installed');
+    assert.equal(moved.origin,target.consoleOrigin);assert.equal(moved.base_path,'/installed/voice');
+    assert.equal(moved.version,'fixture-mounted-v2');assert.equal(creates,1);
+    const movedState=JSON.parse(await readFile(`${directory}/private/private.json`,'utf8'));
+    const beforeState=JSON.parse(await readFile(`${directory}/private/before-mount.json`,'utf8'));
+    assert.equal(movedState.secret,JSON.parse(await readFile(`${directory}/private/voice-secrets.json`,'utf8')).CANOPY_AUTH_SECRET);
+    assert.equal(beforeState.inventory.installationId,moved.installation_id);
+    const mountedTarget=JSON.parse(await readFile(`${directory}/target.json`,'utf8'));
+    assert.equal(mountedTarget.basePath,'/installed/voice');assert.equal(mountedTarget.legacyOrigin,target.origin);
+    assert.equal(JSON.parse(await readFile(target.consoleConfig,'utf8')).services[0].service,target.workerName);
+    const mountedDeploys=deploys;await main(args,dependencies);assert.equal(deploys,mountedDeploys);
   }finally{db.close();}
 });
 
@@ -189,7 +216,7 @@ test('operator runner processes only the pinned owner requests and recovers inte
   const { DatabaseSync }=await import('node:sqlite');const { readFile }=await import('node:fs/promises');const {processVoiceRequest}=await import('../run-operator.mjs');
   const db=new DatabaseSync(':memory:');
   try{
-    for(const file of ['001_initial.sql','013_product_installations.sql','014_product_access.sql'])db.exec(await readFile(new URL(`../../platform/accounts/migrations/${file}`,import.meta.url),'utf8'));
+    for(const file of ['001_initial.sql','013_product_installations.sql','014_product_access.sql','015_voice_mount.sql'])db.exec(await readFile(new URL(`../../platform/accounts/migrations/${file}`,import.meta.url),'utf8'));
     db.exec("INSERT INTO users(id) VALUES('operator'); INSERT INTO product_install_requests VALUES('voice','request','operator','pending','today')");
     const query=async(sql,params=[])=>db.prepare(sql).all(...params);let installs=0;
     const install=async()=>{installs++;db.exec("UPDATE product_install_requests SET state='complete'");};

@@ -1,4 +1,5 @@
 import type { Env } from "../env";
+import { voiceBasePath, voiceURL } from '../lib/routing';
 import { carrierAgentId, carrierWorkspaceAllowed, usageAllowed, callStub, createCall, hashMediaToken, initializeCall, MAX_CALL_MS, publicAgent, publicVoiceOrigin, readCall, type VoiceAgentRow } from '../lib/voice';
 import { twilioToPCM } from '../lib/voice-telephony';
 
@@ -7,7 +8,7 @@ import { pcmToTelnyx, telnyxCallIdMatches, telnyxConfigured, telnyxSipUri, valid
 const xml = (body: string,status=200) => new Response(body,{status,headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
 const unavailable = () => xml('<Response><Say>Sorry, our receptionist is unavailable. Please call again later.</Say><Hangup /></Response>');
 export async function handleTelnyxRequest(request: Request,env: Env,ctx?: ExecutionContext): Promise<Response> {
-  const url = new URL(request.url);
+  const url = voiceURL(request, env);
   const origin = publicVoiceOrigin(env);
   if (!origin || !env.TELNYX_PUBLIC_KEY) {
     console.warn('voice_telnyx_configuration_incomplete');
@@ -16,7 +17,7 @@ export async function handleTelnyxRequest(request: Request,env: Env,ctx?: Execut
   const incoming = url.pathname.match(/^\/voice\/telnyx\/incoming\/([a-f0-9-]{36})$/i);
   const media = url.pathname.match(/^\/voice\/telnyx\/media\/([a-f0-9-]{36})$/i);
   if (url.search || (!incoming && !media)) return new Response(null,{status:404});
-  const expectedUrl = `${origin}${url.pathname}`;
+  const expectedUrl = `${origin}${voiceBasePath(env)}${url.pathname}`;
   try {
     if (incoming) {
       if (request.method !== 'POST') return new Response(null,{status:405});
@@ -70,7 +71,7 @@ export async function handleTelnyxRequest(request: Request,env: Env,ctx?: Execut
         await env.DB.prepare("UPDATE voice_calls SET status='failed',ended_at=? WHERE id=?").bind(new Date().toISOString(),call.id).run();
         return unavailable();
       }
-      return xml(streamTexml(`${origin.replace('https:','wss:')}/voice/telnyx/media/${call.id}`,token));
+      return xml(streamTexml(`${origin.replace('https:','wss:')}${voiceBasePath(env)}/voice/telnyx/media/${call.id}`,token));
     }
     if (!telnyxConfigured(env,carrierAgentId(env))) return new Response(null,{status:503});
     if (request.method !== 'GET') return new Response(null,{status:405});

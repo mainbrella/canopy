@@ -10,6 +10,30 @@ function installed(f: ReturnType<typeof fixture>, state = "installed") {
     VALUES('voice','instance-install','account','canopy-voice','dedicated-db','https://voice.example','test-version','source',?,?)`).run(state,new Date().toISOString());
 }
 
+test('mounted Voice uses its private binding and preserves access checks and exact readiness',async t=>{
+  const f=fixture(t);installed(f);
+  f.sqlite.prepare("UPDATE product_installations SET origin=?,base_path='/installed/voice'").run(origin);
+  t.mock.method(globalThis,'fetch',async()=>{throw new Error('Mounted Voice must not use public DNS');});
+  assert.equal((await(await f.request('/products/voice')).json()).state,'unavailable');
+  const calls:string[]=[];
+  let version='test-version';
+  f.env.VOICE={fetch:async(url:string,options:RequestInit)=>{
+    calls.push(url);
+    assert.equal((options.headers as Record<string,string>).authorization,`Bearer ${secret}`);
+    return Response.json(url.endsWith('/ready')?{ready:true,installationId:'instance-install',version}:{code:'b'.repeat(64)});
+  }} as unknown as typeof f.env.VOICE;
+  const status=await(await f.request('/products/voice')).json();
+  assert.equal(status.state,'ready');assert.equal(status.origin,origin);assert.equal(status.basePath,'/installed/voice');
+  const login=await f.login();const {user}=await login.clone().json();
+  const cookie=login.headers.get('set-cookie')!.split(';')[0];
+  const open=()=>f.request('/products/voice/open',{method:'POST',headers:{cookie,origin}});
+  assert.equal((await open()).status,403);
+  f.env.OPERATOR_USER_ID=user.id;f.env.VOICE_BILLING_MODE='owner_funded';
+  assert.equal((await(await open()).json()).url,`${origin}/installed/voice/handoff.html#${'b'.repeat(64)}`);
+  assert.ok(calls.every(url=>url.startsWith(`${origin}/installed/voice/_canopy/`)));
+  version='another-version';assert.equal((await open()).status,503);
+});
+
 test("installation discovery is instance-wide and ordinary accounts cannot provision it", async t => {
   const f = fixture(t);
   assert.equal((await (await f.request("/products/voice")).json()).state,"not_installed");

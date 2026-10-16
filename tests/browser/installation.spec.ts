@@ -18,7 +18,7 @@ async function openVoice(page:Page){
   await expect(page.locator("#product-availability")).toHaveText("Installed");
   await page.getByRole("button",{name:"Open Voice",exact:true}).focus();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL("http://127.0.0.1:8794/");
+  await expect(page).toHaveURL("http://127.0.0.1:5175/installed/voice/");
   await expect(page.getByRole("tab",{name:"Receptionist",exact:true})).toBeVisible();
 }
 
@@ -40,12 +40,12 @@ test("one instance install opens isolated workspaces and platform logout revokes
   await expect(page.getByRole("log",{name:"Test transcript"})).toContainText("I can take a message: Please take a message for Alex.");
   await page.getByRole("button",{name:"End call",exact:true}).click();
   await expect(page.locator("#voice-call-status")).toHaveText("Ready to test");
-  const calls=(await(await page.request.get("http://127.0.0.1:8794/voice/calls")).json()).calls;
+  const calls=(await(await page.request.get("http://127.0.0.1:5175/installed/voice/voice/calls")).json()).calls;
   const other=await browser.newContext();const second=await other.newPage();
   await openVoice(second);
-  expect((await(await second.request.get("http://127.0.0.1:8794/voice/agent")).json()).agent).toBeNull();
-  expect((await(await second.request.get("http://127.0.0.1:8794/voice/calls")).json()).calls).toEqual([]);
-  expect((await second.request.get(`http://127.0.0.1:8794/voice/calls/${calls[0].id}`)).status()).toBe(404);
+  expect((await(await second.request.get("http://127.0.0.1:5175/installed/voice/voice/agent")).json()).agent).toBeNull();
+  expect((await(await second.request.get("http://127.0.0.1:5175/installed/voice/voice/calls")).json()).calls).toEqual([]);
+  expect((await second.request.get(`http://127.0.0.1:5175/installed/voice/voice/calls/${calls[0].id}`)).status()).toBe(404);
   await other.close();
   await page.reload();
   await expect(page.getByLabel("Business name",{exact:true})).toHaveValue("First user's workshop");
@@ -54,7 +54,7 @@ test("one instance install opens isolated workspaces and platform logout revokes
   await page.locator("#account-toggle").click();
   await page.getByRole("button",{name:"Sign out",exact:true}).click();
   await expect(page.locator("#sign-in")).toBeVisible();
-  expect((await page.request.get("http://127.0.0.1:8794/voice/agent")).status()).toBe(401);
+  expect((await page.request.get("http://127.0.0.1:5175/installed/voice/voice/agent")).status()).toBe(401);
   expect(errors).toEqual([]);
 });
 

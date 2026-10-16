@@ -1,6 +1,6 @@
 # Voice installation boundary
 
-Voice supports standalone owner-password mode and an optional Canopy mode with per-user workspaces. Console status/open, one-time account handoffs, explicit access grants and installation requests are implemented locally. The credentialed operator runner remains necessary. See the [portable operator workflow](../../../docs/operator-installation.md) and [pending live plan](../../../docs/milestone-deployment.md). No remote product installation is claimed.
+Voice supports standalone owner-password mode and an optional Canopy mode with per-user workspaces. Console status/open, one-time account handoffs, explicit access grants and installation requests use a credentialed operator runner. Established staging has a real Voice installation recorded in [STAGING.md](../../../STAGING.md); the separate fresh-core/Appflare milestone remains pending. See the [portable operator workflow](../../../docs/operator-installation.md) and [live plan](../../../docs/milestone-deployment.md).
 
 ## Source and release identity
 
@@ -23,6 +23,8 @@ No target account, resource IDs, domain, or provisioning credentials are selecte
 | AI Gateway/Deepgram/Cartesia | Optional operator-owned speech providers; not provisioned by this product |
 
 `ADMIN_PASSWORD` (at least 16 characters) protects a single owner workspace. Sessions last eight hours, store hashed tokens, and are invalidated by password rotation. HTTPS uses the host-only Secure/HttpOnly/SameSite=Strict `__Host-canopy_voice_session` cookie. The local cookie is separate from Canopy accounts. In Canopy mode there is no owner-password fallback: a hashed single-use code is exchanged on Voice’s own origin for a product-local session, linked to the platform session and checked for logout/access revocation. Cookies do not cross hosts.
+
+Connected Voice can mount at the console's `/installed/voice/` path through private service bindings while retaining its dedicated runtime/data. Build with `VOICE_BASE_PATH=/installed/voice` and set that same Worker variable only for this Canopy adapter. The gateway serves the app, APIs and WebSockets under that prefix; core uses the private binding for readiness/handoffs. Standalone/Appflare builds omit the variable and continue serving `/`. Move an existing connected installation only through the documented explicit `--mount` workflow, preserving its recorded identity, resource IDs, secret and private state. Mounted mode trusts Voice with the console's browser origin; this is not a generic proxy for third-party apps.
 
 ## Direct Wrangler installation
 
@@ -57,4 +59,4 @@ Before creating resources, record their intended names and ownership. If install
 
 For an abandoned test install, first stop incoming carrier traffic and disable calling, allow active calls/hangup retries to finish, and export any required Voice data. Delete only the recorded installation's Worker/namespace and D1 after explicit cleanup authorization. Never delete platform identity, shared accounts, other products, or unrelated carrier numbers. Keeping the D1 retains transcripts and provider tombstones; deleting it is irreversible. No uninstall control is exposed by this extraction.
 
-No real Cloudflare or carrier installation was performed. Local fixtures and dry runs are recorded separately in the Canopy handoff; they are not deployment evidence.
+Extraction fixtures and dry runs remain separate from later real Cloudflare installation evidence in [STAGING.md](../../../STAGING.md). No real carrier verification is implied by either.

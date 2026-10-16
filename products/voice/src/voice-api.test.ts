@@ -61,6 +61,14 @@ test('voice sockets reject a different origin', () => {
   assert.throws(() => voiceSocketURL('wss://elsewhere.example/voice/calls/123/connect', 'https://voice.example.test'), /connect securely/);
 });
 
+test('mounted API and sockets retain the product prefix',async()=>{
+  const base='https://console.example/installed/voice';
+  const api=createVoiceAPI(base,(async url=>{assert.equal(url,`${base}/voice/calls`);return Response.json({calls:[]});}) as typeof fetch);
+  await api.calls();
+  assert.equal(voiceSocketURL(`${base}/voice/calls/123/connect`,base),'wss://console.example/installed/voice/voice/calls/123/connect');
+  assert.throws(()=>voiceSocketURL('/voice/calls/123/connect',base),/connect securely/);
+});
+
 test('call durations handle zero, minutes, and invalid measurements', () => {
   assert.equal(callDuration(0), '0:00');
   assert.equal(callDuration(65.9), '1:05');

@@ -247,7 +247,7 @@
       "source": "index.html",
       "destination": "products/voice/index.html",
       "sha256": "3f466787b847ec1a0d55eca8237664abc2a719496072043487104d5d0826087b",
-      "change": "Unchanged."
+      "change": "Use the configured base path for home and login links; Vite prefixes built assets."
     },
     {
       "repository": "ai-receptionist",
@@ -255,7 +255,7 @@
       "source": "login.html",
       "destination": "products/voice/login.html",
       "sha256": "c5e6ce14198aaa70ad81f10d41b98afbfaee45ac74b9a20818bbca7935783cd3",
-      "change": "Unchanged."
+      "change": "Use the configured base path for the product home link."
     },
     {
       "repository": "ai-receptionist",
@@ -319,7 +319,7 @@
       "source": "src/auth.ts",
       "destination": "products/voice/src/auth.ts",
       "sha256": "c035db9bc1d021576ac67679be0df46ff570b9e07e24721271bbbf7d79e8022b",
-      "change": "Unchanged."
+      "change": "Use the configured Vite base path for product-local API calls; standalone still uses the origin root."
     },
     {
       "repository": "ai-receptionist",
@@ -327,7 +327,7 @@
       "source": "src/login.ts",
       "destination": "products/voice/src/login.ts",
       "sha256": "7d762e73c5824683af89027b594f97285a6c572807a0d8e1305a869e4b98ad1f",
-      "change": "Unchanged."
+      "change": "Keep login redirects within the configured product base path."
     },
     {
       "repository": "ai-receptionist",
@@ -343,7 +343,7 @@
       "source": "src/voice-api.ts",
       "destination": "products/voice/src/voice-api.ts",
       "sha256": "400d7776dc4e84607a06b9fcaf0975e7a8f84af60c0273c9c2967bdad0117a22",
-      "change": "Unchanged."
+      "change": "Accept a product API base URL and constrain mounted WebSocket URLs to that product prefix."
     },
     {
       "repository": "web",
@@ -375,7 +375,7 @@
       "source": "src/voice.ts",
       "destination": "products/voice/src/voice.ts",
       "sha256": "f06fb804b624caf0f6f633726eba807fcc489fe12dd2f6f8964a730f5df4a385",
-      "change": "Retain the standalone workspace, Telnyx/Twilio status, transcripts and owner sign-out. Refer to Voice deployment settings rather than assuming an Appflare installation."
+      "change": "Retain the standalone workspace, Telnyx/Twilio status, transcripts and owner sign-out. Refer to Voice deployment settings rather than assuming an Appflare installation. Keep product sign-out navigation within the configured base path."
     },
     {
       "repository": "ai-receptionist",
@@ -447,7 +447,7 @@
       "source": "vite.config.ts",
       "destination": "products/voice/vite.config.ts",
       "sha256": "e9cadaebcf2a2508d9a10bbfab6140fc7d8a299c2bd0aa05efb59a7fb567bcb0",
-      "change": "Unchanged."
+      "change": "Support the explicit /installed/voice Canopy build prefix while retaining / for standalone/Appflare."
     },
     {
       "repository": "ai-receptionist",
@@ -455,7 +455,7 @@
       "source": "worker/app/auth-core.ts",
       "destination": "products/voice/worker/app/auth-core.ts",
       "sha256": "55b51137b13aa287081757d8790244bbe9017e6e0182488667e3e34b968632c7",
-      "change": "Import explicit Env and rename the session cookie to canopy_voice_session to avoid sibling localhost collisions. Retain owner password verification, hash storage, rotation, origin checks and eight-hour lifetime."
+      "change": "Import explicit Env and rename the session cookie to canopy_voice_session to avoid sibling localhost collisions. Retain owner password verification, hash storage, rotation, origin checks and eight-hour lifetime. Dispatch authentication under the explicit mount without changing cookie flags, hashed sessions or origin checks."
     },
     {
       "repository": "ai-receptionist",
@@ -471,7 +471,7 @@
       "source": "worker/app/voice-telnyx.ts",
       "destination": "products/voice/worker/app/voice-telnyx.ts",
       "sha256": "d007dc95e416f6704b847026100a960a9942d862adbfb7ffea394a0eeb79ded0",
-      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain."
+      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain. Normalize mounted dispatch while preserving original carrier requests and configured public callback URLs."
     },
     {
       "repository": "ai-receptionist",
@@ -479,7 +479,7 @@
       "source": "worker/app/voice-twilio.ts",
       "destination": "products/voice/worker/app/voice-twilio.ts",
       "sha256": "4e850b95b6018ebeedfb0daa608f553185e48e7302cb6f388409204b96028065",
-      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain."
+      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain. Normalize mounted dispatch while preserving the original signed request and configured public callback URL."
     },
     {
       "repository": "ai-receptionist",
@@ -487,7 +487,7 @@
       "source": "worker/app/voice.ts",
       "destination": "products/voice/worker/app/voice.ts",
       "sha256": "ca4b5f7b406055ceef45187a0447d0d5095cafa2076d884eba4c30bf5337532b",
-      "change": "Add an explicit product Env type import; behavior unchanged."
+      "change": "Add an explicit product Env type import; behavior unchanged. Normalize the explicit mount for dispatch and include it in generated WebSocket and carrier callback URLs."
     },
     {
       "repository": "ai-receptionist",
@@ -503,7 +503,7 @@
       "source": "worker/env.d.ts",
       "destination": "products/voice/worker/env.ts",
       "sha256": "ff390cd76e39fd6d47bcb3448489b0fa80d7c175152a30c0804788677ef7b64d",
-      "change": "Convert the ambient Env to an exported module with explicit Cloudflare binding types; keep the product environment isolated."
+      "change": "Convert the ambient Env to an exported module with explicit Cloudflare binding types; keep the product environment isolated. Declare the explicit Canopy mount and legacy redirect configuration alongside the existing product bindings."
     },
     {
       "repository": "ai-receptionist",
@@ -511,7 +511,7 @@
       "source": "worker/index.ts",
       "destination": "products/voice/worker/index.ts",
       "sha256": "b4a1dbc059979b97525c5711545f9ae2e91823f7c5d1a6930b7efa1e00216572",
-      "change": "Add an explicit product Env type import; behavior unchanged."
+      "change": "Explicit product Env; retain Durable Object exports and scheduled cleanup. Request dispatch is maintained in worker/app/router.ts with the explicit Canopy mount adapter."
     },
     {
       "repository": "ai-receptionist",
@@ -568,6 +568,14 @@
       "destination": "products/voice/wrangler.jsonc",
       "sha256": "0a891d60e462eaaf8bc150f19fead652d2c781661dabec209f945fb2ac8fc34e",
       "change": "Use unbound canopy-voice resource names, no account/domain/production IDs, disabled preview URLs and calling-off defaults. Preserve static assets, D1 migration directory, Durable Object class/migration, cron, and Workers AI binding."
+    },
+    {
+      "repository": "ai-receptionist",
+      "revision": "7d3e023318f36f7a45e5d155c46d96e3896f9502",
+      "source": "worker/index.ts",
+      "destination": "products/voice/worker/app/router.ts",
+      "sha256": "b4a1dbc059979b97525c5711545f9ae2e91823f7c5d1a6930b7efa1e00216572",
+      "change": "Extract request dispatch from the adopted Worker entrypoint; add explicit Canopy mount routing, asset redirect rewriting, legacy-origin redirects and existing handoff handling. The original request remains intact for carrier signatures and origin checks."
     }
   ],
   "voiceExtraction": {

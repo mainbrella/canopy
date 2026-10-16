@@ -12,7 +12,7 @@ export function validateCore(target) {
     || !validOrigin(target.accountsOrigin) || !validOrigin(target.consoleOrigin) || target.accountsOrigin === target.consoleOrigin
     || !Array.isArray(target.products) || target.products.some(product => !['voice','cut'].includes(product))
     || target.allowVoiceInstallation !== undefined && typeof target.allowVoiceInstallation !== 'boolean'
-    || target.products.includes('voice') && (!validOrigin(target.voiceOrigin) || [target.accountsOrigin,target.consoleOrigin].includes(target.voiceOrigin))
+    || target.voiceOrigin && [target.accountsOrigin,target.consoleOrigin].includes(target.voiceOrigin)
     || target.appflareOrigin && !validOrigin(target.appflareOrigin)
     || !/^\d+$/.test(target.emailRateNamespace) || !/^\d+$/.test(target.googleRateNamespace) || target.emailRateNamespace === target.googleRateNamespace
     || target.voiceOrigin && !validOrigin(target.voiceOrigin)
@@ -65,12 +65,29 @@ export async function main(args = process.argv.slice(2)) {
   accounts.ratelimits[0].namespace_id=target.emailRateNamespace;accounts.ratelimits[1].namespace_id=target.googleRateNamespace;
   const consoleConfig={name:names.console,account_id:target.accountId,compatibility_date:'2026-09-18',workers_dev:false,preview_urls:false,send_metrics:false,
     vars:{CANOPY_INSTANCE_ID:state.installationId},
-    assets:{directory:'./dist',html_handling:'auto-trailing-slash',not_found_handling:'404-page'},routes:[{pattern:new URL(target.consoleOrigin).hostname,custom_domain:true}]};
+    main:'worker/index.ts',assets:{directory:'./dist',binding:'ASSETS',run_worker_first:['/installed/voice','/installed/voice/*'],html_handling:'auto-trailing-slash',not_found_handling:'404-page'},routes:[{pattern:new URL(target.consoleOrigin).hostname,custom_domain:true}]};
+  // A core redeploy must retain a previously installed optional product binding.
+  for (const [path,config] of [[accountsPath,accounts],[consolePath,consoleConfig]]) {
+    try {
+      const previous=await readJSON(path);
+      if (previous.vars?.CANOPY_INSTANCE_ID===state.installationId) {
+        const bindings=(previous.services ?? []).filter(binding=>binding.binding==='VOICE'&&binding.service===`${target.prefix}-voice`);
+        if (bindings.length) config.services=bindings;
+      }
+    } catch(error) { if(error.code!=='ENOENT')throw error; }
+  }
   await writeFile(accountsPath,`${JSON.stringify(accounts,null,2)}\n`);
   await writeFile(consolePath,`${JSON.stringify(consoleConfig,null,2)}\n`);
   const voiceTarget={accountId:target.accountId,accountsConfig:accountsPath.slice(root.length),consoleConfig:consolePath.slice(root.length),
-    accountsOrigin:target.accountsOrigin,consoleOrigin:target.consoleOrigin,workerName:`${target.prefix}-voice`,databaseName:`${target.prefix}-voice`,origin:target.voiceOrigin,
+    accountsOrigin:target.accountsOrigin,consoleOrigin:target.consoleOrigin,workerName:`${target.prefix}-voice`,databaseName:`${target.prefix}-voice`,origin:target.voiceOrigin ?? target.consoleOrigin,
+    ...(!target.voiceOrigin?{basePath:'/installed/voice'}:{}),
     operatorUserId:target.operatorUserId,products:target.products,name:target.name,dailyCallLimit:20,concurrentCallLimit:2};
+  try {
+    const previous=await readJSON(join(directory,'voice.json'));
+    if (previous.basePath==='/installed/voice' && previous.accountId===target.accountId && previous.workerName===voiceTarget.workerName) {
+      Object.assign(voiceTarget,{origin:previous.origin,basePath:previous.basePath,...(previous.stateKey?{stateKey:previous.stateKey}:{}),...(previous.legacyOrigin?{legacyOrigin:previous.legacyOrigin}:{})});
+    }
+  } catch(error) { if(error.code!=='ENOENT')throw error; }
   await privateJSON(join(directory,'voice.json'),voiceTarget);
   await persist();
   if (values.deploy) {

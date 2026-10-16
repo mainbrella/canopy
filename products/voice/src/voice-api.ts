@@ -140,5 +140,8 @@ export function voiceSocketURL(value: string, apiOrigin: string): string {
   if (url.host !== api.host || url.protocol !== (api.protocol === 'https:' ? 'wss:' : 'ws:') || url.username || url.password) {
     throw new Error('Could not connect securely to Voice. Please try again.');
   }
+  if (api.pathname !== '/' && !url.pathname.startsWith(`${api.pathname.replace(/\/$/, '')}/voice/calls/`)) {
+    throw new Error('Could not connect securely to Voice. Please try again.');
+  }
   return url.href;
 }

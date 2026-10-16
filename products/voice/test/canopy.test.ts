@@ -8,7 +8,9 @@ import { handleVoiceRequest } from "../worker/app/voice";
 import type { Env } from "../worker/env";
 
 const origin="https://voice.example", secret="a".repeat(64), sessionHash="b".repeat(64);
-async function fixture(t:TestContext){
+async function fixture(t:TestContext,mounted=false){
+  const origin=mounted?"https://console.example":"https://voice.example";
+  const base=mounted?"/installed/voice":"";
   const mf=new Miniflare(convertV4MiniflareOptions({workers:[{name:"handoff-test",modules:true,script:"export default {fetch(){return new Response('ok')}}",compatibilityDate:"2026-09-18",d1Databases:["DB"]}]}));
   t.after(()=>mf.dispose());
   const db=await mf.getD1Database("DB");
@@ -17,7 +19,7 @@ async function fixture(t:TestContext){
     const sql=readFileSync(new URL(file,migrations),"utf8").replace(/^--.*$/gm,"").split(";").map(part=>part.trim()).filter(Boolean);
     await db.batch(sql.map(sql=>db.prepare(sql)));
   }
-  const env={DB:db,VOICE_AUTH_MODE:"canopy",CANOPY_AUTH_SECRET:secret,CANOPY_ACCOUNTS_ORIGIN:"https://accounts.example",CANOPY_CONSOLE_ORIGIN:"https://console.example",CANOPY_INSTALLATION_ID:"installation",CANOPY_SOURCE_VERSION:"v1",VOICE_ENABLED:"true",AI:{},RECEPTIONIST_CALL:{}} as unknown as Env;
+  const env={DB:db,VOICE_AUTH_MODE:"canopy",CANOPY_AUTH_SECRET:secret,CANOPY_ACCOUNTS_ORIGIN:"https://accounts.example",CANOPY_CONSOLE_ORIGIN:"https://console.example",CANOPY_INSTALLATION_ID:"installation",CANOPY_SOURCE_VERSION:"v1",VOICE_ENABLED:"true",VOICE_BASE_PATH:base,VOICE_PUBLIC_ORIGIN:origin,AI:{},RECEPTIONIST_CALL:{}} as unknown as Env;
   let valid=true;
   t.mock.method(globalThis,"fetch",async (_url:unknown,init:RequestInit)=>{
     assert.equal((init.headers as Record<string,string>).authorization,`Bearer ${secret}`);
@@ -25,10 +27,10 @@ async function fixture(t:TestContext){
     return Response.json({user:valid?{id:hash===sessionHash?"user-one":"user-two"}:null});
   });
   const issue=async(userId="user-one",hash=sessionHash)=>{
-    const response=await handleCanopy(new Request(`${origin}/_canopy/handoffs`,{method:"POST",headers:{authorization:`Bearer ${secret}`,"content-type":"application/json"},body:JSON.stringify({installationId:"installation",userId,sessionHash:hash})}),env);
+    const response=await handleCanopy(new Request(`${origin}${base}/_canopy/handoffs`,{method:"POST",headers:{authorization:`Bearer ${secret}`,"content-type":"application/json"},body:JSON.stringify({installationId:"installation",userId,sessionHash:hash})}),env);
     assert.equal(response.status,201); return (await response.json() as {code:string}).code;
   };
-  const exchange=(code:string,from=origin)=>handleCanopy(new Request(`${origin}/auth/canopy`,{method:"POST",headers:{origin:from,"content-type":"application/json"},body:JSON.stringify({code})}),env);
+  const exchange=(code:string,from=origin)=>handleCanopy(new Request(`${origin}${base}/auth/canopy`,{method:"POST",headers:{origin:from,"content-type":"application/json"},body:JSON.stringify({code})}),env);
   return{db,env,issue,exchange,revoke(){valid=false;}};
 }
 
@@ -49,6 +51,29 @@ test("Canopy handoffs are hashed, expire, and exchange atomically only on their 
   assert.equal((await f.exchange(expired)).status,401);
   f.revoke();
   assert.equal(await currentUser(f.env,new Request(origin,{headers:{cookie}})),null);
+});
+
+test('mounted routing preserves sessions, strips only asset paths, and redirects the old host',async t=>{
+  const f=await fixture(t,true);
+  const {handleRequest}=await import('../worker/app/router');
+  const response=await f.exchange(await f.issue());
+  const cookie=response.headers.get('set-cookie')!.split(';')[0];
+  assert.match(response.headers.get('set-cookie')!,/Path=\/; HttpOnly; SameSite=Strict.*Secure/);
+  const request=(path:string,options:RequestInit={})=>handleRequest(new Request(`https://console.example${path}`,options),f.env,{} as ExecutionContext);
+  assert.equal((await(await request('/installed/voice/auth/session',{headers:{cookie}})).json() as any).user.id,'user-one');
+  f.env.ASSETS={fetch:async(request:Request)=>new Response(new URL(request.url).pathname)} as unknown as Env['ASSETS'];
+  assert.equal(await(await request('/installed/voice/base.css')).text(),'/base.css');
+  f.env.ASSETS={fetch:async()=>Response.redirect('https://console.example/handoff',307)} as unknown as Env['ASSETS'];
+  assert.equal((await request('/installed/voice/handoff.html')).headers.get('location'),'https://console.example/installed/voice/handoff');
+  assert.equal((await request('/auth/session')).status,404);
+  assert.equal((await request('/installed/voice-other/auth/session')).status,404);
+  assert.equal((await request('/installed/voice/agents/private')).status,404);
+  assert.equal((await request('/installed/voice')).headers.get('location'),'https://console.example/installed/voice/');
+  f.env.VOICE_LEGACY_ORIGIN='https://old-voice.example';
+  const moved=await handleRequest(new Request('https://old-voice.example/'),f.env,{} as ExecutionContext);
+  assert.equal(moved.status,308);assert.equal(moved.headers.get('location'),'https://console.example/installed/voice/');
+  f.revoke();
+  assert.equal((await request('/installed/voice/voice/agent',{headers:{cookie}})).status,401);
 });
 
 test("Canopy users have distinct workspaces and cannot use the standalone owner password",async t=>{
@@ -98,8 +123,10 @@ test('instance call limits are atomic across workspaces and usage authorization 
   assert.equal(await createCall(f.env,'five',configs.get('five')!,'text'),null);
 });
 
-test('signed Canopy carriers route only to the assigned workspace and retain replay protection',async t=>{
-  const f=await fixture(t);
+for(const mounted of [false,true])test(`signed Canopy carriers retain workspace and replay checks (${mounted?'mounted':'standalone URL'})`,async t=>{
+  const f=await fixture(t,mounted);
+  const origin=mounted?'https://console.example':'https://voice.example';
+  const base=mounted?'/installed/voice':'';
   const {handleTwilioRequest}=await import('../worker/app/voice-twilio');
   const {handleTelnyxRequest}=await import('../worker/app/voice-telnyx');
   const {getExpectedTwilioSignature}=await import('twilio/lib/webhooks/webhooks.js');
@@ -112,7 +139,7 @@ test('signed Canopy carriers route only to the assigned workspace and retain rep
   t.mock.method(globalThis,'fetch',async()=>Response.json({allowed:true,billingMode:'owner_funded'}));
   const twilio=async(agentId:string,sid:string)=>{
     const fields={AccountSid:f.env.TWILIO_ACCOUNT_SID!,To:f.env.TWILIO_PHONE_NUMBER!,CallSid:sid};
-    const url=`${origin}/voice/twilio/incoming/${agentId}`;
+    const url=`${origin}${base}/voice/twilio/incoming/${agentId}`;
     return handleTwilioRequest(new Request(url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','x-twilio-signature':getExpectedTwilioSignature('test-token',url,fields)},body:new URLSearchParams(fields)}),f.env);
   };
   const sid=`CA${'b'.repeat(32)}`;
@@ -129,7 +156,7 @@ test('signed Canopy carriers route only to the assigned workspace and retain rep
     const body=new URLSearchParams({AccountSid:f.env.TELNYX_ACCOUNT_SID!,To:f.env.TELNYX_PHONE_NUMBER!,ConnectionId:'1234',CallSid:callId}).toString();
     const timestamp=String(Math.floor(Date.now()/1000));
     const signature=encode(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(`${timestamp}|${body}`)));
-    return handleTelnyxRequest(new Request(`${origin}/voice/telnyx/incoming/${agentId}`,{method:'POST',body,headers:{'content-type':'application/x-www-form-urlencoded','telnyx-timestamp':timestamp,'telnyx-signature-ed25519':signature}}),f.env);
+    return handleTelnyxRequest(new Request(`${origin}${base}/voice/telnyx/incoming/${agentId}`,{method:'POST',body,headers:{'content-type':'application/x-www-form-urlencoded','telnyx-timestamp':timestamp,'telnyx-signature-ed25519':signature}}),f.env);
   };
   const telnyxId=crypto.randomUUID();
   assert.equal((await telnyx(other,telnyxId)).status,403);

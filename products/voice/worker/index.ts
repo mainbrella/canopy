@@ -1,28 +1,7 @@
 import type { Env } from "./env";
-import { handleAuth, authJson, canopyConfigured } from "./app/auth-core";
-import { handleVoiceRequest } from "./app/voice";
-import { handleCanopy } from "./app/canopy";
+import { handleRequest } from "./app/router";
+export { handleRequest } from "./app/router";
 export { ReceptionistCall } from "./durable-objects/receptionist-call";
-
-export async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  const path = new URL(request.url).pathname;
-  try {
-    if (path === "/health" && request.method === "GET") return authJson({ ok: true });
-    if (path.startsWith("/_canopy/") || path === "/auth/canopy") return await handleCanopy(request, env);
-    if (["/login", "/login.html"].includes(path) && env.VOICE_AUTH_MODE === "canopy") {
-      return canopyConfigured(env) ? Response.redirect(`${env.CANOPY_CONSOLE_ORIGIN}/#/products/voice`, 302)
-        : authJson({ error: "login_unavailable" }, 503);
-    }
-    if (path.startsWith("/auth/")) return await handleAuth(request, env);
-    if (path.startsWith("/voice/")) return await handleVoiceRequest(request, env, ctx);
-    // Never expose the SDK's unauthenticated /agents RPC/state endpoints.
-    if (path.startsWith("/agents/") || path.startsWith("/__")) return authJson({ error: "not_found" }, 404);
-    return await env.ASSETS.fetch(request);
-  } catch {
-    console.error("receptionist_request_failed");
-    return authJson({ error: "voice_unavailable" }, 503);
-  }
-}
 
 export async function cleanup(env: Env): Promise<void> {
   const configured = Number(env.TRANSCRIPT_RETENTION_DAYS ?? "30");

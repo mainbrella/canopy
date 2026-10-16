@@ -10,11 +10,12 @@ import { handleTelnyxRequest } from "./voice-telnyx";
 import { telnyxConfigured, telnyxSipUri } from "../lib/voice-telnyx";
 import { handleVoiceNumberSearch } from "./voice-number-search";
 import { resolveVoiceModels, speechModelAvailable, speechOptions } from "../lib/voice-options";
+import { voiceBasePath, voiceURL } from "../lib/routing";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function handleVoiceRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  const url = new URL(request.url);
+  const url = voiceURL(request, env);
   if (url.pathname === "/voice/numbers/search") return handleVoiceNumberSearch(request, env);
   // Carriers authenticate their own signed requests; they cannot use admin routes.
   if (url.pathname.startsWith("/voice/twilio/")) return handleTwilioRequest(request, env, ctx);
@@ -30,7 +31,7 @@ export async function handleVoiceRequest(request: Request, env: Env, ctx: Execut
   if (url.pathname === "/voice/config" && request.method === "GET") {
     const agent = await readAgent(env, user.id);
     const id = agent?.id ?? null;
-    const origin = publicVoiceOrigin(env);
+    const origin = publicVoiceOrigin(env) ? `${publicVoiceOrigin(env)}${voiceBasePath(env)}` : null;
     return authJson({ enabled: voiceEnabled(env), browserCalling: voiceEnabled(env),
       models: agent ? resolveVoiceModels(publicAgent(agent)) : VOICE_MODELS, speech: speechOptions(env),
       telephony: {
@@ -88,7 +89,7 @@ export async function handleVoiceRequest(request: Request, env: Env, ctx: Execut
         .bind(new Date().toISOString(), call.id).run();
       return authJson({ error: "voice_unavailable" }, 503);
     }
-    const websocketUrl = new URL(`/voice/calls/${call.id}/connect`, url.origin);
+    const websocketUrl = new URL(`${voiceBasePath(env)}/voice/calls/${call.id}/connect`, url.origin);
     websocketUrl.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     return authJson({ call: publicCall(call), websocketUrl: websocketUrl.toString() }, 201);
   }

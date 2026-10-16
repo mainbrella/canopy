@@ -6,6 +6,7 @@ export interface VoiceInstallation {
   state: typeof voiceStates[number];
   version: string | null;
   origin: string | null;
+  basePath?: "" | "/installed/voice";
   access?: "sign_in" | "allowed" | "denied";
   canInstall?: boolean;
   canManageAccess?: boolean;
@@ -20,6 +21,7 @@ export function isVoiceInstallation(value: unknown): value is VoiceInstallation 
     && (value.canManageAccess === undefined || typeof value.canManageAccess === "boolean")
     && (value.identity === undefined || value.identity === "canopy" || value.identity === "own")
     && (value.billing === undefined || value.billing === false)
+    && (value.basePath === undefined || value.basePath === "" || value.product === "voice" && value.basePath === "/installed/voice")
     && (value.version === null || typeof value.version === "string")
     && (value.origin === null || typeof value.origin === "string");
 }

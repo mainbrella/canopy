@@ -2,10 +2,12 @@ import { authJson, currentUser, hashToken, readJSON, sessionTokenHash, type Stri
 import { isOperator, productAllowed } from "./product-access.ts";
 import type { Env } from "./env.ts";
 import type { VoiceInstallation } from "@canopy/contracts/products";
+import type { RequestInit as WorkerRequestInit } from "@cloudflare/workers-types/index.ts";
 
 interface Installation {
   installation_id: string; origin: string; version: string; state: "installing" | "installed" | "failed";
   verification_json: string | null;
+  base_path: string;
 }
 
 function validOrigin(value: string, env: Env): boolean {
@@ -18,11 +20,17 @@ function validOrigin(value: string, env: Env): boolean {
 
 async function voiceRequest(env: Env, installation: Installation, path: string, body?: unknown): Promise<Response> {
   if (!validOrigin(installation.origin, env) || !env.VOICE_AUTH_SECRET || env.VOICE_AUTH_SECRET.length < 64) throw new Error("Voice configuration unavailable");
-  return fetch(`${installation.origin}${path}`, {
+  const base = installation.base_path;
+  if (base && (base !== "/installed/voice" || !env.VOICE || !env.AUTH_ORIGINS.split(",").map(value => value.trim()).includes(installation.origin))) {
+    throw new Error("Voice mount unavailable");
+  }
+  const options = {
     method: body ? "POST" : "GET", redirect: "manual", signal: AbortSignal.timeout(5000),
     headers: { authorization: `Bearer ${env.VOICE_AUTH_SECRET}`, ...(body ? { "content-type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
-  });
+  } as const;
+  const url = `${installation.origin}${base}${path}`;
+  return base ? await env.VOICE!.fetch(url, options as unknown as WorkerRequestInit) as unknown as Response : fetch(url, options);
 }
 
 async function internal(request: Request, env: Env, path: string): Promise<Response> {
@@ -80,7 +88,7 @@ export async function handleProducts(request: Request, env: Env, cors: StringHea
   }
   const allowed = Boolean(user && await productAllowed(env, product, user.id));
   if (action === "open" && !allowed) return authJson({ error: "product_access_denied" }, 403, cors);
-  const installation = await env.DB.prepare("SELECT installation_id,origin,version,state,verification_json FROM product_installations WHERE product=?").bind(product).first<Installation>();
+  const installation = await env.DB.prepare("SELECT installation_id,origin,version,state,verification_json,base_path FROM product_installations WHERE product=?").bind(product).first<Installation>();
   const job = await env.DB.prepare("SELECT state FROM product_install_requests WHERE product=?").bind(product).first<{state: string}>();
   const status: VoiceInstallation = {
     product: product as "voice" | "cut", state: "not_installed", version: null, origin: null,
@@ -99,6 +107,7 @@ export async function handleProducts(request: Request, env: Env, cors: StringHea
           const ready = await response.json() as Record<string, unknown>;
           if (response.ok && ready.ready === true && ready.installationId === installation.installation_id && ready.version === installation.version) {
             status.state = "ready"; status.origin = installation.origin;
+            if (installation.base_path) status.basePath = "/installed/voice";
           }
         } else if (installation.verification_json && validOrigin(installation.origin, env)) {
           // Registration evidence proves ownership/version; this probe proves reachability only.
@@ -120,5 +129,5 @@ export async function handleProducts(request: Request, env: Env, cors: StringHea
   });
   const handoff = await response.json() as { code?: unknown };
   if (!response.ok || typeof handoff.code !== "string" || !/^[a-f0-9]{64}$/.test(handoff.code)) return authJson({ error: "voice_unavailable" }, 503, cors);
-  return authJson({ url: `${installation.origin}/handoff.html#${handoff.code}` }, 200, cors);
+  return authJson({ url: `${installation.origin}${installation.base_path}/handoff.html#${handoff.code}` }, 200, cors);
 }

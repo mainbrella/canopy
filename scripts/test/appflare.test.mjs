@@ -31,6 +31,7 @@ test('Cut reconciliation persists evidence and repeats safely without replacing 
 test('portable core requires dedicated origins, explicit product selection and isolated rate limits',()=>{
   const target={accountId:'a'.repeat(32),prefix:'own-core',accountsOrigin:'https://api.example.com',consoleOrigin:'https://console.example.com',products:[],emailRateNamespace:'5001',googleRateNamespace:'5002'};
   assert.equal(validateCore(target),target);
+  assert.deepEqual(validateCore({...target,products:['voice']}).products,['voice']);
   for(const alter of [f=>f.accountsOrigin='https://api-stg.mainbrella.com',f=>f.googleRateNamespace='5001',f=>f.products=['unknown'],f=>f.prefix='../escape']){
     const copy={...target};alter(copy);assert.throws(()=>validateCore(copy));
   }

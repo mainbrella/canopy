@@ -1,10 +1,30 @@
 # Current product installation status — 2026-10-16
 
-Established staging now has connected Voice installed. Recovery completed at **15:04:23 UTC on 2026-10-16**; the live `https://api-stg.mainbrella.com/products/voice` response reports `ready` at `https://voice-stg.mainbrella.com`. Cut remains `not_installed`. Earlier core-only deployment records below are historical.
+Established staging now has connected Voice at **https://stg.mainbrella.com/installed/voice/**. The authorized move completed on **2026-10-16**, with deployed checks passing at **15:33:52 UTC**. The live API reports `ready`, console origin and `basePath: "/installed/voice"`. The old Voice subdomain redirects. Cut remains `not_installed`. Earlier deployment records below are historical.
 
 The repository implements portable core setup, operator-only installation requests, product grants, owner-funded Voice limits, atomic installer leases, carrier workspace routing and Appflare/Cut inventory reconciliation. Staging's connected Voice runtime and paired core configuration are deployed; the independent Appflare/Cut workflow remains unverified live. `deploy:staging` still deploys **accounts and console only**; `deploy:staging:site` deploys **console only**. The separate Voice installer requires an existing pinned operator user and explicit owner-funded configuration. Catalog discovery is not product readiness.
 
 See [operator installation](docs/operator-installation.md) for commands and recovery, and [the exact proposed resource/secret/retention plan](docs/milestone-deployment.md) for a separate fresh `canopy-m2` core, Voice, Appflare and Cut. **That separate plan's authorization and full live verification remain pending.** Do not replace historical IDs below with build or fixture IDs.
+
+## Mounted Voice migration — current deployment
+
+The user authorized moving Voice from its subdomain to the console path. The credentialed installer ran with the existing staging target and explicit `--mount`, applied additive core migration `015`, deployed the same Voice Worker in mounted mode, added private `VOICE` service bindings to console/accounts, and updated the existing registration. No new database, Worker, namespace, domain or secret was created. The installation ID, Voice D1 UUID and DO namespace in the earlier record below are unchanged; aggregate agents/calls remained zero. Production Worker versions matched the preflight snapshot after deployment.
+
+| Worker | Current 100% deployed version |
+| --- | --- |
+| `canopy-voice-stg` | `0639154a-9b6f-4c0b-91f3-7cd85bac20fa` |
+| `canopy-accounts-stg` | `79ee85c6-9afc-4d48-8a03-e9ba255227a2` |
+| `canopy-console-stg` | `8756099d-b85b-405c-b2d1-0cc2139c2933` |
+
+Product version is `0.1.0+288e439acf08a6ba`, from `c935617706867290c2830532a569f4de33bba35e` with recorded working-tree changes. The old `voice-stg.mainbrella.com` hostname returns 308 to the new path for GET/HEAD; old mutation URLs return 410. New generated mounted targets do not provision a Voice hostname. Standalone/Appflare Voice remains at `/` with its own password mode. Third-party Appflare apps remain on separate origins.
+
+The first completion probe hit an empty edge 404 while the new console route propagated. The installer recorded failure and resumed the exact pinned transition/private state; mounted readiness now retries those transient route 404s. Successful final readiness checked the exact installation ID and product version. Core discovery independently verified the runtime over its private binding.
+
+Validation: **117 unit/runtime tests**, type checks, staging builds/Worker dry runs, **7 mounted browser tests** and **6 standalone browser tests** pass. The mounted local suite covers keyboard opening, a simulated text/WebSocket conversation, separate workspaces, logout/revocation and all four viewports. The gateway test exercises real local Worker service bindings and WebSocket upgrades. An independent dirty export completed `npm ci`, type checks, standalone build and Worker dry run with no platform dependencies; it is not a published release.
+
+Deployed anonymous Chromium checks passed at 390×844, 768×1024, 1280×800 and 1440×900: mounted HTML/CSS/JS and session API load, no horizontal overflow or page errors, and keyboard sign-in navigation returns to the installed console page. Anonymous product opening returns 401; unsigned readiness probes return 404. Authenticated handoff and real inference/carriers were not exercised live. No live inference or carrier action occurred.
+
+Preserve `.cache/voice-installs/bb5c3a21c28c623d/`, including `before-mount.json`, the updated `inventory.json`, `mount-preflight.json`, `mount-resource-verification.json`, `mount-verification.json`, and `mounted-viewports/`. The target's `stateKey` keeps recovery in that original directory. Deployment/test logs are `.cache/mount-voice-*.log`. Future verification uses ordinary `install:voice -- --config config/voice.staging.json` without `--mount`; it must not redeploy a matching installed version. This staging move does not complete the separate fresh-core/Appflare milestone.
 
 ## Connected Voice installation and DNS recovery
 

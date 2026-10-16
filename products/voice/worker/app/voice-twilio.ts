@@ -1,17 +1,18 @@
 import type { Env } from "../env";
+import { voiceBasePath, voiceURL } from '../lib/routing';
 import { carrierAgentId, carrierWorkspaceAllowed, usageAllowed, callStub, createCall, hashMediaToken, initializeCall, MAX_CALL_MS, publicAgent, publicVoiceOrigin, readCall, telephonyConfigured, twilioSipUri, type VoiceAgentRow } from '../lib/voice';
 import { pcmToTwilio, streamTwiml, twilioToPCM, validTwilioSignature } from '../lib/voice-telephony';
 
 const xml = (body: string,status=200) => new Response(body,{status,headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
 const unavailable = () => xml('<Response><Say>Sorry, our receptionist is unavailable. Please call again later.</Say><Hangup /></Response>');
 export async function handleTwilioRequest(request: Request,env: Env,ctx?: ExecutionContext): Promise<Response> {
-  const url = new URL(request.url);
+  const url = voiceURL(request, env);
   const origin = publicVoiceOrigin(env);
   if (!origin || !env.TWILIO_AUTH_TOKEN || !telephonyConfigured(env,carrierAgentId(env))) return new Response(null,{status:503});
   const incoming = url.pathname.match(/^\/voice\/twilio\/incoming\/([a-f0-9-]{36})$/i);
   const media = url.pathname.match(/^\/voice\/twilio\/media\/([a-f0-9-]{36})$/i);
   if (url.search || (!incoming && !media)) return new Response(null,{status:404});
-  const expectedUrl = `${origin}${url.pathname}`;
+  const expectedUrl = `${origin}${voiceBasePath(env)}${url.pathname}`;
   try {
     if (incoming) {
       if (request.method !== 'POST') return new Response(null,{status:405});
@@ -40,7 +41,7 @@ export async function handleTwilioRequest(request: Request,env: Env,ctx?: Execut
         await env.DB.prepare("UPDATE voice_calls SET status='failed',ended_at=? WHERE id=?").bind(new Date().toISOString(),call.id).run();
         return unavailable();
       }
-      return xml(streamTwiml(`${origin.replace('https:','wss:')}/voice/twilio/media/${call.id}`,token));
+      return xml(streamTwiml(`${origin.replace('https:','wss:')}${voiceBasePath(env)}/voice/twilio/media/${call.id}`,token));
     }
     if (request.method !== 'GET') return new Response(null,{status:405});
     if (request.headers.get('Upgrade')?.toLowerCase()!=='websocket') return new Response(null,{status:426});

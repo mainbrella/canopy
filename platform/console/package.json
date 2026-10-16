@@ -7,7 +7,7 @@
   "devDependencies": { "vite": "7.3.6" },
   "scripts": {
     "dev": "vite",
-    "type-check": "tsc -p tsconfig.json",
+    "type-check": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
     "build": "vite build",
     "build:staging": "vite build --mode staging --outDir dist-staging"
   }
