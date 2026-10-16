@@ -51,10 +51,33 @@
                     <input id="voice-business" name="businessName" maxlength="120" required placeholder="Your business" autocomplete="organization" />
                   </div>
                 </div>
+                <div class="voice-field-pair">
+                  <div class="voice-field">
+                    <label for="voice-model">Voice model</label>
+                    <select id="voice-model" name="model" aria-describedby="voice-language-hint">
+                      <option value="aura-1">Aura-1</option>
+                    </select>
+                  </div>
+                  <div class="voice-field">
+                    <label for="voice-language">Language</label>
+                    <select id="voice-language" name="language" aria-describedby="voice-language-hint">
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="voice-field voice-voice-field">
+                  <label for="voice-speaker">Voice</label>
+                  <select id="voice-speaker" name="voice">
+                    <option value="asteria">Asteria</option>
+                    <option value="luna">Luna</option>
+                    <option value="athena">Athena</option>
+                  </select>
+                  <p id="voice-language-hint" class="voice-hint" role="status"></p>
+                </div>
                 <div class="voice-field">
                   <label for="voice-greeting">Greeting</label>
                   <textarea id="voice-greeting" name="greeting" rows="3" maxlength="500" required aria-describedby="voice-greeting-hint">Hi, you’re speaking with our AI receptionist. How can I help?</textarea>
-                  <p id="voice-greeting-hint" class="voice-hint">The first thing callers hear. Let them know they’re speaking with AI.</p>
+                  <p id="voice-greeting-hint" class="voice-hint">Write this in the selected language. Let callers know they’re speaking with AI.</p>
                 </div>
                 <div class="voice-field">
                   <label for="voice-instructions">Instructions &amp; business information</label>
@@ -64,14 +87,6 @@ Answer using only the business information provided here. If you don’t know th
 
 Never invent opening hours, prices, availability, or account information. Do not claim to book appointments or transfer calls.</textarea>
                   <p id="voice-instructions-hint" class="voice-hint">Add your hours, services, and FAQs. Scheduling, account lookups, and human transfers aren’t connected yet.</p>
-                </div>
-                <div class="voice-field voice-voice-field">
-                  <label for="voice-speaker">Voice</label>
-                  <select id="voice-speaker" name="voice">
-                    <option value="asteria">Asteria · English</option>
-                    <option value="luna">Luna · English</option>
-                    <option value="athena">Athena · English</option>
-                  </select>
                 </div>
                 <div class="voice-field voice-logic-field">
                   <label for="voice-logic">Voice logic</label>
@@ -200,7 +215,7 @@ Never invent opening hours, prices, availability, or account information. Do not
           <p id="voice-phone-setup" class="voice-hint">Save your receptionist to get its incoming call webhook.</p>
           <details class="voice-pipeline">
             <summary>Voice pipeline</summary>
-            <dl><div><dt>Speech recognition</dt><dd>Deepgram Flux</dd></div><div><dt>Conversation</dt><dd id="voice-model-label">Workers AI</dd></div><div><dt>Speech generation</dt><dd>Deepgram Aura-1</dd></div><div><dt>Phone carrier</dt><dd>Twilio</dd></div></dl>
+            <dl><div><dt>Speech recognition</dt><dd id="voice-stt-label">Deepgram Flux</dd></div><div><dt>Conversation</dt><dd id="voice-model-label">Workers AI</dd></div><div><dt>Speech generation</dt><dd id="voice-tts-label">Deepgram Aura-1</dd></div><div><dt>Phone carrier</dt><dd>Twilio</dd></div></dl>
           </details>
         </section>
       </div>

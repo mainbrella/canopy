@@ -4,13 +4,22 @@ export interface Receptionist {
   businessName: string;
   greeting: string;
   instructions: string;
-  voice: 'asteria' | 'luna' | 'athena';
+  voice: string;
+  model?: VoiceModel;
+  language?: VoiceLanguage;
   voiceLogic?: VoiceLogic;
   transferNumber: string | null;
   updatedAt: string;
 }
 
 export type VoiceLogic = 'original_no_reply' | 'reply_right_away';
+export type VoiceModel = 'aura-1' | 'aura-2' | 'aura-2-gateway' | 'sonic-3.6';
+export type VoiceLanguage = 'en' | 'es' | 'fr' | 'de' | 'hi' | 'ru' | 'pt' | 'ja' | 'it' | 'nl';
+export interface VoiceSpeechOptions {
+  languages: Array<{ code: VoiceLanguage; name: string }>;
+  models: Array<{ id: VoiceModel; name: string; available: boolean; unavailableReason: string | null;
+    languages: Array<{ code: VoiceLanguage; voices: Array<{ id: string; name: string }> }> }>;
+}
 
 export interface VoiceMessage { role: 'user' | 'assistant'; text: string }
 export interface VoiceCall {
@@ -28,6 +37,7 @@ export interface VoiceConfig {
   browserCalling: boolean;
   telephony: { configured: boolean; webhookUrl: string | null; phoneNumber: string | null };
   models: { stt: string; llm: string; tts: string };
+  speech?: VoiceSpeechOptions;
 }
 
 export interface VoiceNumberSearchInput {
@@ -52,6 +62,7 @@ export class VoiceAPIError extends Error {
       not_found: 'This call could not be found. Refresh your call history.',
       voice_disabled: 'Voice calling is not enabled yet. Your settings can still be saved.',
       voice_unavailable: 'Voice is temporarily unavailable. Please try again.',
+      voice_model_unavailable: 'This voice model is not available. Choose another model and save your settings.',
       call_limit: 'You have reached the active call limit. End a call before starting another.',
       voice_call_limit: 'Your call limit has been reached. End an active call or try again later.',
       rate_limited: 'Too many requests. Wait a moment and try again.',

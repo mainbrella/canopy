@@ -9,7 +9,7 @@ test('voice mutations use the signed-in session and send only the requested sett
     return Response.json({ agent: { id: 'agent-1' } });
   }) as typeof fetch);
   const settings = { name: 'Receptionist', businessName: 'A & B', greeting: 'Hello', instructions: 'Ask about the visit.', voice: 'luna' as const,
-    voiceLogic: 'reply_right_away' as const, transferNumber: null };
+    model:'aura-2' as const,language:'es' as const,voiceLogic: 'reply_right_away' as const, transferNumber: null };
   await api.saveAgent(settings);
   assert.equal(sent[0].url, 'https://api.example.com/voice/agent');
   assert.equal(sent[0].options.method, 'PUT');
@@ -21,7 +21,8 @@ test('voice mutations use the signed-in session and send only the requested sett
 test('voice requests preserve authentication failures and hide unknown server errors', async () => {
   for (const [status, code, expected] of [[401, 'not_authenticated', /session has expired/], [429, 'voice_call_limit', /call limit/],
     [402, 'insufficient_balance', /credits have run out/], [402, 'spend_limit_exceeded', /spending limit/],
-    [503, 'voice_billing_unavailable', /billing is temporarily unavailable/], [503, 'internal_stack_trace_with_sensitive_details', /temporarily unavailable/]] as const) {
+    [503, 'voice_billing_unavailable', /billing is temporarily unavailable/], [503,'voice_model_unavailable',/Choose another model/],
+    [503, 'internal_stack_trace_with_sensitive_details', /temporarily unavailable/]] as const) {
     const api = createVoiceAPI('https://api.example.com', (async () => Response.json({ error: code }, { status })) as typeof fetch);
     await assert.rejects(api.calls(), caught => caught instanceof VoiceAPIError && caught.status === status && expected.test(caught.message));
   }
