@@ -10,7 +10,7 @@ export const localStack = {
 
 export default defineConfig({
   testDir: "./tests/browser",
-  testMatch: "account.spec.ts",
+  testMatch: ["account.spec.ts", "console.spec.ts"],
   fullyParallel: false,
   workers: 1,
   use: {

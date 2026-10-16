@@ -48,6 +48,9 @@ test("configured Google callback signs in, restores the session and signs out", 
   });
   await page.route("**/auth/logout", async route => { signedIn = false; await route.fulfill({ json: { ok: true } }); });
   await page.goto("/");
+  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
+  expect(await page.locator(`script[src="${scriptURL}"]`).count()).toBe(0);
+  await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Password", { exact: true }).fill("unsent password");
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await expect(page.locator("#account")).toBeVisible();
@@ -55,6 +58,7 @@ test("configured Google callback signs in, restores the session and signs out", 
   await expect(page.locator("#status")).toHaveText("Account created.");
   await expect(page.locator("#heading")).toBeFocused();
   await expect(page.locator("#password")).toHaveValue("");
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.locator("#status")).toHaveText("Signed out.");
   expect(await page.evaluate(() => (window as unknown as { googleTestSignedOut: boolean }).googleTestSignedOut)).toBe(true);
@@ -65,6 +69,7 @@ test("configured Google callback signs in, restores the session and signs out", 
   await page.reload();
   await expect(page.locator("#account")).toBeVisible();
   expect(await page.locator(`script[src="${scriptURL}"]`).count()).toBe(0);
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   expect(errors).toEqual([]);
@@ -74,7 +79,7 @@ test("Google loading does not block email and a failed script can be retried", a
   let releaseScript!: () => void;
   const wait = new Promise<void>(resolve => { releaseScript = resolve; });
   await page.route(scriptURL, async route => { await wait; await route.abort("failed"); });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/#/account", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#google-status")).toHaveText("Loading Google sign-in…");
   await expect(page.getByRole("button", { name: "Continue with email" })).toBeEnabled();
   await page.getByLabel("Email", { exact: true }).fill("retained@example.com");
@@ -96,7 +101,7 @@ test("a stalled Google script times out while email sign-in remains usable", asy
   let releaseScript!: () => void;
   const wait = new Promise<void>(resolve => { releaseScript = resolve; });
   await page.route(scriptURL, async route => { await wait; await route.abort("failed"); });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/#/account", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#google-status")).toHaveText("Loading Google sign-in…");
   await page.clock.fastForward(12_001);
   await expect(page.getByRole("button", { name: "Retry Google" })).toBeVisible();
@@ -104,6 +109,7 @@ test("a stalled Google script times out while email sign-in remains usable", asy
   await page.getByLabel("Password", { exact: true }).fill("fallback password");
   await page.getByRole("button", { name: "Continue with email" }).click();
   await expect(page.locator("#account")).toBeVisible();
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   releaseScript();
 });
@@ -124,7 +130,7 @@ test("Google errors preserve email input and reject duplicate or late callbacks"
       await route.fulfill({ json: { user, created: false } });
     }
   });
-  await page.goto("/");
+  await page.goto("/#/account");
   await page.getByLabel("Email", { exact: true }).fill("retained@example.com");
   await page.getByLabel("Password", { exact: true }).fill("retained password");
   const button = page.getByRole("button", { name: "Continue with Google" });
@@ -153,7 +159,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 
   test(`optional Google control fits and is keyboard reachable at ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
     await stubGoogle(page);
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/#/account");
     const button = page.getByRole("button", { name: "Continue with Google" });
     await expect(button).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

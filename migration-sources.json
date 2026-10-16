@@ -140,6 +140,34 @@
       "destination": "platform/console/wrangler.staging.jsonc",
       "sha256": "4e754b6e1fee98d398e815c560106b2bfbf802ddc9605f85022198b4486a1085",
       "change": "Adapt static Worker assets and custom-domain routing for canopy-console-stg at stg.mainbrella.com. Explicit same Cloudflare account; separate dist-staging output and disabled preview URLs. Production Worker and apex domain unchanged."
+    },
+    {
+      "repository": "web",
+      "source": "public/images/logo.png",
+      "destination": "platform/console/public/images/logo.png",
+      "sha256": "5247bcaf8328a6c42c509b2503067a0dcdf442ad6d8c40854cfbf23ee23678fa",
+      "change": "Unchanged Mainbrella umbrella mark; displayed at 32px in the console header and reused as its favicon."
+    },
+    {
+      "repository": "web",
+      "source": "scripts/site-chrome-plugin.ts",
+      "destination": "platform/console/index.html",
+      "sha256": "d0818b1191bb54b8775d32b3ff3602b403db8c317e2060ea45ffeea763713206",
+      "change": "Adapt compact brand header, account disclosure markup and footer structure into one static console shell. Only Products, account details, sign-out, repository/setup links and an external Appflare catalog link; no marketing, billing, analytics, consent or production product navigation."
+    },
+    {
+      "repository": "web",
+      "source": "src/account-menu.ts",
+      "destination": "platform/console/src/account-menu.ts",
+      "sha256": "148ba2ed958165f44a2dec840fc4355714a628ddbac39cd303514b20235406c3",
+      "change": "Extract disclosure toggle, ArrowDown entry, Escape, outside-click and focusout dismissal. Restore toggle focus when closing from a link; session and logout remain in the existing main controller. No balance fetching, auth events, checkout state or home redirects."
+    },
+    {
+      "repository": "web",
+      "source": "public/mainbrella.css",
+      "destination": "platform/console/src/style.css",
+      "sha256": "c4cfa40bb3d150d709b48712383f61d46bc911e1d6ff8efae0b20f31a4e5512c",
+      "change": "Adapt compact header/footer and right-aligned account panel patterns to the existing dark green console palette. Preserve existing auth form and account density; add responsive product rows, visible focus and reduced-motion support without the marketing stylesheet."
     }
   ]
 }

@@ -1,6 +1,8 @@
 import { createAuthClient } from "@canopy/platform-client/auth";
 import type { SignInResult, User } from "@canopy/contracts/auth";
 import { createGoogleSignIn } from "./google-sign-in.ts";
+import { createAccountMenu } from "./account-menu.ts";
+import { consoleConfig } from "./console-config.ts";
 import "./style.css";
 
 const auth = createAuthClient({ baseUrl: import.meta.env.VITE_AUTH_BASE_URL });
@@ -22,12 +24,64 @@ const password = element<HTMLInputElement>("password");
 const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
 const account = element("account");
 const signOut = element<HTMLButtonElement>("sign-out");
+const accountMenuRoot = element("account-menu");
+const accountMenu = createAccountMenu(accountMenuRoot);
+const signInLink = element("sign-in-link");
+const products = consoleConfig.products.filter(product => product.visible);
+let currentUser: User | null | undefined;
 let busy = false;
 const googleClientID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 const google = googleClientID ? createGoogleSignIn(element("google-sign-in"), googleClientID, credential => {
   void signIn(() => auth.signInWithGoogle(credential));
 }) : null;
 if (google) element("sign-in-prompt").textContent = "Continue with Google or email to sign in or create an account.";
+
+element("instance-name").textContent = consoleConfig.name;
+element("instance-name").parentElement!.setAttribute("aria-label", `${consoleConfig.name} home`);
+for (const product of products) {
+  const row = document.createElement("li");
+  const link = document.createElement("a");
+  link.href = `#/products/${product.id}`;
+  link.innerHTML = '<div><h2></h2><p class="muted"></p></div><span class="product-availability">Not installed</span><span class="product-arrow" aria-hidden="true">→</span>';
+  link.querySelector("h2")!.textContent = product.name;
+  link.querySelector("p")!.textContent = product.description;
+  row.append(link);
+  element("product-list").append(row);
+}
+element("products-empty").hidden = products.length > 0;
+
+function renderView(focus = false) {
+  const route = location.hash || "#/";
+  const isAccount = route === "#/account";
+  const isHome = route === "#/";
+  const product = products.find(item => route === `#/products/${item.id}`);
+  heading.textContent = isAccount ? (currentUser === null ? "Sign in" : "Account") : isHome ? "Products" : product?.name ?? "Page not found";
+  document.title = `${heading.textContent} · ${consoleConfig.name}`;
+  form.hidden = !isAccount || currentUser !== null;
+  account.hidden = !isAccount || !currentUser;
+  element("products").hidden = !isHome;
+  element("product-detail").hidden = !product;
+  element("not-found").hidden = isHome || isAccount || Boolean(product);
+  element("products-link").toggleAttribute("aria-current", false);
+  element("account-link").toggleAttribute("aria-current", false);
+  if (isHome || product) element("products-link").setAttribute("aria-current", "page");
+  if (isAccount) element("account-link").setAttribute("aria-current", "page");
+  if (product) {
+    element("product-description").textContent = product.description;
+    element("product-notice").textContent = `${product.name} isn’t available in this deployment yet.`;
+  }
+  if (focus) heading.focus();
+  if (!form.hidden) void google?.load();
+}
+
+window.addEventListener("hashchange", () => {
+  accountMenu.close();
+  renderView(true);
+});
+document.querySelector<HTMLAnchorElement>(".skip-link")!.addEventListener("click", event => {
+  event.preventDefault();
+  element("main").focus();
+});
 
 function clearError() { error.hidden = true; error.textContent = ""; }
 function showError(cause: unknown) {
@@ -47,17 +101,19 @@ function setBusy(value: boolean, message = "") {
 }
 
 function showUser(user: User | null, focus = false) {
-  heading.textContent = user ? "Account" : "Sign in";
-  form.hidden = Boolean(user);
-  account.hidden = !user;
+  currentUser = user;
+  accountMenuRoot.hidden = !user;
+  signInLink.hidden = Boolean(user);
+  signInLink.textContent = "Sign in";
+  element("account-identity").textContent = user?.email || "";
+  if (!user) accountMenu.close();
   retry.hidden = true;
   element("name").textContent = user?.name || "—";
   element("account-email").textContent = user?.email || "—";
   element("account-id").textContent = user?.id || "";
   const date = user ? new Date(user.created_at) : null;
   element("created").textContent = date && Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { dateStyle: "medium" }) : "—";
-  if (focus) heading.focus();
-  if (!user) void google?.load();
+  renderView(focus);
 }
 
 async function checkSession() {
@@ -65,7 +121,12 @@ async function checkSession() {
   clearError();
   setBusy(true, "Checking your sign-in…");
   try { showUser((await auth.readSession())?.user ?? null); }
-  catch (cause) { showError(cause); retry.hidden = false; }
+  catch (cause) {
+    showError(cause);
+    retry.hidden = false;
+    signInLink.textContent = "Account";
+    signInLink.hidden = false;
+  }
   finally { setBusy(false); }
 }
 
@@ -92,6 +153,7 @@ async function signIn(authenticate: () => Promise<SignInResult>, withEmail = fal
 
 signOut.addEventListener("click", async () => {
   if (busy) return;
+  accountMenu.close(true);
   clearError();
   setBusy(true, "Signing out…");
   let message = "";
@@ -106,4 +168,5 @@ signOut.addEventListener("click", async () => {
 });
 
 retry.addEventListener("click", () => { void checkSession(); });
+renderView();
 void checkSession();

@@ -47,12 +47,32 @@ console builds, and all 14 local browser tests passed; screenshots were inspecte
 across the four target viewport sizes and palette contrast checked. Google UI
 checks still use the stub SDK. This theme change has not been deployed.
 
+Console shell added on **2026-10-16** as the first slice toward a reference
+Mainbrella deployment in an operator's own Cloudflare account. The home lists
+Compute, Builder, and Voice as **Not installed**, with honest placeholder pages,
+a shared Mainbrella header/footer, and a keyboard-accessible account dropdown.
+Public build-time settings in `platform/console/src/console-config.ts` control
+the instance name and catalog visibility. These settings do not provision,
+authorize, disable, or uninstall services. The Appflare catalog is an external
+link only; runtime lifecycle controls and Appflare integration remain deferred.
+Fragment routes preserve the existing static Worker configuration. The shell
+adapts only the old web brand/chrome/disclosure patterns, with provenance in
+`migration-sources.json`. All sibling checkouts remained read-only.
+
+Verification: `npm run check` (23 auth/client tests), `npm run build:staging`, and
+21 local browser tests passed. New checks cover product navigation/reload/history,
+hidden products and an empty catalog, session-service failure, account-menu
+keyboard/outside-click/focus dismissal, and the four target viewport sizes.
+Screenshots were inspected. Google UI checks still use a stub SDK. The hosted
+smoke script now follows the new product home and account dropdown; it has not
+been run against this revision. The shell and dark theme have not been deployed.
+
 Implemented:
 
 | Location | Responsibility |
 | --- | --- |
 | `platform/accounts/` | Local Cloudflare Worker, email/password and Google browser signup/sign-in, shared sessions/logout, and identity SQL migrations |
-| `platform/console/` | Small Vite/TypeScript email form, optional Google control with loading/retry, and read-only account details |
+| `platform/console/` | Dark Vite/TypeScript product shell, configurable public catalog, account dropdown, email form, optional Google control with loading/retry, and read-only account details |
 | `packages/contracts/` | Public user/session types and runtime response validation |
 | `packages/platform-client/` | Shared credentialed auth client with injectable fetch and no browser globals |
 | `scripts/` | Local stack startup/cleanup, restricted Wrangler commands, staging deployment and hosted smoke test |

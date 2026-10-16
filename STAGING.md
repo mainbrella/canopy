@@ -1,5 +1,10 @@
 # Canopy staging
 
+The working tree now includes a dark product home and account dropdown that have
+not been deployed. The updated hosted smoke script expects that shell: deploy
+the reviewed revision before using it to verify this change. The deployment
+record below describes the earlier email/password account milestone.
+
 Staging uses the existing Mainbrella Cloudflare account
 `2b7a9be82bb64187230703b024e25157`, with separate resources:
 

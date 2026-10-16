@@ -5,7 +5,7 @@ test("create account, reload, sign out, reject a wrong password, and sign back i
   const password = "local test password";
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/#/account");
   await expect(page.locator("#google-sign-in")).toBeHidden();
   expect(await page.locator('script[src="https://accounts.google.com/gsi/client"]').count()).toBe(0);
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -16,6 +16,7 @@ test("create account, reload, sign out, reject a wrong password, and sign back i
   expect((await context.cookies()).find(cookie => cookie.name === "canopy_session")?.httpOnly).toBe(true);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -27,10 +28,12 @@ test("create account, reload, sign out, reject a wrong password, and sign back i
   await page.getByLabel("Password", { exact: true }).press("Enter");
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
   await page.route("**/auth/logout", route => route.fulfill({ status: 503, json: { error: "auth_unavailable" } }));
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("alert")).toHaveText("Could not sign you out. Please try again.");
   await expect(page.locator("#account")).toBeVisible();
   await page.unroute("**/auth/logout");
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.reload();
   await expect(page.locator("#sign-in")).toBeVisible();
@@ -39,7 +42,7 @@ test("create account, reload, sign out, reject a wrong password, and sign back i
 
 test("session check failures can be retried without showing a false signed-out state", async ({ page }) => {
   await page.route("**/auth/me", route => route.abort("failed"));
-  await page.goto("/");
+  await page.goto("/#/account");
   await expect(page.getByRole("alert")).toContainText("Could not reach sign-in");
   await expect(page.locator("#sign-in")).toBeHidden();
   await page.unroute("**/auth/me");
@@ -51,7 +54,7 @@ test("session check failures can be retried without showing a false signed-out s
 for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }, { width: 1440, height: 900 }]) {
   test(`sign-in and long account details fit ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/#/account");
     await expect(page.locator("#sign-in")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("sign-in.png") });

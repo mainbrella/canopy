@@ -1,6 +1,6 @@
 # Canopy
 
-Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
+Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. It should also serve as an example of running Mainbrella in your own Cloudflare account, choosing which products to run, and using Appflare for other apps. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
 
 The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. Isolated hosted staging is available at **https://stg.mainbrella.com**, with its API at **https://api-stg.mainbrella.com**; staging currently uses email/password only. See [STAGING.md](STAGING.md) for resources, deployment, verification, and teardown. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their production services.
 
@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5175**. Continue with an email and password to create a local account, inspect its details, reload to check the session, and sign out. An existing email signs in instead of creating a second account. New passwords need 8–128 characters, matching the current backend. These are new local accounts; existing Mainbrella accounts and customer data have not been imported.
+Open **http://127.0.0.1:5175** for the product home, then choose **Sign in** to create a local account. Continue with an email and password, inspect account details, reload to check the session, and sign out through the upper-right **Account** menu. An existing email signs in instead of creating a second account. New passwords need 8–128 characters, matching the current backend. These are new local accounts; existing Mainbrella accounts and customer data have not been imported.
 
 `npm run dev` checks that ports 5175 and 8789 are free, applies the three local identity migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. Email sign-in needs no Cloudflare login, sibling checkout, Docker, secrets, or external service. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
 
@@ -29,6 +29,18 @@ For the browser suite, install Chromium once with `PLAYWRIGHT_BROWSERS_PATH="$PW
 The browser command runs two stacks sequentially: the existing email suite with Google disabled, then the Google UI suite with an explicit fake client ID and stubbed Google script/API responses. These settings override local console configuration during tests. Worker tests use locally generated RSA keys and stubbed Google key responses with real signature verification and SQLite. No automated test signs into Google or uses a production OAuth client.
 
 The local build produces `platform/accounts/dist/` and `platform/console/dist/`. `npm run build:staging` produces separate `dist-staging/` outputs and checks both staging Wrangler configurations without deploying. `npm run deploy:staging` checks, builds, migrates the dedicated staging D1, and deploys the two staging Workers. The staging console calls the staging API directly; Vite's development proxy is not part of that build. Canopy has no production deployment configuration.
+
+### Console configuration
+
+The dark console has a product home, shared header/footer, and an account dropdown. Compute, Builder, and Voice each have a **Not installed** placeholder page. There are no product APIs, install actions, or resource provisioning in this slice. The Appflare link opens its external catalog; Canopy does not read or manage Appflare installs.
+
+Edit [console-config.ts](platform/console/src/console-config.ts) to rename your instance, reorder products, or set an entry's `visible` to `false`. The home list and detail routes use the same configuration; an unlisted product has no detail page. An empty catalog is supported. Vite reloads the configuration during development; rebuild before deploying changes.
+
+This configuration is public and controls console discovery only. It does not grant permissions, enable a runtime, stop a Worker, or uninstall resources. Keep secrets out of it. Product availability must come from verified deployment state when runtimes are added. Real product enable/disable operations, dependencies, authorization, and Appflare integration remain future slices.
+
+Views use fragment URLs (`/#/`, `/#/account`, `/#/products/compute`), so bookmarks and reloads work with the existing static Worker configuration. Account remains the only authenticated feature; product descriptions are public. Billing, API keys, and production account links are omitted.
+
+The shell adapts the brand and disclosure behavior from `../web` without importing its marketing page, billing requests, analytics, or session redirects. The source revisions and hashes are recorded in [migration-sources.json](migration-sources.json). Appflare's local catalog documentation was inspected at `ccafe08b4958d8e2f80299ee310b99a7f5d00eca`; no Appflare runtime or manifest was copied.
 
 ### Optional Google browser sign-in
 

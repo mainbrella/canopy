@@ -24,6 +24,9 @@ try {
   const response = await page.goto(consoleOrigin);
   assert.equal(response.status(), 200);
   await expect(page.locator("#environment")).toHaveText("Staging");
+  await expect(page.getByRole("heading", { name: "Products", exact: true })).toBeVisible();
+  await expect(page.locator("#product-list li")).toHaveCount(3);
+  await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.locator("#google-sign-in")).toBeHidden();
   assert.equal(await page.locator('script[src="https://accounts.google.com/gsi/client"]').count(), 0);
@@ -52,6 +55,7 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: new URL(`account-${viewport.width}.png`, output).pathname });
   }
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
   const revoked = await context.request.get(`${apiOrigin}/auth/me`, {
@@ -69,6 +73,7 @@ try {
   assert.equal(repeat.status(), 200);
   assert.equal((await repeat.json()).created, false);
   await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+  await page.locator("#account-toggle").click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
