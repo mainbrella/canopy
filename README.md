@@ -1,10 +1,73 @@
 # Canopy
 
-Canopy is the planned source monorepo for Mainbrella's hosted platform and its independently installable products. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
+Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
 
-This repository currently contains its license and this plan. It does not yet contain the applications, package workspaces, deployment commands, or migrations described below. The layout and workflows are targets for gradual migration, not claims about what is already implemented.
+The first working milestone is a local email/password account flow: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their running services.
 
 Canopy is one repository for these products; it is not every repository in the Mainbrella organization. A normal user installing Voice, Compute, or Builder should only need that product's supported build and runtime requirements, not a clone of the whole repository or every service in it.
+
+## Run the first milestone
+
+Use Node 22.13 or newer (Node 22 is used in CI) and npm 10 or newer. From this repository:
+
+```sh
+npm ci
+npm run dev
+```
+
+Open **http://127.0.0.1:5175**. Continue with an email and password to create a local account, inspect its details, reload to check the session, and sign out. An existing email signs in instead of creating a second account. New passwords need 8–128 characters, matching the current backend. These are new local accounts; existing Mainbrella accounts and customer data have not been imported.
+
+`npm run dev` checks that ports 5175 and 8789 are free, applies the three local identity migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. No Cloudflare login, sibling checkout, Docker, secrets, or external service is needed. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
+
+```sh
+npm run check          # TypeScript, auth regressions, Worker dry-run and console build
+npm run test:browser   # Browser integration, error states, keyboard and responsive checks
+```
+
+For the browser suite, install Chromium once with `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npx playwright install chromium`, then run `PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" npm run test:browser`. Alternatively set `CANOPY_CHROMIUM_PATH` to an existing Chromium/Chrome executable. CI installs its browser automatically. The browser tests start their own local stack, refuse occupied ports, and create disposable accounts in the local development database. Screenshots go in ignored `test-results/`.
+
+The build produces `platform/accounts/dist/` and `platform/console/dist/`. There is no deployment command or production configuration. The static console build needs the same `/auth/*` routing when a hosting target is introduced; Vite's development proxy is not part of that build.
+
+## What has moved
+
+| Canopy location | Working responsibility | Source |
+| --- | --- | --- |
+| `platform/accounts/` | Email/password signup and sign-in, session lookup/revocation, local D1 | Browser subset of `backend/worker/app/auth*.ts` |
+| `platform/console/` | Sign-in and read-only account details | New minimal UI using the existing TypeScript/Vite approach |
+| `packages/contracts/` | Public user/session types and runtime response guards | Backend's public user fields and Raindrop's validation pattern |
+| `packages/platform-client/` | Credentialed email/session client without UI globals | `web/src/auth.ts` and `raindrop/src/auth.ts` |
+
+[migration-sources.json](migration-sources.json) records exact source commits, file hashes, destination paths, and adaptations. These are deliberate subset copies with provenance, not a Git history merge. Canopy's builds and tests resolve everything from this checkout and its root lockfile; nothing imports a sibling repo.
+
+This milestone preserves scrypt password parameters, normalized email lookup, concurrent-signup checks, SHA-256 session-token storage, 30-day sessions, and the existing public user fields. The copied SQL migrations `001_initial.sql`, `002_auth_sessions.sql`, and `012_email_password.sql` are unchanged, including their names. They form a **fresh local identity database only**, not the complete migration stream for the live `delta` database. Never apply this subset to an existing hosted database.
+
+Intentional adaptations are limited to explicit environment bindings, a configurable origin allowlist, streamed JSON size limits, and local development. The development cookie is `canopy_session`, HttpOnly and SameSite=Lax, so it does not overwrite sibling apps' `mainbrella_session` cookie. That exception requires both the local flag and a loopback request; other hosts retain the original Secure/SameSite=None cookie behavior. Missing database or rate-limit bindings fail closed. The local Wrangler configuration names only a local database placeholder and contains no production resource bindings or routes.
+
+### Account API in this milestone
+
+| Method and path | Request | Success |
+| --- | --- | --- |
+| `POST /auth/email` | JSON `{ email, password }` | `{ user, created }` and an HttpOnly session cookie |
+| `GET /auth/me` | Optional session cookie | `{ user }`, or `{ user: null }` when anonymous or expired |
+| `POST /auth/logout` | Optional session cookie | `{ ok: true }`, revoking that session and expiring its cookie |
+
+`user` contains only `id`, `email`, `name`, `dob`, and `created_at`. JSON responses are not cached. Error bodies use `{ error }`: invalid input/weak new passwords (400), invalid credentials (401), rejected origins (403), missing routes (404), wrong methods (405), rate limiting (429 with `Retry-After: 60`), or unavailable infrastructure (503). The email endpoint retains the 20-attempts/minute/IP limiter. Allowed browser origins can preflight with `OPTIONS`. This is the email/session subset of the existing auth API, not its full Google/native/OpenAPI surface.
+
+Google and native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, and product runtimes have not moved. No account data, production database, wallet, Worker, public URL, or deployment has changed. Before using hosted accounts, bring over their required providers and side effects, review the complete migration history, and verify the existing session/API contracts against an isolated hosted environment.
+
+## Source inventory — 2026-10-16
+
+| Sibling | Inspected state and boundary | Decision for this pass |
+| --- | --- | --- |
+| `backend` at `0bc20dec148c` | Main API owns auth plus Compute/Builder/Voice orchestration; separate admin, marketing, container, preview, egress-relay and security-ack configs. `delta` identity data and the `CONTAINER_ACCOUNT` wallet are still authoritative there. | Extract only local browser email/session code. |
+| `web` at `3dcea8975e29` | Plain TypeScript/Vite, with separate site and Builder builds. Auth currently also invokes cookie-consent and acquisition/analytics code. | Reuse the auth transport conventions without importing site/product screens. |
+| `raindrop` at `be89935ae248` | Separate Vite admin UI and deployment; its copied auth client already validates responses. | Reuse validation/client behavior. Admin authorization and screens stay there. |
+| `ai-receptionist` | Independently packaged Voice with its own Cloudflare setup and owner auth. | Leave standalone Voice and engine convergence for a later milestone. |
+| `ssh-gateway`, `ios`, upstream forks and other sibling tools | Separate entry points and release concerns. | Remain outside this first extraction. |
+
+The inspected `web` and `raindrop` worktrees were clean. `backend` had an untracked `docs/source-ownership.md`; it describes a broader source reorganization that is absent from the actual tree (implementation is still in `worker/app`, `worker/lib`, and `web/src`). It was left untouched and is not treated as evidence that those moves occurred. Existing source, Wrangler configs, package scripts, and tracked migration files determined this inventory.
+
+The next useful checkpoint is to review this local account slice before choosing another small move. The product migration plan below remains the longer-term direction.
 
 ## Repository shape
 
@@ -100,7 +163,7 @@ Commit root workspace lockfile changes when dependencies change. Do not commit s
 
 A Git commit is not a deployment. CI should check changed products and their transitive shared-package consumers. Release and deploy affected products when they are ready, including products affected by a shared-package change. Each product build should bundle or otherwise include the libraries it needs; a CI job may fetch the repository or install root workspace dependencies without deploying unrelated apps. Keep product release artifacts and versions independently identifiable, and record the source commit and relevant package revisions used to build them. Deploy selectively while keeping interfaces compatible with currently running consumers.
 
-This repository has no established package manager, workspace configuration, or build/deploy commands yet. Add concrete commands with the implementation; examples in this plan are not executable instructions.
+The first milestone uses npm workspaces, one root lockfile, and the local commands documented above. CI checks only this checkout. Broader product build/release selection and deployment commands remain unimplemented; examples in the rest of this plan are not executable instructions.
 
 ## Data, resources, and ownership
 

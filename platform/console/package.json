@@ -1,0 +1,13 @@
+{
+  "name": "@canopy/console",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@canopy/contracts": "0.0.0", "@canopy/platform-client": "0.0.0" },
+  "devDependencies": { "vite": "7.3.6" },
+  "scripts": {
+    "dev": "vite",
+    "type-check": "tsc -p tsconfig.json",
+    "build": "vite build"
+  }
+}

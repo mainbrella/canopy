@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light" />
+    <title>Account · Canopy</title>
+  </head>
+  <body>
+    <header><span class="brand">Canopy</span><span class="environment">Local development</span></header>
+    <main>
+      <h1 id="heading" tabindex="-1">Sign in</h1>
+      <p id="status" role="status">Checking your sign-in…</p>
+      <p id="error" role="alert" hidden></p>
+      <button id="retry" type="button" hidden>Try again</button>
+      <form id="sign-in" hidden>
+        <p>Continue with email to sign in or create an account.</p>
+        <fieldset>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="username" maxlength="254" required />
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" aria-describedby="password-help" maxlength="128" required />
+          <p id="password-help" class="help">New accounts need at least 8 characters.</p>
+          <button type="submit">Continue with email</button>
+        </fieldset>
+      </form>
+      <section id="account" aria-labelledby="heading" hidden>
+        <dl>
+          <div><dt>Name</dt><dd id="name"></dd></div>
+          <div><dt>Email</dt><dd id="account-email"></dd></div>
+          <div><dt>Account ID</dt><dd id="account-id" class="identifier"></dd></div>
+          <div><dt>Created</dt><dd id="created"></dd></div>
+        </dl>
+        <button id="sign-out" class="secondary" type="button">Sign out</button>
+      </section>
+      <noscript>Enable JavaScript to sign in and view your account.</noscript>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

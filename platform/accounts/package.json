@@ -1,0 +1,17 @@
+{
+  "name": "@canopy/accounts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@canopy/contracts": "0.0.0" },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260922.1",
+    "wrangler": "4.149.0"
+  },
+  "scripts": {
+    "dev": "node ../../scripts/wrangler.mjs dev --local --ip 127.0.0.1 --port 8789",
+    "db:migrate:local": "node ../../scripts/wrangler.mjs d1 migrations apply DB --local",
+    "type-check": "tsc -p tsconfig.json",
+    "build": "node ../../scripts/wrangler.mjs deploy --dry-run --outdir dist"
+  }
+}

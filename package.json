@@ -1,0 +1,23 @@
+{
+  "name": "@canopy/workspace",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "engines": { "node": ">=22.13.0", "npm": ">=10" },
+  "workspaces": ["platform/*", "packages/*"],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "db:migrate:local": "npm run db:migrate:local --workspace @canopy/accounts",
+    "type-check": "tsc -p tsconfig.json && npm run type-check --workspaces --if-present",
+    "test": "tsx --test platform/accounts/test/*.test.ts packages/platform-client/test/*.test.ts",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run type-check && npm test && npm run build",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "@types/node": "22.20.5",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

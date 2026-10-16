@@ -1,0 +1,103 @@
+{
+  "inspectedOn": "2026-10-16",
+  "repositories": {
+    "backend": {
+      "url": "https://github.com/mainbrella/backend",
+      "commit": "0bc20dec148c1a78b40aa252a76735103d1dbe1f"
+    },
+    "web": {
+      "url": "https://github.com/mainbrella/web",
+      "commit": "3dcea8975e2936ec26da95395b5df3f9042fa5f0"
+    },
+    "raindrop": {
+      "url": "https://github.com/mainbrella/raindrop",
+      "commit": "be89935ae248cb3f5ccd9ceb5585e1bba097a7ba"
+    }
+  },
+  "files": [
+    {
+      "repository": "backend",
+      "source": "migrations/001_initial.sql",
+      "destination": "platform/accounts/migrations/001_initial.sql",
+      "sha256": "4c50fabdd2345834ae6b16e845a04f74ef52d39cf9744f8205a7366e87005904",
+      "change": "Unchanged; fresh local database only, not a complete production migration stream."
+    },
+    {
+      "repository": "backend",
+      "source": "migrations/002_auth_sessions.sql",
+      "destination": "platform/accounts/migrations/002_auth_sessions.sql",
+      "sha256": "9148e9dd0b022faf453ce5008365e63dc31c7e3d803cda42ecc04d72ce9edcaa",
+      "change": "Unchanged; fresh local database only, not a complete production migration stream."
+    },
+    {
+      "repository": "backend",
+      "source": "migrations/012_email_password.sql",
+      "destination": "platform/accounts/migrations/012_email_password.sql",
+      "sha256": "83a3121ec87f09972a37673ee34fe3d20a20e5f3c6cbc75cdeed477c09d3f152",
+      "change": "Unchanged; fresh local database only, not a complete production migration stream."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-email.ts",
+      "destination": "platform/accounts/src/auth-email.ts",
+      "sha256": "1f2ed2f2a860a2e3516e2fd3cab3cbfffa4e48996372e1946c1c98bd81b3ff89",
+      "change": "Explicit Env, Node Buffer and TS imports; omit welcome-email side effect. Password hashing, validation, account lookup and race handling preserved."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-core.ts",
+      "destination": "platform/accounts/src/auth-core.ts",
+      "sha256": "19c7f9670ee233aac18c862082d47254625305d09b653f957a9b7da942a70566",
+      "change": "Browser session subset only; explicit origin configuration, bounded streamed JSON, and isolated loopback-only development cookie."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth.ts",
+      "destination": "platform/accounts/src/index.ts",
+      "sha256": "b5d60186727d516f449aec996fcc12e2db09c6240dd36b5f597fb1137e0b7187",
+      "change": "Only email/me/logout routes; explicit Env; method handling and loopback rate-limit key for local dev."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-login.ts",
+      "destination": "platform/accounts/src/index.ts",
+      "sha256": "685319e9681ca59416c33b28b0857da40eed2909bcb8dd2b5211cc702c2a43c1",
+      "change": "Inline email-login response and error handling; Google/native flows omitted."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-email.test.ts",
+      "destination": "platform/accounts/test/auth.test.ts",
+      "sha256": "503eca59055408d907ec6358bc50e529f69a80cf1c0d537451846e29a9e19320",
+      "change": "Adapt SQLite fixture and regression cases for extracted auth routes; omit Google/welcome-email cases."
+    },
+    {
+      "repository": "backend",
+      "source": "worker/app/auth-core.ts",
+      "destination": "packages/contracts/src/auth.ts",
+      "sha256": "19c7f9670ee233aac18c862082d47254625305d09b653f957a9b7da942a70566",
+      "change": "Public user fields shared as a typed and runtime-validated contract."
+    },
+    {
+      "repository": "raindrop",
+      "source": "src/auth.ts",
+      "destination": "packages/platform-client/src/auth.ts",
+      "sha256": "97829974795fb6e10e98284b561e8d4d16bdea2b5b01525ea0d29822e2821813",
+      "change": "Extract email/me/logout transport and validation; injectable fetch, same-origin default, no browser globals or Google calls."
+    },
+    {
+      "repository": "raindrop",
+      "source": "src/auth.ts",
+      "destination": "packages/contracts/src/auth.ts",
+      "sha256": "97829974795fb6e10e98284b561e8d4d16bdea2b5b01525ea0d29822e2821813",
+      "change": "Extract runtime guards and validate all fields returned by the existing publicUser serializer."
+    },
+    {
+      "repository": "web",
+      "source": "src/auth.ts",
+      "destination": "packages/platform-client/src/auth.ts",
+      "sha256": "fa634b28059e248f0fd3a2755d1744edc00f0cada42a0796ac720af6ec5962ad",
+      "change": "Preserve credentialed endpoint and error conventions; acquisition, analytics, cookie-consent and Google side effects stay outside this package."
+    }
+  ]
+}
