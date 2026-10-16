@@ -25,6 +25,7 @@ const checks = {
   previews: ['test:api', 'type-check'], site: ['docs:check', 'test', 'build:site:staging'],
   builder: ['test', 'build:builder:staging'], raindrop: ['build:staging', 'check:routes'],
 };
+const builds = { site: 'build:site:staging', builder: 'build:builder:staging', raindrop: 'build:staging' };
 const execute = (command, args, options) => execFileSync(command, args, { stdio: 'inherit', ...options });
 const capture = (run, command, args, options) => String(run(command, args,
   { ...options, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })).trim();
@@ -146,8 +147,7 @@ export async function stagingOperation(operation, { target = 'all', directory = 
     stageEnv.VITE_GOOGLE_CLIENT_ID = configurations.api.vars.GOOGLE_CLIENT_ID;
   }
   function validatedHash(directories, configuration) {
-    // The bundle omits platform bindings, and the container dry-run omits image
-    // references. Include the exact sanitized deployment config in the digest.
+    // Include the exact sanitized deployment config alongside the output bytes.
     return createHash('sha256').update(artifactHash(directories)).update('\0')
       .update(JSON.stringify(configuration)).digest('hex');
   }
@@ -196,11 +196,14 @@ export async function stagingOperation(operation, { target = 'all', directory = 
   async function publish(name) {
     await preflight(name, { configurations, resources: evidence.resources, env: stageEnv, run: wranglerJSON, request, directory });
     const before = evidence.publications.length;
-    publicationPlans.push({ target: name, hash: hashes[name], kind: 'application' });
+    const plan = { target: name, hash: null, kind: 'application' };
+    publicationPlans.push(plan);
     const values = name === 'api' ? secrets : name === 'admin' && secrets.STRIPE_SECRET_KEY ? { STRIPE_SECRET_KEY: secrets.STRIPE_SECRET_KEY } : {};
     const secretPath = join(cwd(name), '.wrangler', `staging-secrets-${nonce}.json`);
     try {
-      const args = ['deploy'];
+      const outdir = join('.wrangler', 'staging', name);
+      rmSync(join(cwd(name), outdir), { recursive: true, force: true });
+      const args = ['deploy', '--outdir', outdir];
       if (Object.keys(values).length) {
         mkdirSync(dirname(secretPath), { recursive: true });
         writeFileSync(secretPath, JSON.stringify(values), { mode: 0o600, flag: 'wx' });
@@ -209,6 +212,8 @@ export async function stagingOperation(operation, { target = 'all', directory = 
       // Install test-only secrets in the same version as the code; secret bulk
       // would create an additional version outside this publication receipt.
       wrangler(name, args, { env: { ...stageEnv, WRANGLER_OUTPUT_FILE_PATH: receipt } });
+      plan.hash = validatedHash([join(cwd(name), outdir),
+        ...(targetFor(name).assets ? [join(cwd(name), targetFor(name).assets)] : [])], configurations[name]);
     } finally { rmSync(secretPath, { force: true }); }
     readReceipts();
     assert.equal(evidence.publications.length, before + 1, 'Each staging publisher must report exactly one version.');
@@ -230,8 +235,8 @@ export async function stagingOperation(operation, { target = 'all', directory = 
   record();
   try {
     render(offlineResources);
-    if (['check', 'check-backend', 'bootstrap', 'bootstrap-backend', 'deploy'].includes(operation)) validateAndBuild(selected);
     if (operation === 'check' || operation === 'check-backend') {
+      validateAndBuild(selected);
       evidence.status = 'success';
       evidence.validatedArtifacts = hashes;
       return evidence;
@@ -244,14 +249,14 @@ export async function stagingOperation(operation, { target = 'all', directory = 
       evidence.migrations = databases;
       if (operation !== 'bootstrap' && operation !== 'bootstrap-backend') { evidence.status = 'success'; return evidence; }
     }
+    for (const name of selected) {
+      if (builds[name]) run('npm', ['run', builds[name], '--workspace', targetFor(name).workspace], { cwd: cwd(name), env: stageEnv });
+    }
     if (selected.includes('containers')) {
       configurations.containers.containers[0].images = images({ directory, run });
       assertStagingConfig('containers', configurations.containers, configOptions(evidence.resources));
       writeFileSync(paths.containers, JSON.stringify(configurations.containers, null, 2));
       evidence.imageDigests = configurations.containers.containers[0].images;
-    }
-    if (operation === 'deploy' || operation === 'bootstrap' || operation === 'bootstrap-backend') {
-      for (const name of selected) hashes[name] = bundle(name);
     }
     if (operation === 'bootstrap' || operation === 'bootstrap-backend') {
       if (!await existingApi()) {
@@ -260,10 +265,10 @@ export async function stagingOperation(operation, { target = 'all', directory = 
           writeFileSync(bootstrapPath, JSON.stringify(stagingBootstrapConfig(configurations.api)));
           const bootstrapBundle = join('.wrangler', 'staging', 'bootstrap-api');
           rmSync(join(cwd('api'), bootstrapBundle), { recursive: true, force: true });
-          run(process.execPath, [tool('api'), 'deploy', '--dry-run', '--config', bootstrapPath, '--outdir', bootstrapBundle], { cwd: cwd('api'), env: stageEnv });
-          publicationPlans.push({ target: 'api', hash: validatedHash([join(cwd('api'), bootstrapBundle)],
-            stagingBootstrapConfig(configurations.api)), kind: 'bootstrap-declarations' });
-          run(process.execPath, [tool('api'), 'deploy', '--config', bootstrapPath], { cwd: cwd('api'), env: { ...stageEnv, WRANGLER_OUTPUT_FILE_PATH: receipt } });
+          const plan = { target: 'api', hash: null, kind: 'bootstrap-declarations' };
+          publicationPlans.push(plan);
+          run(process.execPath, [tool('api'), 'deploy', '--config', bootstrapPath, '--outdir', bootstrapBundle], { cwd: cwd('api'), env: { ...stageEnv, WRANGLER_OUTPUT_FILE_PATH: receipt } });
+          plan.hash = validatedHash([join(cwd('api'), bootstrapBundle)], stagingBootstrapConfig(configurations.api));
           readReceipts();
           assert.equal(evidence.publications.length, 1, 'The staging namespace bootstrap must report exactly one version.');
           record();

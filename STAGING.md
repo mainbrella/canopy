@@ -72,8 +72,9 @@ npm run stg:homepage -- --publish
 ```
 
 The publisher requires a clean, committed Canopy checkout and access to the
-configured Cloudflare account. It runs the web tests, documentation check, staging
-site build, and Wrangler dry run, then publishes only `mainbrella-web-stg` at
+configured Cloudflare account. It builds the staging site once and publishes
+without tests or a dry run. The `--check` command runs the tests, documentation
+check, build, and dry run separately. Publication targets only `mainbrella-web-stg` at
 `https://stg.mainbrella.com`. If that exact hostname belongs to an older staging
 worker, publication moves its custom domain to the new staging site; it does not
 delete the old worker. Evidence is saved under `artifacts/staging/`.
@@ -200,7 +201,7 @@ committed source SHA on the pushed branch. It requires a clean worktree and the
 Canopy origin. Staging may deploy a pushed feature branch without first merging
 that application change into `main`.
 
-Bootstrap validates/builds the code, discovers or creates only the reserved
+Bootstrap builds the frontend assets once, discovers or creates only the reserved
 staging D1/R2 resources, and applies both staging migration sets. For a new API
 worker it publishes a temporary, unrouted set of Durable Object declarations to
 resolve the API/container dependency cycle. It then publishes `admin`,
@@ -208,6 +209,9 @@ resolve the API/container dependency cycle. It then publishes `admin`,
 `raindrop`, checking dependencies before each publication. Existing stage API
 workers skip the declaration step. A retry reuses existing resources and applies
 only outstanding migrations.
+
+Staging deploys and bootstrap skip tests and dry runs. Use `stg:check` or CI for
+those checks; publication retains the staging configuration and dependency gates.
 
 Resource planning is also available independently:
 

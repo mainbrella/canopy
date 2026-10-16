@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { artifactHash, bundleTarget } from './deploy.mjs';
+import { artifactHash } from './deploy.mjs';
 import { targetFor } from './deploy-targets.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -50,20 +50,8 @@ export function parseWranglerDeploys(content) {
   return { records, errors };
 }
 
-function defaultPrepare(name, { directory, env, run, variant }) {
-  const target = targetFor(name);
-  let configuration;
-  if (variant === 'without-activity') {
-    configuration = JSON.parse(readFileSync(join(directory, target.directory, target.config), 'utf8'));
-    configuration.durable_objects.bindings = configuration.durable_objects.bindings
-      .filter(binding => binding.name !== 'ACCOUNT_ACTIVITY');
-  }
-  const { bundle } = bundleTarget(name, { directory, env, run, ...(configuration ? { configuration } : {}) });
-  return artifactHash([join(directory, target.directory, bundle)]);
-}
-
 export function backendOperation(operation, { directory = root, env = process.env, run = execute,
-  prepare = defaultPrepare, record = writeFileSync, now = () => new Date().toISOString(), log = console.log } = {}) {
+  record = writeFileSync, now = () => new Date().toISOString(), log = console.log } = {}) {
   const sourceSha = capture(run, 'git', ['rev-parse', 'HEAD'], { cwd: directory });
   validateOperation(operation, env, sourceSha);
   const output = join(directory, 'artifacts/releases');
@@ -71,18 +59,12 @@ export function backendOperation(operation, { directory = root, env = process.en
   const evidencePath = join(output, `backend-${operation}-${sourceSha}.json`);
   const wranglerPath = join(output, `wrangler-${operation}-${randomUUID()}.jsonl`);
   const targets = sequences[operation] ?? [];
-  const prepared = {};
   const evidence = { operation, sourceSha, environment: 'production', startedAt: now(),
     status: 'running', publications: [] };
   record(evidencePath, JSON.stringify(evidence, null, 2) + '\n');
   let failure;
   try {
-    if (targets.length) {
-      if (operation === 'bootstrap-activity') {
-        prepared['containers:without-activity'] = prepare('containers', { directory, env, run, variant: 'without-activity' });
-      }
-      for (const name of new Set(targets)) prepared[name] = prepare(name, { directory, env, run });
-    } else {
+    if (!targets.length) {
       const migrationDir = operation === 'migrate-api' ? 'migrations' : 'preview-migrations';
       evidence.migrationSourceSha256 = artifactHash([join(directory, 'apps/backend', migrationDir)]);
     }
@@ -102,11 +84,7 @@ export function backendOperation(operation, { directory = root, env = process.en
       evidence.publications = deployed.map((entry, index) => {
         const target = targets[index];
         const matched = target && entry.worker === targetFor(target).worker;
-        const bootstrapContainer = matched && operation === 'bootstrap-activity' && index === 0;
-        return { ...entry, target: matched ? target : null, sourceSha,
-          validatedBundleSha256: matched ? prepared[bootstrapContainer ? 'containers:without-activity' : target] : null,
-          bundleKind: matched ? bootstrapContainer ? 'worker-only, without activity binding or image'
-            : target === 'containers' ? 'worker-only, excluding image' : 'worker' : null };
+        return { ...entry, target: matched ? target : null, sourceSha };
       });
       if (errors.length) throw new Error(errors.join(' '));
       if (evidence.publications.some(entry => !entry.target)) {

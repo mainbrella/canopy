@@ -126,11 +126,13 @@ export function publishStagingHomepage({ publish = false, directory = root, env 
 
   try {
     record();
-    step = 'docs-check';
-    run('npm', ['run', 'docs:check', '--workspace', '@canopy/web'], { cwd: directory, env: buildEnv });
+    if (!publish) {
+      step = 'docs-check';
+      run('npm', ['run', 'docs:check', '--workspace', '@canopy/web'], { cwd: directory, env: buildEnv });
 
-    step = 'web-tests';
-    run('npm', ['run', 'test', '--workspace', '@canopy/web'], { cwd: directory, env: buildEnv });
+      step = 'web-tests';
+      run('npm', ['run', 'test', '--workspace', '@canopy/web'], { cwd: directory, env: buildEnv });
+    }
 
     step = 'staging-site-build';
     run('npm', ['run', 'build:site:staging', '--workspace', '@canopy/web'], { cwd: directory, env: buildEnv });
@@ -140,14 +142,13 @@ export function publishStagingHomepage({ publish = false, directory = root, env 
     wrangler = join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
     writeFileSync(configPath, configText);
 
-    step = 'wrangler-dry-run';
     rmSync(bundleDirectory, { recursive: true, force: true });
-    run(process.execPath, [wrangler, 'deploy', '--dry-run', '--config', configPath, '--outdir', bundleDirectory], {
-      cwd: appDirectory, env: buildEnv,
-    });
-    evidence.artifactSha256 = validatedHash([bundleDirectory, join(appDirectory, 'dist')], configuration);
-
     if (!publish) {
+      step = 'wrangler-dry-run';
+      run(process.execPath, [wrangler, 'deploy', '--dry-run', '--config', configPath, '--outdir', bundleDirectory], {
+        cwd: appDirectory, env: buildEnv,
+      });
+      evidence.artifactSha256 = validatedHash([bundleDirectory, join(appDirectory, 'dist')], configuration);
       evidence.status = 'checked';
       evidence.completedAt = new Date().toISOString();
       record();
@@ -163,10 +164,11 @@ export function publishStagingHomepage({ publish = false, directory = root, env 
     const freshConfiguration = JSON.parse(readFileSync(configPath, 'utf8'));
     assertStagingConfig('site', freshConfiguration, { resources: RESOURCES, directory });
     const publishEnv = { ...buildEnv, WRANGLER_OUTPUT_FILE_PATH: receiptPath };
-    const output = run(process.execPath, [wrangler, 'deploy', '--config', configPath], {
+    const output = run(process.execPath, [wrangler, 'deploy', '--config', configPath, '--outdir', bundleDirectory], {
       cwd: appDirectory, env: publishEnv, stdio: 'inherit',
     });
     if (output) log(String(output).trim());
+    evidence.artifactSha256 = validatedHash([bundleDirectory, join(appDirectory, 'dist')], configuration);
     evidence.workerVersion = parseReceipt(receiptPath, SITE_WORKER);
     evidence.status = 'published';
     evidence.completedAt = new Date().toISOString();

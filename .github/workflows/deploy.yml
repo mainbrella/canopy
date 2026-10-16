@@ -57,7 +57,7 @@ jobs:
           python-version: '3.12'
       - run: npm ci
       - run: node scripts/verify-migration.mjs
-      - name: Validate, preflight, and publish the selected worker
+      - name: Preflight and publish the selected worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           IMAGE_BUILD_SECRET: ${{ secrets.IMAGE_BUILD_SECRET }}

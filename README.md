@@ -204,9 +204,9 @@ npm run deploy:raindrop
 
 These commands dispatch the manual production workflow at the clean, committed
 checkout's SHA, which must already be merged into Canopy `main`. The workflow
-runs that target's checks, bundle validation, and preflight before invoking its
-existing publisher. Release evidence records the source SHA, target, validated
-artifact hash, and deployed worker version. Backend releases share one concurrency
+runs that target's preflight and publisher without tests or dry runs. Frontend
+publishers build their assets once. Release evidence records the source SHA,
+target, published artifact hash, and deployed worker version. Backend releases share one concurrency
 lock; each frontend target has its own lock. Bare `npm run deploy` fails with usage
 help and publishes nothing.
 
@@ -226,7 +226,9 @@ Coordinated backend releases, activity bootstrap, and explicit API/preview datab
 migrations use the separate **Coordinated backend operation** manual workflow,
 with the same backend lock. See [backend deployment guidance](apps/backend/docs/deployment.md)
 for ordering and rollback constraints. A worker rollback does not undo a database
-or Durable Object migration.
+or Durable Object migration. Coordinated releases record source SHAs and published
+worker versions without separate validation bundles. Run tests and bundle checks
+in CI or with the explicit local validation commands above.
 
 Security provisioning, image building, and SDK publishing remain explicit
 operations. The imported image/SDK release workflows are retained under

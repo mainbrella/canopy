@@ -50,7 +50,7 @@ function stubRun(fixture, { dirty = '', accountId = STAGING.accountId, receipt =
         writeFileSync(join(fixture.app, 'dist/index.html'), '<main>staging homepage</main>');
         return '';
       }
-      if (command === process.execPath && args.includes('--dry-run')) {
+      if (command === process.execPath && args.includes('deploy')) {
         configPath = args[args.indexOf('--config') + 1];
         assert.ok(configPath.startsWith(fixture.app + '/wrangler.staging-homepage-'));
         configuration = JSON.parse(readFileSync(configPath, 'utf8'));
@@ -64,9 +64,11 @@ function stubRun(fixture, { dirty = '', accountId = STAGING.accountId, receipt =
         mkdirSync(outputDirectory, { recursive: true });
         writeFileSync(join(outputDirectory, 'worker.js'), 'staging worker bundle');
         directoryHash = artifactHash([outputDirectory, join(fixture.app, 'dist')]);
-        return '';
+        if (args.includes('--dry-run')) return '';
       }
       if (command === process.execPath && args.includes('whoami')) {
+        configPath = join(fixture.app, `wrangler.staging-homepage-${operationId}.jsonc`);
+        configuration = JSON.parse(readFileSync(configPath, 'utf8'));
         if (mutateConfigAtWhoami) writeFileSync(configPath, JSON.stringify({ ...configuration, name: 'mainbrella-web' }));
         return JSON.stringify({ accounts: [{ id: accountId, name: 'test account' }] });
       }
@@ -173,14 +175,16 @@ test('publish preserves partial Wrangler receipt and evidence when the publish c
   assert.match(readFileSync(join(artifact, 'homepage.wrangler.jsonl'), 'utf8'), /mainbrella-web-stg/);
 });
 
-test('successful explicit publish uses local Wrangler auth only after dry-run and records the receipt', t => {
+test('successful explicit publish builds once and records the receipt without tests or dry runs', t => {
   const f = fixture(t);
   const stub = stubRun(f);
   const evidence = publishStagingHomepage({ publish: true, directory: f.directory, run: stub.run, id: () => operationId, log: () => {} });
   assert.equal(evidence.status, 'published');
   assert.equal(evidence.workerVersion, workerVersion);
-  assert.equal(stub.calls.findIndex(call => call.command === process.execPath && call.args.includes('--dry-run'))
-    < stub.calls.findIndex(call => call.command === process.execPath && call.args.includes('whoami')), true);
+  assert.equal(stub.calls.some(call => call.args.includes('--dry-run')), false);
+  assert.deepEqual(stub.calls.filter(call => call.command === 'npm').map(call => call.args[1]), ['build:site:staging']);
+  assert.equal(stub.calls.findIndex(call => call.command === process.execPath && call.args.includes('whoami'))
+    < stub.calls.findIndex(call => call.command === process.execPath && call.args.includes('deploy')), true);
   const publishCall = stub.calls.find(call => call.command === process.execPath && call.args.includes('deploy') && !call.args.includes('--dry-run'));
   assert.ok(publishCall);
   assert.equal(publishCall.options.stdio, 'inherit');

@@ -64,6 +64,10 @@ function stubRun(log, { failOn = null, status = '', sha = sourceSha, onCall = ()
             { type: 'deploy', worker_name: targets[targetName].worker, version_id: deploymentVersion },
           ].map(JSON.stringify).join('\n') + '\n';
         writeFileSync(receiptPath, content);
+        const output = args.find(arg => arg.startsWith('--outdir='))?.slice('--outdir='.length);
+        assert.ok(output, 'publisher saves its actual bundle for release evidence');
+        mkdirSync(join(options.cwd, output), { recursive: true });
+        writeFileSync(join(options.cwd, output, 'worker.js'), 'published bundle');
         onPublish({ target: targets[targetName], options, receiptPath });
       }
     }
@@ -100,31 +104,18 @@ function mockConfig(target) {
   };
 }
 
-test('each registry target checks and publishes exactly one scoped worker', t => {
+test('each registry target publishes once without tests or dry runs', t => {
   for (const name of Object.keys(targets)) {
     const { directory, app, target } = fixture(t, name);
     const log = [];
     const originalConfigPath = join(app, target.config);
     const originalConfig = readFileSync(originalConfigPath, 'utf8');
-    const temporaryConfig = `.wrangler-local-bundle-${process.pid}.jsonc`;
     const receiptPath = join(directory, 'artifacts/releases', `${name}.wrangler.jsonl`);
     const evidence = withoutConsoleOutput(() => release(name, {
       publish: true,
       directory,
       env: productionEnv,
-      run: stubRun(log, { onCall: call => {
-        if (!call.args.includes('--dry-run')) return;
-        const configArgument = call.args[call.args.indexOf('--config') + 1];
-        if (name === 'containers') {
-          assert.equal(configArgument, temporaryConfig);
-          const bundleConfig = JSON.parse(readFileSync(join(app, configArgument), 'utf8'));
-          const source = JSON.parse(originalConfig);
-          delete source.containers;
-          assert.deepEqual(bundleConfig, source);
-        } else {
-          assert.equal(configArgument, target.config);
-        }
-      } }),
+      run: stubRun(log),
       readConfig: path => {
         assert.equal(path, join(app, target.config));
         return mockConfig(target);
@@ -134,10 +125,9 @@ test('each registry target checks and publishes exactly one scoped worker', t =>
 
     const npmCalls = log.filter(call => call.command === 'npm');
     assert.deepEqual(npmCalls.map(call => call.args), [
-      ...target.checks.map(script => ['run', script, '--workspace', target.workspace]),
       ...target.preflight.map(script => ['run', script, '--workspace', target.workspace]),
-      ['run', target.publish, '--workspace', target.workspace],
-    ], `${name}: check, preflight, and single publish sequence`);
+      ['run', target.publish, '--workspace', target.workspace, '--', `--outdir=.wrangler/release-${name}`],
+    ], `${name}: preflight and single publish sequence`);
     assert.ok(npmCalls.every(call => call.cwd === app), `${name}: npm runs from its app directory`);
     for (const call of npmCalls) {
       assert.equal(call.env?.WRANGLER_OUTPUT_FILE_PATH,
@@ -147,12 +137,8 @@ test('each registry target checks and publishes exactly one scoped worker', t =>
     const publishCalls = npmCalls.filter(call => call.args[1] === target.publish);
     assert.equal(publishCalls.length, 1, `${name}: one scoped publish`);
 
-    const dryRun = log.find(call => call.args.includes('--dry-run'));
-    assert.ok(dryRun, `${name}: Wrangler dry-run runs`);
-    assert.equal(dryRun.cwd, app);
-    if (name !== 'containers') assert.equal(dryRun.args[dryRun.args.indexOf('--config') + 1], target.config);
+    assert.equal(log.some(call => call.args.includes('--dry-run')), false, `${name}: skips dry runs`);
     assert.equal(readFileSync(originalConfigPath, 'utf8'), originalConfig, `${name}: source config stays untouched`);
-    if (name === 'containers') assert.equal(existsSync(join(app, temporaryConfig)), false, 'temporary config is removed after success');
     assert.equal(evidence.target, name);
     assert.equal(evidence.worker, target.worker);
     assert.equal(evidence.sourceSha, sourceSha);
@@ -162,17 +148,17 @@ test('each registry target checks and publishes exactly one scoped worker', t =>
   }
 });
 
-test('checks run before preflight, then the target-scoped publish', t => {
+test('preflight runs before the target-scoped publish', t => {
   const { directory, target } = fixture(t, 'containers');
   const log = [];
   withoutConsoleOutput(() => release('containers', { publish: true, run: stubRun(log), directory, env: productionEnv,
     readConfig: () => mockConfig(target), record: () => {} }));
   const npmCalls = log.filter(call => call.command === 'npm').map(call => call.args[1]);
-  assert.deepEqual(npmCalls, [...target.checks, ...target.preflight, target.publish]);
+  assert.deepEqual(npmCalls, [...target.preflight, target.publish]);
 });
 
-test('check or preflight failures stop before any publish', t => {
-  for (const [name, failScript] of [['api', 'test:api'], ['admin', 'admin:preflight']]) {
+test('preflight failures stop before any publish', t => {
+  for (const [name, failScript] of [['api', 'api:preflight'], ['admin', 'admin:preflight']]) {
     const { directory, target } = fixture(t, name);
     const log = [];
     const failure = `npm run ${failScript} --workspace ${target.workspace}`;

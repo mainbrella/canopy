@@ -89,7 +89,7 @@ function fixture(t, behavior = {}) {
     assert.equal(config.vars.DEPLOYMENT_ENVIRONMENT, 'staging');
     assert.equal(options.cwd, join(directory, 'apps', config.name === 'mainbrella-raindrop-stg' ? 'raindrop'
       : ['mainbrella-web-stg', 'mainbrella-builder-stg'].includes(config.name) ? 'web' : 'backend'));
-    if (args[1] === 'deploy' && args.includes('--dry-run')) {
+    if (args[1] === 'deploy') {
       const outdir = join(options.cwd, args[args.indexOf('--outdir') + 1]);
       mkdirSync(outdir, { recursive: true });
       writeFileSync(join(outdir, 'bundle.js'), `// ${config.name}: ${config.main ?? 'assets'}\n`);
@@ -98,7 +98,7 @@ function fixture(t, behavior = {}) {
           : config.name === 'mainbrella-admin-stg' ? 'worker/admin.ts' : 'worker/marketing.ts';
         writeFileSync(join(outdir, 'bundle-meta.json'), JSON.stringify({ inputs: { [input]: {} } }));
       }
-      return '';
+      if (args.includes('--dry-run')) return '';
     }
     if (args[1] === 'deploy') {
       const secretFlag = args.indexOf('--secrets-file');
@@ -177,8 +177,6 @@ function fixture(t, behavior = {}) {
 
 const deployCalls = fixture => fixture.calls.filter(call => call.command === process.execPath && call.args[1] === 'deploy'
   && !call.args.includes('--dry-run'));
-const bundleCalls = (fixture, worker) => fixture.calls.filter(call => call.command === process.execPath
-  && call.args[1] === 'deploy' && call.args.includes('--dry-run') && call.config.name === worker);
 function expectedPublishedHash(call, assets) {
   const outdir = join(call.cwd, call.args[call.args.indexOf('--outdir') + 1]);
   return createHash('sha256').update(artifactHash([outdir, ...(assets ? [join(call.cwd, assets)] : [])]))
@@ -314,37 +312,32 @@ test('ordinary release deploys only the selected worker with staged build env an
     assert.equal(call.env.VITE_GOOGLE_CLIENT_ID, 'staging-client');
   }
   assert.equal(deployCalls(f)[0].secrets, undefined);
+  assert.deepEqual(f.calls.filter(call => call.command === 'npm').map(call => call.args[1]), ['build:site:staging']);
+  assert.equal(f.calls.some(call => call.args.includes('--dry-run')), false);
   f.assertClean();
 });
 
-test('publication hash covers final stage bindings and image digests after offline checks', async t => {
+test('publication hash covers final stage bindings and image digests from the actual deploy', async t => {
   const changedResources = { ...resources,
     databaseId: '00000000-0000-4000-8000-000000000003',
     previewDatabaseId: '00000000-0000-4000-8000-000000000004' };
   const api = fixture(t, { resources: changedResources });
   const apiResult = await stagingOperation('deploy', { ...api.options, target: 'api' });
-  const apiBundles = bundleCalls(api, 'mainbrella-api-stg');
-  assert.equal(apiBundles.length, 2);
-  assert.equal(apiBundles[0].config.d1_databases[0].database_id, resources.databaseId);
-  assert.equal(apiBundles[1].config.d1_databases[0].database_id, changedResources.databaseId);
-  assert.equal(apiResult.publications[0].validatedArtifactSha256, expectedPublishedHash(apiBundles[1]));
-  assert.notEqual(apiResult.publications[0].validatedArtifactSha256, expectedPublishedHash(apiBundles[0]));
+  const [apiDeploy] = deployCalls(api);
+  assert.equal(apiDeploy.config.d1_databases[0].database_id, changedResources.databaseId);
+  assert.equal(apiResult.publications[0].validatedArtifactSha256, expectedPublishedHash(apiDeploy));
+  assert.equal(api.calls.some(call => call.args.includes('--dry-run') || call.command === 'npm'), false);
   api.assertClean();
 
   const changedCatalog = structuredClone(catalog);
   changedCatalog.terminal.image = changedCatalog.terminal.image.replace(/b{64}$/, 'c'.repeat(64));
   const containers = fixture(t, { catalog: changedCatalog });
   const containerResult = await stagingOperation('deploy', { ...containers.options, target: 'containers' });
-  const containerBundles = bundleCalls(containers, 'mainbrella-containers-stg');
-  assert.equal(containerBundles.length, 2);
-  assert.equal(containerBundles[0].config.containers, undefined);
-  assert.equal(containerBundles[1].config.containers, undefined);
-  const finalConfig = deployCalls(containers)[0].config;
+  const [containerDeploy] = deployCalls(containers);
+  const finalConfig = containerDeploy.config;
   assert.deepEqual(finalConfig.containers[0].images, changedCatalog);
-  const finalBundle = join(containerBundles[1].cwd, containerBundles[1].args[containerBundles[1].args.indexOf('--outdir') + 1]);
-  const expected = createHash('sha256').update(artifactHash([finalBundle])).update('\0')
-    .update(JSON.stringify(finalConfig)).digest('hex');
-  assert.equal(containerResult.publications[0].validatedArtifactSha256, expected);
+  assert.equal(containerResult.publications[0].validatedArtifactSha256, expectedPublishedHash(containerDeploy));
+  assert.equal(containers.calls.some(call => call.args.includes('--dry-run') || call.command === 'npm'), false);
   containers.assertClean();
 });
 
@@ -390,8 +383,10 @@ test('new bootstrap uses one unrouted namespace stub, stage migrations, then all
   assert.equal(published[0].secrets, undefined);
   assert.equal(result.publications.length, 9);
   assert.equal(result.publications[0].kind, 'bootstrap-declarations');
-  const [stubBundle] = bundleCalls(f, 'mainbrella-api-stg').filter(call => call.config.main === 'worker/staging-bootstrap.ts');
-  assert.equal(result.publications[0].validatedArtifactSha256, expectedPublishedHash(stubBundle));
+  assert.equal(result.publications[0].validatedArtifactSha256, expectedPublishedHash(published[0]));
+  assert.equal(f.calls.some(call => call.args.includes('--dry-run')), false);
+  assert.deepEqual(f.calls.filter(call => call.command === 'npm').map(call => call.args[1]),
+    ['build:site:staging', 'build:builder:staging', 'build:staging']);
   assert.deepEqual(f.preflights, ['admin', 'marketing', 'containers', 'api', 'previews', 'site', 'builder', 'raindrop']);
   assert.deepEqual(f.imageReads, [f.directory]);
   assert.deepEqual(result.imageDigests, catalog);

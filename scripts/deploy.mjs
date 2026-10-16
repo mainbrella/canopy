@@ -73,12 +73,12 @@ export function release(name, { publish = false, run = execute, directory = root
     throw new Error('Production publishing must run through the Canopy production workflow and its deployment lock.');
   }
   const options = { cwd, env };
-  const npm = (script, commandEnv = env) => run('npm', ['run', script, '--workspace', target.workspace], { cwd, env: commandEnv });
-  for (const script of target.checks) npm(script);
-  // Bundle checks use Wrangler directly. deploy:containers --dry-run is a live
-  // operation, so it must never be used as an offline packaging check.
-  const { wrangler, bundle } = bundleTarget(name, { run, directory, env, configuration });
-  if (!publish) return;
+  const npm = (script, commandEnv = env, args = []) => run('npm', ['run', script, '--workspace', target.workspace, ...args], { cwd, env: commandEnv });
+  if (!publish) {
+    for (const script of target.checks) npm(script);
+    bundleTarget(name, { run, directory, env, configuration });
+    return;
+  }
   for (const script of target.preflight) npm(script);
   const sourceSha = capture(run, 'git', ['rev-parse', 'HEAD'], { cwd: directory });
   if (sourceSha !== env.RELEASE_SHA || !/^[a-f0-9]{40}$/.test(sourceSha)) throw new Error('Release checkout differs from the selected source SHA.');
@@ -86,15 +86,18 @@ export function release(name, { publish = false, run = execute, directory = root
   mkdirSync(output, { recursive: true });
   const publication = join(output, `${name}.wrangler.jsonl`);
   rmSync(publication, { force: true });
-  npm(target.publish, { ...env, WRANGLER_OUTPUT_FILE_PATH: publication });
-  // Scoped frontend publishers rebuild. Hash their final outputs after that
-  // build/publish so the recorded static bytes are the ones sent to Wrangler.
+  const bundle = join('.wrangler', `release-${name}`);
+  rmSync(join(cwd, bundle), { recursive: true, force: true });
+  npm(target.publish, { ...env, WRANGLER_OUTPUT_FILE_PATH: publication }, ['--', `--outdir=${bundle}`]);
+  // Record the actual deployment output, including assets built by its publisher.
   const hash = artifactHash([join(cwd, bundle), ...(target.assets ? [join(cwd, target.assets)] : [])]);
   const published = readFileSync(publication, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
     .filter(entry => entry.type === 'deploy' && entry.version_id);
   if (published.length !== 1 || published[0].worker_name !== target.worker
     || !/^[a-f0-9-]{36}$/.test(published[0].version_id)) throw new Error('Publisher did not report exactly one selected worker version; inspect release output before retrying.');
   const workerVersion = published[0].version_id;
+  const require = createRequire(join(cwd, 'package.json'));
+  const wrangler = join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
   const deployments = JSON.parse(capture(run, process.execPath,
     [wrangler, 'deployments', 'list', '--config', target.config, '--json'], options));
   const deployed = deployments.find(item => item.versions?.length === 1 && item.versions[0].version_id === workerVersion);

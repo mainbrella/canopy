@@ -32,14 +32,9 @@ function fixture(t) {
     output = options.env.WRANGLER_OUTPUT_FILE_PATH;
     return '';
   };
-  const prepareCalls = [];
-  const prepare = (name, { variant } = {}) => {
-    prepareCalls.push(variant ? `${name}:${variant}` : name);
-    return (variant ? `${name}:${variant}` : name).padEnd(64, 'a');
-  };
   const evidence = operation => JSON.parse(readFileSync(join(directory,
     `artifacts/releases/backend-${operation}-${sha}.json`), 'utf8'));
-  return { directory, calls, run, prepare, prepareCalls, evidence,
+  return { directory, calls, run, evidence,
     get output() { return output; } };
 }
 
@@ -60,7 +55,7 @@ test('Wrangler output ignores dry runs and preserves valid entries around malfor
   assert.equal(result.errors.length, 1);
 });
 
-test('coordinated release records each published Worker and validated bundle hash', t => {
+test('coordinated release records each published Worker without validation builds', t => {
   const f = fixture(t);
   const sequence = ['containers', 'previews', 'admin', 'marketing', 'api'];
   const run = (command, args, options) => {
@@ -68,14 +63,12 @@ test('coordinated release records each published Worker and validated bundle has
     if (command === 'npm') writeFileSync(f.output, sequence.map((name, index) => event(name, index + 1)).join(''));
     return result;
   };
-  const result = backendOperation('release', { directory: f.directory, env, run, prepare: f.prepare, log: () => {} });
+  const result = backendOperation('release', { directory: f.directory, env, run, log: () => {} });
   assert.equal(result.status, 'success');
-  assert.deepEqual(f.prepareCalls, sequence);
   assert.deepEqual(result.publications.map(item => item.target), sequence);
-  assert.equal(result.publications[0].bundleKind, 'worker-only, excluding image');
-  assert.equal(result.publications[0].validatedBundleSha256, 'containers'.padEnd(64, 'a'));
   assert.equal(result.publications[4].workerVersion, version(5));
   assert.equal(result.publications.every(item => item.sourceSha === sha), true);
+  assert.deepEqual(f.calls.map(call => call.command), ['git', 'npm']);
   assert.equal(f.calls[1].options.cwd, join(f.directory, 'apps/backend'));
   assert.deepEqual(f.calls[1].args, ['run', 'deploy', '--workspace', '@canopy/backend']);
   assert.deepEqual(f.evidence('release').publications, result.publications);
@@ -89,13 +82,11 @@ test('bootstrap records both container publications in their actual order', t =>
     if (command === 'npm') writeFileSync(f.output, sequence.map((name, index) => event(name, index + 1)).join(''));
     return result;
   };
-  const result = backendOperation('bootstrap-activity', { directory: f.directory, env, run, prepare: f.prepare, log: () => {} });
+  const result = backendOperation('bootstrap-activity', { directory: f.directory, env, run, log: () => {} });
   assert.deepEqual(result.publications.map(item => item.target), sequence);
   assert.equal(result.publications[0].workerVersion, version(1));
   assert.equal(result.publications[4].workerVersion, version(5));
-  assert.deepEqual(f.prepareCalls, ['containers:without-activity', 'containers', 'admin', 'marketing', 'api', 'previews']);
-  assert.equal(result.publications[0].validatedBundleSha256, 'containers:without-activity'.padEnd(64, 'a'));
-  assert.equal(result.publications[4].validatedBundleSha256, 'containers'.padEnd(64, 'a'));
+  assert.deepEqual(f.calls.map(call => call.command), ['git', 'npm']);
 });
 
 test('partial failure still writes all observed publications and marks the remainder unconfirmed', t => {
@@ -108,7 +99,7 @@ test('partial failure still writes all observed publications and marks the remai
     }
     return f.run(command, args, options);
   };
-  assert.throws(() => backendOperation('release', { directory: f.directory, env, run, prepare: f.prepare, log: () => {} }),
+  assert.throws(() => backendOperation('release', { directory: f.directory, env, run, log: () => {} }),
     /simulated operation failure/);
   const result = f.evidence('release');
   assert.equal(result.status, 'failed');
@@ -128,7 +119,7 @@ test('unexpected or missing Wrangler records fail while preserving raw output', 
       if (command === 'npm') writeFileSync(f.output, output);
       return result;
     };
-    assert.throws(() => backendOperation('release', { directory: f.directory, env, run, prepare: f.prepare, log: () => {} }), label);
+    assert.throws(() => backendOperation('release', { directory: f.directory, env, run, log: () => {} }), label);
     assert.equal(f.evidence('release').status, 'failed');
     assert.ok(f.evidence('release').publications.length);
     assert.equal(readFileSync(f.output, 'utf8'), output);
