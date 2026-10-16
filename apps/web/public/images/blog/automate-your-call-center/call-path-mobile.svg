@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="820" viewBox="0 0 440 820" fill="none">
+  <title>The audio paths through Mainbrella</title>
+  <desc>Browser audio goes directly to a per-call Durable Object. Phone audio goes through Twilio and the audio bridge. In the operator's Cloudflare account, Flux transcribes, Llama generates a reply, Aura generates audio, and D1 stores transcripts.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="m1 1 7 4-7 4" fill="none" stroke="#46626d" stroke-width="1.5"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#24353b}.label{font-size:20px;font-weight:600}.small{font-size:18px;fill:#465a61}.flow{stroke:#46626d;stroke-width:2;stroke-linejoin:round;marker-end:url(#arrow)}.both{marker-start:url(#arrow)}.node{fill:#fffdf8;stroke:#aab7b8;stroke-width:1.5}</style>
+  </defs>
+  <rect width="440" height="820" rx="8" fill="#f7f4ec"/>
+  <rect x="18" y="216" width="404" height="584" rx="10" fill="#edf2ef" stroke="#aab7b8" stroke-width="1.5" stroke-dasharray="5 5"/>
+  <text x="34" y="242" class="small">Your Cloudflare</text>
+  <text x="34" y="266" class="small">account</text>
+
+  <g stroke="#46626d" stroke-width="2.5">
+    <rect x="74" y="24" width="28" height="48" rx="5" fill="#fffdf8"/>
+    <path d="M83 31h10m-9 33h8"/>
+    <rect x="62" y="127" width="56" height="40" rx="4" fill="#fffdf8"/>
+    <path d="M62 139h56M72 133h1m8 0h1"/>
+  </g>
+  <text x="88" y="99" class="label" text-anchor="middle">Phone</text>
+  <text x="90" y="193" class="label" text-anchor="middle">Browser</text>
+  <rect x="228" y="30" width="148" height="54" rx="27" class="node"/>
+  <text x="302" y="64" class="label" text-anchor="middle">Twilio</text>
+  <path d="M113 55h109" class="flow both"/>
+  <path d="M302 90v138" class="flow both"/>
+  <text x="316" y="147" class="small">8 kHz</text>
+  <text x="316" y="171" class="small">μ-law</text>
+
+  <rect x="232" y="234" width="160" height="54" rx="6" class="node"/>
+  <text x="312" y="268" class="label" text-anchor="middle">Audio bridge</text>
+  <path d="M302 294v28h-82v4" class="flow both"/>
+  <text x="316" y="317" class="small">PCM16</text>
+  <path d="M90 205v163h34" class="flow both"/>
+  <text x="35" y="304" class="small">16 kHz</text>
+  <text x="35" y="328" class="small">PCM</text>
+  <rect x="130" y="332" width="160" height="70" rx="8" fill="#dce9e5" stroke="#728e86" stroke-width="1.5"/>
+  <text x="210" y="361" class="label" text-anchor="middle">One call</text>
+  <text x="210" y="386" class="small" text-anchor="middle">Durable Object</text>
+
+  <path d="M174 408v38h-56v41" class="flow"/>
+  <text x="34" y="474" class="small">Workers AI</text>
+  <rect x="44" y="493" width="148" height="66" rx="6" class="node"/>
+  <text x="118" y="520" class="label" text-anchor="middle">Flux</text>
+  <text x="118" y="545" class="small" text-anchor="middle">Speech → text</text>
+  <path d="M118 565v39" class="flow"/>
+  <text x="135" y="590" class="small">Text</text>
+  <rect x="34" y="610" width="168" height="66" rx="6" class="node"/>
+  <text x="118" y="637" class="label" text-anchor="middle">Llama 3.3 70B</text>
+  <text x="118" y="662" class="small" text-anchor="middle">Generate reply</text>
+  <path d="M118 682v39" class="flow"/>
+  <text x="135" y="707" class="small">Reply</text>
+  <rect x="44" y="727" width="148" height="56" rx="6" class="node"/>
+  <text x="118" y="751" class="label" text-anchor="middle">Aura-1</text>
+  <text x="118" y="775" class="small" text-anchor="middle">Text → speech</text>
+  <path d="M198 755h176V368h-78" class="flow"/>
+  <text x="241" y="640" class="small">Spoken reply</text>
+  <path d="M296 390h14v78" class="flow"/>
+  <text x="263" y="439" class="small">Save text</text>
+  <path d="M270 481c0-15 80-15 80 0v33c0 15-80 15-80 0Z" class="node"/>
+  <ellipse cx="310" cy="481" rx="40" ry="11" fill="#fffdf8" stroke="#aab7b8" stroke-width="1.5"/>
+  <text x="310" y="510" class="label" text-anchor="middle">D1</text>
+  <text x="310" y="550" class="small" text-anchor="middle">Transcripts</text>
+</svg>

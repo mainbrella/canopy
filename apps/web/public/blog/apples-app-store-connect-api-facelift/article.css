@@ -1,0 +1,14 @@
+.parsequerade-article h1 { max-width: none; }
+.parsequerade-article .apple-docs-crop { position: relative; display: block; overflow: hidden; aspect-ratio: 1200 / 730; background: #000; }
+.parsequerade-article .apple-docs-crop img { position: absolute; width: 170.667%; max-width: none; left: -62%; top: -27.397%; }
+.parsequerade-article .json-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
+.parsequerade-article .json-example { min-width: 0; }
+.parsequerade-article .json-label { margin: 0 0 8px; color: var(--muted); font-size: 16px; font-weight: 600; }
+.parsequerade-article .json-example .docs-code { margin: 0; padding: 16px; font-size: 14px; }
+.parsequerade-article .json-example:last-child .docs-code { background: #192e23; }
+.parsequerade-article .article-figure a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+@media (max-width: 600px) {
+  .parsequerade-article .json-comparison { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .parsequerade-article .apple-docs-crop { aspect-ratio: 780 / 710; }
+  .parsequerade-article .apple-docs-crop img { width: 262.564%; left: -141.026%; top: -39.437%; }
+}

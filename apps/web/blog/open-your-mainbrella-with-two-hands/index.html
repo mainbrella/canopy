@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Our OpenHands prototype runs Agent Server on Mainbrella. The machine can outlive its access URL, which makes reconnecting harder than saving an address." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/open-your-mainbrella-with-two-hands/" />
+    <meta property="og:title" content="Open your mainbrella with two hands · Mainbrella" />
+    <meta property="og:description" content="Our OpenHands prototype runs Agent Server on Mainbrella. The machine can outlive its access URL, which makes reconnecting harder than saving an address." />
+    <meta property="og:url" content="https://mainbrella.com/blog/open-your-mainbrella-with-two-hands/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/open-your-mainbrella-with-two-hands/two-hands.webp" />
+    <meta property="og:image:alt" content="A mechanical assistant opens a blue umbrella with two hands over a machine and its unfinished report." />
+    <meta property="article:published_time" content="2026-10-08T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/when-it-rains-agents-bring-a-mainbrella/article.css" />
+    <link rel="stylesheet" href="/blog/open-your-mainbrella-with-two-hands/article.css" />
+    <title>Open your mainbrella with two hands · Mainbrella</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella rains-agents openhands-article">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>Open your mainbrella with two hands</h1>
+        <p class="article-meta"><time datetime="2026-10-08">October 8, 2026</time> · Andrew Arrow</p>
+
+        <p>An OpenHands agent can lose access to its machine while the machine is still running. The unfinished report is on disk, Agent Server is alive, and the conversation remembers the work. The URL has expired. Starting another machine would turn a connection problem into lost work.</p>
+        <p>That’s one of the cases our <a href="https://github.com/mainbrella/OpenHands/tree/6f3ab7771a915a5af23db6b58c49afc77e535d4a/examples/mainbrella">Mainbrella prototype</a> brings to OpenHands’ <a href="https://github.com/OpenHands/OpenHands/issues/17833">discussion of sandbox providers for Agent Canvas</a>. We connected the published SDK to a Mainbrella machine through OpenHands’ existing remote-workspace protocol. The connection works, but the prototype can’t yet renew an expired endpoint. A provider interface needs to account for that before a marketplace gives users a menu of machines.</p>
+
+        <figure class="article-figure figure-narrow">
+          <img src="/images/blog/open-your-mainbrella-with-two-hands/two-hands.webp" width="1536" height="1024" alt="A mechanical assistant uses one hand to hold an umbrella's shaft and the other to push its runner upward, sheltering a computing machine and an unfinished report." decoding="async" fetchpriority="high" />
+
+        </figure>
+
+        <h2 id="existing-protocol">Run the existing Agent Server</h2>
+        <p>OpenHands’ file tools and terminal already work through its Agent Server, and the SDK can connect to a server running elsewhere. We can supply the machine without rebuilding those tools.</p>
+        <p>That takes less translation than our <a href="/blog/new-batteries-for-the-batteries-included-agent-harness/">Deep Agents</a> and <a href="/blog/when-it-rains-agents-bring-a-mainbrella/">Mastra</a> adapters, which implement command execution and file transfers beneath each framework’s tools. Here, OpenHands continues to own the protocol all the way into the guest.</p>
+        <p>The prototype creates a Mainbrella Python machine, installs Agent Server <code>1.53.0</code> inside it, and exposes port <code>18000</code> through a protected preview. A <code>MainbrellaWorkspace</code> class extends OpenHands’ <code>RemoteWorkspace</code>. Commands, files, conversation requests, and WebSocket events then use OpenHands’ existing protocol. Mainbrella provisions the machine; Agent Server handles the work inside it.</p>
+        <p>The file editor and terminal see the same <code>/workspace</code>, so a script written by one tool is available to the other. Conversation requests and events reach that same server. The <a href="https://github.com/mainbrella/OpenHands/blob/6f3ab7771a915a5af23db6b58c49afc77e535d4a/examples/mainbrella/mainbrella_workspace.py">adapter</a> pins the SDK, server, and tools to matching versions.</p>
+        <p>Each new machine installs the server at startup. That’s wasted setup for repeated use; a prepared image would avoid it. We haven’t measured startup speed in this prototype.</p>
+        <p>Provisioning and conversation access use different credentials. The Mainbrella account key stays with the provisioner. The guest receives a separately generated Agent Server session key and encryption key. Model credentials follow OpenHands’ remote-conversation behavior and go to Agent Server. The guest still holds secrets, just not the key that can provision more machines.</p>
+
+        <h2 id="same-machine">The next connection must find the same machine</h2>
+        <p>Suppose the agent has written half a report and an administrator changes the instance’s default provider. On the next turn, following that new default would give the agent an empty disk alongside a transcript describing its unfinished report. The default is fine for new work. Applying it to an existing conversation is a bug.</p>
+        <p>Our <a href="https://github.com/OpenHands/OpenHands/issues/17833#issuecomment-6058009909">feedback on the proposal</a> asks for an instance default with per-conversation and per-automation overrides. Once work starts, save its chosen provider, profile, and runtime identity alongside the conversation. Later turns need to use that saved choice.</p>
+        <p>Mainbrella’s identity includes a slot ID and a creation timestamp. A slot can be reused; the pair names the exact generation. The prototype’s <code>attach()</code> checks that this generation is still running. When the prototype creates a workspace, it stops that machine on cleanup. When it attaches to one, it leaves the machine running after the connection closes. Closing an inspection session shouldn’t delete the machine you came to inspect.</p>
+        <p>We also record each attempt to create a machine. The caller supplies an idempotency key, and the adapter’s recording callback saves it before the creation request. If the reply disappears, that key lets the caller reconcile the attempt. Shell commands don’t get that protection. If a command appended a report row before its reply disappeared, replaying it may append the row twice.</p>
+
+        <h2 id="expiration">A machine and its endpoint have different clocks</h2>
+        <p>The saved runtime handle also contains the preview endpoint, its session key, and its expiration. These are sensitive connection details, separate from the generation identity. In this prototype, a preview lasts at most one hour, shortened when the machine’s hard lease ends sooner.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/open-your-mainbrella-with-two-hands/two-clocks-mobile.svg" width="440" height="540" />
+            <img src="/images/blog/open-your-mainbrella-with-two-hands/two-clocks.svg" width="920" height="380" alt="A hypothetical timeline shows a machine and its files continuing beyond the expiration of its preview endpoint. Renewed access would connect to the same generation; starting a new machine would produce a separate disk." loading="lazy" decoding="async" />
+          </picture>
+
+        </figure>
+        <p>The machine may still be running when access expires, as the diagram shows. That dotted renewal path is what the provider contract needs to support; this adapter hasn’t implemented it. Until it can refresh access, it has to report that the workspace is unavailable. Creating a replacement would discard access to the work we were trying to resume.</p>
+        <p>A <code>connect(handle)</code> result should include credentials and their expiration so the caller knows when it needs fresh access. Authentication has another wrinkle here: preview ingress strips application cookies. Session-key HTTP and WebSocket authentication passed the local checks, but we haven’t qualified the browser tools or embedded editor.</p>
+        <p>Stopping the machine discards its unsaved files. A filesystem snapshot can preserve those files, but it won’t preserve a running process’s memory. Renewing access, saving the filesystem, and pausing a process need separate capability flags. A single “supports persistence” checkbox is too vague to trust with unfinished work.</p>
+
+        <h2 id="qualification">The timeout lost part of the output</h2>
+        <p>Local checks with OpenHands SDK <code>1.53.0</code> and Mainbrella SDK <code>0.1.0</code> found a second problem: a timed-out command could leave useful output behind without returning it to the caller. The <a href="https://github.com/mainbrella/OpenHands/blob/6f3ab7771a915a5af23db6b58c49afc77e535d4a/examples/mainbrella/qualification.json">saved report</a> includes the transport checks and this failure.</p>
+        <p>The high-level <code>execute_command()</code> call reported a timeout but omitted the final buffered stdout. A second probe split starting the command from reading its result, using <code>start_command()</code> and <code>get_command_output()</code>. That probe received the partial output:</p>
+        <div class="retry-examples">
+          <div class="example example-failure">
+            <p class="example-heading">Wait for the whole command</p>
+            <p class="example-result">First probe, <code>execute_command()</code>: timeout reported; the expected <code>partial</code> output was absent.</p>
+          </div>
+          <div class="example example-recovery">
+            <p class="example-heading">Inspect the retained command result</p>
+            <p class="example-result">Second probe, <code>start_command()</code> / <code>get_command_output()</code>: the verifier received <code>partial</code> and exit code <code>-1</code> after timeout.</p>
+          </div>
+        </div>
+        <p>The prototype README attributes the missing output to the polling deadline coinciding with the process deadline in SDK <code>1.53.0</code>. The client stops waiting just when the process is producing its final result. A provider test needs to check that the caller can recover that result, not just that it receives a timeout.</p>
+        <p>These checks exercised local transport without making model requests. The WebSocket check sent a user message, but no model ran. Canvas UI, hosted production, and delegated workers still need qualification before we can claim they work through this provider.</p>
+
+        <h2 id="contract">The interface we’d want to implement</h2>
+        <p>I’d put four operations in the SDK/Agent Server layer and have Canvas call them. These are proposed names, not an upstream API:</p>
+        <div class="rains-table-scroll" role="region" aria-label="Proposed provider lifecycle operations" tabindex="0">
+          <table class="rains-table">
+            <thead><tr><th scope="col">Operation</th><th scope="col">The question it answers</th></tr></thead>
+            <tbody>
+              <tr><td><code>create_or_reconcile(spec, key)</code></td><td>Which machine belongs to this creation attempt?</td></tr>
+              <tr><td><code>inspect(handle)</code></td><td>Is that generation alive, and what limits and capabilities apply?</td></tr>
+              <tr><td><code>connect(handle)</code></td><td>How do I authenticate to its Agent Server, and until when?</td></tr>
+              <tr><td><code>stop(handle)</code></td><td>Did that exact generation stop, or is cleanup still uncertain?</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>With those operations tested, a provider picker can show what users need to know: who runs the service, which credentials it needs, how long a machine lives, what it costs, and what survives a stop. Network policy and unsupported capabilities belong there too. A slick selector won’t help anyone discover that “persistent” meant only the chat history.</p>
+        <p>As of October 8, the OpenHands issue was still an early discussion. This prototype runs at the SDK layer and adds no Canvas runtime option; upstream hasn’t accepted it. We’ve offered the implementation as something the maintainers can test their proposed interface against.</p>
+
+        <h2 id="try-it">Try the transport before adding a model</h2>
+        <p>To inspect the same implementation and run its checks, start with the pinned commit:</p>
+        <pre class="docs-code"><code>git clone https://github.com/mainbrella/OpenHands.git
+cd OpenHands
+git checkout 6f3ab7771a915a5af23db6b58c49afc77e535d4a
+cd examples/mainbrella
+uv sync --locked
+uv run --locked pytest
+# Configure MAINBRELLA_API_KEY in your environment.
+uv run --locked python verify.py</code></pre>
+        <p>The <a href="https://github.com/mainbrella/OpenHands/blob/6f3ab7771a915a5af23db6b58c49afc77e535d4a/examples/mainbrella/README.md">README</a> covers Python 3.12+, Node 24+ for its environment-file launcher, local setup, and credential handling. The verifier consumes two machine starts and needs allowance for two simultaneous Small machines. For a local service, use its credential and set <code>MAINBRELLA_API_URL=http://localhost:8787</code>; local accounts and compute access are separate from production.</p>
+        <p>Run the verifier before adding a model. Write a file, reconnect, and read it back from the same machine. The next piece of work is making that connection survive an expired preview URL while leaving the file exactly where it is.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="We store Builder's Git history in Cloudflare D1 and R2 so users can start without GitHub. Connecting a repository moves the existing commits to GitHub and stops our Git storage charges." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/cloudflare-d1-r2-git-github-ftw/" />
+    <meta property="og:title" content="Cloudflare D1+R2 buckets for git but github.com FTW" />
+    <meta property="og:description" content="Start building without a GitHub account, then move the same commits into your own repository. How we store the history and what we had to fix in the connection dialog." />
+    <meta property="og:url" content="https://mainbrella.com/blog/cloudflare-d1-r2-git-github-ftw/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/cloudflare-d1-r2-git-github-ftw/paste-url.png" />
+    <meta property="og:image:alt" content="The first Mainbrella Connect GitHub dialog asked for a repository URL before authorization." />
+    <meta property="article:published_time" content="2026-10-11T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/cloudflare-d1-r2-git-github-ftw/article.css" />
+    <title>Cloudflare D1+R2 buckets for git but github.com FTW</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella git-article">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>Cloudflare D1+R2 buckets for git but github.com FTW</h1>
+        <p class="article-meta"><time datetime="2026-10-11">October 11, 2026</time> · Andrew Arrow</p>
+
+        <p>Your app can have a Git history before you have a GitHub account. Ask Mainbrella’s Builder for an expense tracker, and we save the commits for you in Cloudflare D1 and R2. When you’re ready to put the app in your own repository, what happens to that earlier work?</p>
+        <p>We added an option in <a href="/projects/">Projects</a> to move those commits to a branch you choose and send Builder’s new commits there too, so you can stop paying us to store the history. We need your permission to write to the repository first, though. Our first dialog got that order wrong, asking for a URL before you’d granted us access. Comparing it with GitHub’s app installation screens helped us fix the sequence.</p>
+
+        <h2 id="storage">Keeping the repository after a build</h2>
+        <p>Builder writes the expense tracker in a temporary Linux machine, installs its dependencies, and compiles it. We can shut that machine down when the work is done, but if you come back tomorrow and ask for CSV export, we need to load the files and history into another machine.</p>
+        <p>We run Git inside the machine, but keep the repository we use for saves outside the application directory. Application scripts can change their own <code>.git</code>, so we build each saved commit from files supplied by the Worker instead. That snapshot includes validated source, the dependency lockfile, our starter ignore rules, and generated images referenced in the source. It leaves out installed dependencies, compiled output, and environment files. The <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/worker/lib/build-git.ts">save code</a> prepares the snapshot, and a <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/worker/lib/build-git-program.ts">helper in the machine</a> runs Git.</p>
+        <p>R2 stores the files and Git history. We name source objects by their SHA-256 hash and keep them under the account and project’s prefix. A source manifest maps filenames to those objects, which lets us show the source without starting a machine. The Git bundles have their own paths under the same prefix:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="R2 storage layout, with placeholder identifiers"><code>build-git/&lt;user&gt;/&lt;project&gt;/
+  objects/&lt;sha256&gt;       <span class="code-comment"># source, assets, manifests, evidence</span>
+  parts/&lt;sha256&gt;         <span class="code-comment"># chunks of native Git bundles</span>
+  bundles/&lt;commit&gt;.json  <span class="code-comment"># bundle manifest</span></code></pre>
+        <p>D1 records the saved versions and the current head. Each version points to a Git commit and its R2 bundle, along with the parent version, the Builder turn that saved it, and the result of our build check. A Mainbrella version ID identifies a turn; a Git commit ID identifies a Git object. The SHA-256 hashes in the storage paths identify the stored bytes. These are separate fields in the <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/migrations/030_build_git.sql">D1 schema</a>.</p>
+        <p>The Worker uploads the R2 objects before it updates D1, checking the sizes and hashes of the bundle parts as it goes. It then saves the version and head in a D1 batch. A database trigger rejects the save if the Builder turn is no longer active or another save has changed the head. D1 runs those statements in a <a href="https://developers.cloudflare.com/d1/worker-api/d1-database/#batch">database transaction</a>, but the R2 uploads are separate. We need the files in R2 before D1 tells anyone the new version is ready.</p>
+
+        <h2 id="bundles">Saving each commit without copying the whole history</h2>
+        <p>At first, we wrote a bundle of the entire history every time we saved a version. That meant uploading the same old commits with every edit. Now we save one initial bundle, then smaller bundles containing the objects added since the previous commit. A save that produces no new commit reuses the previous bundle.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/cloudflare-d1-r2-git-github-ftw/git-storage-mobile.svg" width="350" height="612" />
+            <img src="/images/blog/cloudflare-d1-r2-git-github-ftw/git-storage.svg" width="784" height="460" alt="Commits A, B, and C are saved in order. R2 stores the initial bundle and two increments, each linked to the previous bundle. D1 points to those manifests and records C as the current head. Uploads to R2 finish before the head changes in D1." loading="lazy" decoding="async" />
+          </picture>
+        </figure>
+        <p>A <a href="https://git-scm.com/docs/git-bundle">Git bundle</a> contains Git objects and named references. Some bundles contain everything needed to clone a repository; others require earlier commits to be present. We record the required commit and the previous bundle’s manifest in each new manifest. Our helper creates an increment with the equivalent of this command, where <code>PARENT_SHA</code> is the previous saved commit:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Create an incremental bundle with whole compressed objects"><code>git -c pack.window=0 -c pack.depth=0 \
+    -c pack.allowPackReuse=false \
+    bundle create --version=2 next.bundle main ^PARENT_SHA</code></pre>
+        <p>We split each bundle into parts of at most 1 MiB, hash them with SHA-256, and list the parts in its manifest. To load the repository into a fresh machine, we follow the manifests back to the initial bundle, clone it, and fetch the increments in order. Git validates the objects, and our helper checks that the resulting head matches the commit we expected.</p>
+        <p>Those packing flags let the Worker assemble a download without starting a paid sandbox just to repack the repository. Restoring an older version can put the same object into a later pack with a different delta representation. Joining those packs as they are can leave conflicting delta references. We avoid that by storing whole objects in the increments. They still use zlib compression, but we give up delta packing.</p>
+        <p>The <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/worker/lib/build-git-export.ts">exporter</a> can then join the object sections, write a pack header with the combined object count, and calculate a new SHA-1 checksum for the trailer. Git’s <a href="https://git-scm.com/docs/gitformat-pack">pack format</a> describes those fields. This costs some compression efficiency, but the Worker can produce a complete bundle straight from storage. You can clone it and see the saved commits:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Clone the exported repository"><code>git clone -b main mainbrella-app.bundle expense-tracker
+cd expense-tracker
+git log --oneline</code></pre>
+
+        <h2 id="screenshots">Asking for a repository URL too soon</h2>
+        <p>Users could already download a bundle, clone it, and push it to GitHub themselves. We wanted them to be able to connect GitHub while they were still building the app. Our first dialog asked for <code>owner/repository</code> or a GitHub URL and filled in <code>main</code> as the branch.</p>
+        <figure class="article-figure screenshot-modal">
+          <a class="screenshot-crop crop-modal" href="/images/blog/cloudflare-d1-r2-git-github-ftw/paste-url.png" aria-label="View the full screenshot of the first Connect GitHub dialog">
+            <img src="/images/blog/cloudflare-d1-r2-git-github-ftw/paste-url.png" width="3424" height="1836" alt="First Mainbrella Connect GitHub dialog: a repository URL text field, a branch field defaulting to main, and an Authorize GitHub button." decoding="async" />
+          </a>
+        </figure>
+        <p>We had a <a href="https://github.com/mainbrella/web/commit/0a7dc60f3f33304c35e9561a36de3fa42b897837">connection form</a> and <a href="https://github.com/mainbrella/backend/commit/bff5aac23601b607385bc094ac3c72559e6ae369">backend code to move the history</a>, but the form asked for the destination before the user had granted access. A URL doesn’t tell us which account should install the app, whether an organization allows it, or which repositories the user wants to share.</p>
+        <p>We compared our dialog with the <strong>ChatGPT Codex Connector</strong> installation screens on GitHub. The first screen lists my personal account and the organizations where I might install the app. I can choose an account there, or configure an existing installation.</p>
+        <figure class="article-figure screenshot-account">
+          <a class="screenshot-crop crop-account" href="/images/blog/cloudflare-d1-r2-git-github-ftw/choose-account.png" aria-label="View the full ChatGPT Codex Connector account selection screenshot">
+            <img src="/images/blog/cloudflare-d1-r2-git-github-ftw/choose-account.png" width="3424" height="1836" alt="GitHub's installation page for the ChatGPT Codex Connector lists Andrew's personal account and organization accounts as installation targets." decoding="async" />
+          </a>
+        </figure>
+        <p>In the connector’s settings, I can grant access to <strong>All repositories</strong> or <strong>Only select repositories</strong>. This screenshot shows the second option, with a selector for adding repositories and a list of those already granted. GitHub handles these choices as part of its <a href="https://docs.github.com/en/apps/using-github-apps/installing-a-github-app-from-a-third-party">app installation flow</a>, including the account and organization rules.</p>
+        <figure class="article-figure">
+          <a class="screenshot-crop crop-access" href="/images/blog/cloudflare-d1-r2-git-github-ftw/repository-access.png" aria-label="View the full ChatGPT Codex Connector repository access screenshot">
+            <img src="/images/blog/cloudflare-d1-r2-git-github-ftw/repository-access.png" width="3424" height="1836" alt="ChatGPT Codex Connector repository settings offer All repositories or Only select repositories. Only select repositories is enabled, with a selector and a list of granted repositories." decoding="async" />
+          </a>
+        </figure>
+        <p>We gave our coding agent the first dialog and both connector screenshots and asked it to fix the flow. The <a href="https://github.com/mainbrella/web/blob/13d8a05/src/projects.ts">revised Projects UI</a> sends users to GitHub to install the app, choose an account, and grant repository access. When they return, they can pick a repository they have permission to write to. We fill in its default branch, which they can change. <em>Manage repository access</em> sends them back to GitHub to add another account or repository.</p>
+
+        <h2 id="permissions">Choosing a repository we can write to</h2>
+        <p>We copied the account and repository selection sequence, but Mainbrella asks for fewer permissions than the connector shown above. Our existing <strong>Import</strong> app only has read access. People who installed it didn’t agree to let us write to their repositories, so we made a separate <strong>Mainbrella Build</strong> app. Its <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/scripts/github-build-registration.mjs">registration manifest</a> requests Contents write and Metadata read, with no workflow permissions.</p>
+        <p>Installing the app gives it access to selected repositories. The user also authorizes it to act on their behalf. We use GitHub App user access tokens, which are limited by <a href="https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app">both the app’s and the user’s permissions</a>. Someone who can only read an organization’s repository shouldn’t gain write access by opening it in Builder.</p>
+        <p>Our <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/worker/lib/github-build.ts">repository picker</a> lists repositories where the user can push and an active Build app installation has Contents write access. It leaves out archived and disabled repositories. Before linking, the backend checks the user’s permission again and checks the app’s write access through Git’s <code>receive-pack</code> service.</p>
+        <p>We keep the credentials in the API Worker, encrypted in D1 with AES-GCM. The build machine gets repository objects and a checkout, but no GitHub token. We don’t want generated application scripts holding a credential that could publish changes to the customer’s repository.</p>
+        <p>During local review, <code>/github/build/repositories</code> returned <code>503</code>. Our backend was missing the Build app’s credentials, so the request stopped before it reached GitHub. The configuration endpoint confirmed this with <code>{"enabled":false}</code>. Build needs its own client ID, client secret, app slug, and encryption key; the <a href="https://github.com/mainbrella/backend/blob/16d385b8e60de437533b5951f8bc4b4cadeeee97/docs/projects.md#setup">setup instructions</a> cover registration and the D1 migration. We’re still working through integration fixes.</p>
+
+        <h2 id="handoff">Moving the commits to GitHub</h2>
+        <p>The project keeps using our Git storage until the user confirms the repository and branch. If a build is active, we refuse the transfer until it finishes. We block new Builder turns while we move the history, so Builder can’t save another commit in the middle of the transfer.</p>
+        <p>If the project has saved Git history, the destination branch must be empty or already point to our saved commit. The Worker exports the bundle chain and sends its pack through Git’s HTTP <code>receive-pack</code> protocol. It checks the response, then reads the branch back to confirm the commit SHA. These are the original Git objects, so the commits keep their hashes and ancestry.</p>
+        <p>We include draft edits made since the last checkpoint in a subsequent commit. If the branch contains unrelated history, we stop and ask for a different destination. For a project with no saved history or source yet, we can import supported source from an existing GitHub branch or start in an empty repository. The <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/worker/lib/build-github.ts">migration code</a> handles each case.</p>
+        <ol class="handoff-steps">
+          <li><strong>Transfer the commits and check the branch on GitHub.</strong> The project keeps its hosted history until this succeeds.</li>
+          <li><strong>Record the GitHub repository in D1.</strong> Save the repository, branch, and commit, then clear the hosted heads and remove the old Git version rows in the same database batch.</li>
+          <li><strong>Delete the old R2 history.</strong> Remove the project’s <code>bundles/</code> and <code>parts/</code>. A saved cleanup flag lets the scheduled job finish if deletion is interrupted.</li>
+        </ol>
+        <p>There’s no transaction covering GitHub, D1, and R2 together. If the transfer fails, the project still has its hosted Git history. If R2 deletion fails after the switch, GitHub has the repository and we have some old objects left to clean up. On retry, we check whether GitHub already accepted the saved commit. If the transfer also created a draft commit, we check its project marker, parent, and snapshot before accepting it. The <a href="https://github.com/mainbrella/backend/blob/bf00f8fe49d68362ec50f2ff6927a9fcea2c1a46/worker/app/project-github.ts">link handler</a> records the switch after the transfer has been confirmed.</p>
+
+        <h2 id="github-commits">The next Builder commit goes to github.com</h2>
+        <p>Once the expense tracker is on GitHub, you can still ask Builder to add monthly totals. Builder edits the files and runs its checks as before. The save function sees the linked repository and sends the commit to GitHub:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="The save function checks for a linked GitHub repository first"><code><span class="code-comment">// saveBuildGitVersion selects the linked repository first.</span>
+const project = await githubProject(env, params.userId, params.appId);
+if (project?.github_repo)
+  return saveGithubVersion(env, params, runtime, turn, files, verified);</code></pre>
+        <p>The Worker compares the saved files with the remote tree, uploads changed blobs, and creates a new tree and commit. It uses the old tree as the base, keeping unrelated repository files and deleting only paths Builder manages. We also keep an existing <code>.gitignore</code> so we don’t replace the user’s rules on every save. The branch update goes through GitHub’s <a href="https://docs.github.com/en/rest/git/refs#update-a-reference">reference API</a> with <code>force: false</code>. If someone pushes before we finish, the update can fail instead of overwriting their commit.</p>
+        <p>GitHub can accept a commit before D1 records it. We include the Builder turn ID in the commit message so a retry can check the remote head’s message and parent and recognize that turn’s commit. If another writer has moved the head since then, we report a conflict.</p>
+        <p>You can also edit the app outside Builder. At the next turn, we read the linked branch and compare each supported source file’s last known GitHub version, working draft, and new remote version. We can combine edits to different files. If both sides changed the same file differently, we stop, report the path, and preserve the draft without changing the GitHub pointer. We compare whole files, so someone still has to resolve a conflict within a file. The importer supports at most 80 text files, each at most 64 KiB.</p>
+        <p>Browsing versions and restoring an earlier version also use GitHub, with commit SHAs as version IDs. We limit those reads to commits reachable from the linked branch. If access is revoked, branch protection blocks a write, or GitHub is unavailable, the operation stops. We don’t resume hosted Git storage behind the user’s back.</p>
+        <table class="git-costs">
+          <thead><tr><th scope="col">After linking</th><th scope="col">What we use</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Git history and new commits</th><td>GitHub. We stop writing hosted Git versions and delete the old R2 bundles and parts.</td></tr>
+            <tr><th scope="row">Working files, assets, conversation, records of Builder operations</th><td>Mainbrella storage. These still have storage costs.</td></tr>
+            <tr><th scope="row">Model inference and builds</th><td>Mainbrella’s model and compute services. These still have usage costs.</td></tr>
+          </tbody>
+        </table>
+        <p>If you clone the expense tracker’s GitHub repository and run <code>git log</code>, you should see the commits from before the move. Ask Builder to add monthly totals, pull the branch again, and its next commit should be there too.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

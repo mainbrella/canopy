@@ -1,0 +1,51 @@
+# Mainbrella
+
+> Linux sandboxes, agent execution, and application hosting.
+
+Generated from the canonical API and SDK documentation. Check deployment capabilities and authenticated account limits before using a feature. Source additions may precede deployment and SDK publication.
+
+- [Deployment capabilities](https://api.mainbrella.com/capabilities): Feature flags and limits for this deployment.
+- [OpenAPI](https://api.mainbrella.com/openapi.json): Request, response and authentication schemas.
+- [API reference](https://mainbrella.com/API.md)
+- [Agent setup](https://mainbrella.com/SKILL.md)
+- [Full reference](https://mainbrella.com/llms-full.txt)
+- [Platform availability](https://mainbrella.com/platform/)
+- [Integrations](https://mainbrella.com/integrations/)
+
+- [Authentication](https://mainbrella.com/references/authentication.md)
+- [Agent setup and verification](https://mainbrella.com/references/agent-setup-and-verification.md)
+- [Compiled application deployment](https://mainbrella.com/references/compiled-application-deployment.md)
+- [Static-site deployment over HTTP](https://mainbrella.com/references/static-site-deployment-over-http.md)
+- [Images](https://mainbrella.com/references/images.md)
+- [Endpoints](https://mainbrella.com/references/endpoints.md)
+- [HTTP command execution](https://mainbrella.com/references/http-command-execution.md)
+- [Code interpreter contexts](https://mainbrella.com/references/code-interpreter-contexts.md)
+- [HTTP files](https://mainbrella.com/references/http-files.md)
+- [Streaming files and directory copies](https://mainbrella.com/references/streaming-files-and-directory-copies.md)
+- [Filesystem metadata and directories](https://mainbrella.com/references/filesystem-metadata-and-directories.md)
+- [Browser billing endpoints](https://mainbrella.com/references/browser-billing-endpoints.md)
+- [Errors and retry behavior](https://mainbrella.com/references/errors-and-retry-behavior.md)
+- [Card-free trial coupons](https://mainbrella.com/references/card-free-trial-coupons.md)
+- [Capability discovery](https://mainbrella.com/references/capability-discovery.md)
+- [Private Services between machines](https://mainbrella.com/references/private-services-between-machines.md)
+- [Production containers and networks](https://mainbrella.com/references/production-containers-and-networks.md)
+- [Protected application previews](https://mainbrella.com/references/protected-application-previews.md)
+- [Managed execution and streaming](https://mainbrella.com/references/managed-execution-and-streaming.md)
+- [Outbound internet selection](https://mainbrella.com/references/outbound-internet-selection.md)
+- [Workload metrics and lifecycle history](https://mainbrella.com/references/workload-metrics-and-lifecycle-history.md)
+- [Lifecycle webhooks](https://mainbrella.com/references/lifecycle-webhooks.md)
+- [Public operational status](https://mainbrella.com/references/public-operational-status.md)
+- [Machine sizes and compute allowance](https://mainbrella.com/references/machine-sizes-and-compute-allowance.md)
+- [Filesystem Stop, Resume and Fork](https://mainbrella.com/references/filesystem-stop-resume-and-fork.md)
+- [Outbound policies and protected secrets](https://mainbrella.com/references/outbound-policies-and-protected-secrets.md)
+- [Saved workspaces and portable export](https://mainbrella.com/references/saved-workspaces-and-portable-export.md)
+- [Public repository launches](https://mainbrella.com/references/public-repository-launches.md)
+- [Prepaid billing](https://mainbrella.com/references/prepaid-billing.md)
+- [OTLP lifecycle and workload export](https://mainbrella.com/references/otlp-lifecycle-and-workload-export.md)
+- [MCP agent integration](https://mainbrella.com/references/mcp-agent-integration.md)
+- [Image versions and tags (unreleased)](https://mainbrella.com/references/image-versions-and-tags-unreleased.md)
+- [Server-managed prewarming pools (unreleased)](https://mainbrella.com/references/server-managed-prewarming-pools-unreleased.md)
+- [Image build cache and private bases (unreleased)](https://mainbrella.com/references/image-build-cache-and-private-bases-unreleased.md)
+- [Desktop automation helpers (unreleased)](https://mainbrella.com/references/desktop-automation-helpers-unreleased.md)
+- [Mainbrella JavaScript SDK](https://mainbrella.com/references/javascript-sdk.md)
+- [Mainbrella Python SDK](https://mainbrella.com/references/python-sdk.md)

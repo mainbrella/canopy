@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="650" viewBox="0 0 440 650" role="img" aria-labelledby="title desc">
+  <title id="title">Retry the save, keep the connection</title>
+  <desc id="desc">Parsequerade returns a connection to Studio. When saving it fails, Studio retains the pending key. Retrying only the local save succeeds, then the new connection becomes available to readers.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1 7 4 1 7" fill="none" stroke="#34464d" stroke-width="1.5"/></marker>
+    <marker id="error-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M1 1 7 4 1 7" fill="none" stroke="#a03c35" stroke-width="1.5"/></marker>
+  </defs>
+  <rect width="440" height="650" fill="#f7f4ec"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#263238">
+    <text x="24" y="35" font-size="21" font-weight="700">Retry the save,</text>
+    <text x="24" y="62" font-size="21" font-weight="700">keep the connection</text>
+    <g font-size="17" font-weight="700" text-anchor="middle">
+      <text x="65" y="107">Parsequerade</text>
+      <text x="218" y="107">Studio</text>
+      <text x="375" y="99">Settings</text>
+      <text x="375" y="118">file</text>
+    </g>
+    <g stroke="#b8c0bf" stroke-width="1.5" stroke-dasharray="5 6">
+      <path d="M65 133V551"/><path d="M218 133V551"/><path d="M375 133V551"/>
+    </g>
+    <path d="M17 145V548" fill="none" stroke="#68777c" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="12" y="384" font-size="12" fill="#52646a" text-anchor="middle" transform="rotate(-90 12 384)">time</text>
+    <g stroke="#34464d" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
+      <path d="M216 169H67"/>
+      <path d="M67 239H216"/>
+      <path d="M220 290H373"/>
+      <path d="M220 439H373"/>
+      <path d="M373 493H220" stroke-dasharray="5 4"/>
+    </g>
+    <path d="M373 342H220" fill="none" stroke="#a03c35" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#error-arrow)"/>
+    <g font-size="17" text-anchor="middle">
+      <text x="141" y="155">Create connection</text>
+      <text x="141" y="205">Connection +</text>
+      <text x="141" y="225">bearer key</text>
+      <text x="297" y="277">Save connection</text>
+      <text x="297" y="329" fill="#a03c35">Disk write failed</text>
+      <text x="297" y="405">Retry save,</text>
+      <text x="297" y="425">same key</text>
+      <text x="297" y="480" fill="#276246">Saved</text>
+    </g>
+    <rect x="209" y="356" width="18" height="34" rx="3" fill="#e5c77c" stroke="#8e6b23"/>
+    <text x="204" y="368" font-size="17" text-anchor="end">Keep pending key</text>
+    <text x="204" y="387" font-size="17" text-anchor="end">in memory</text>
+    <circle cx="218" cy="537" r="6" fill="#276246"/>
+    <text x="233" y="533" font-size="17" fill="#276246">Make available</text>
+    <text x="233" y="553" font-size="17" fill="#276246">to readers</text>
+    <text x="24" y="602" font-size="17" fill="#52646a">A save retry makes no second</text>
+    <text x="24" y="623" font-size="17" fill="#52646a">connection request.</text>
+  </g>
+</svg>

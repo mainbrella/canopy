@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d1014" />
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href="https://mainbrella.com/projects/" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/app.css" />
+    <title>Projects · Mainbrella</title>
+  </head>
+  <body class="info-body sandbox-home app-body dashboard-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- app-header -->
+    <main id="main" class="dashboard-main" aria-busy="true">
+      <div class="dashboard-section-heading">
+        <h1>Projects</h1>
+        <button class="dashboard-retry" type="button" data-domain-buy>Domains</button>
+        <button id="project-new" class="button button-small" type="button" disabled>New project</button>
+      </div>
+      <p id="projects-status" class="dashboard-status" role="status">Checking your session…</p>
+      <p id="projects-error" class="dashboard-error" role="alert" hidden></p>
+      <button id="projects-retry" class="dashboard-retry" type="button" hidden>Retry</button>
+      <table class="project-table" aria-label="Projects">
+        <thead><tr><th scope="col">Name</th><th scope="col">Domain</th><th scope="col">Preview</th><th scope="col">Source</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody id="project-list"></tbody>
+      </table>
+    </main>
+    <dialog id="project-dialog" class="private-services-dialog" aria-labelledby="project-dialog-title">
+      <h2 id="project-dialog-title">New project</h2>
+      <form id="project-form">
+        <label for="project-name">Name</label>
+        <input id="project-name" type="text" maxlength="80" required autocomplete="off" />
+        <label for="project-domain">Domain (optional)</label>
+        <input id="project-domain" type="text" maxlength="253" placeholder="example.com" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <label id="project-git-option" class="project-git-option" for="project-git"><input id="project-git" type="checkbox" aria-describedby="project-git-note" /> Enable Git history (optional)</label>
+        <p id="project-git-note" class="dashboard-status">Save versions as you build. Enabling Git does not start a build.</p>
+        <p id="project-error" class="dashboard-error" role="alert" hidden></p>
+        <p id="project-status" class="dashboard-status" role="status"></p>
+        <div class="container-actions">
+          <button id="project-create" class="button button-small" type="submit">Create project</button>
+          <button id="project-cancel" class="dashboard-retry" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="github-dialog" class="private-services-dialog" aria-labelledby="github-dialog-title">
+      <h2 id="github-dialog-title">Connect GitHub</h2>
+      <form id="github-form">
+        <p id="github-install-note" class="dashboard-status">Install the Mainbrella Build app on your personal account or organization. In GitHub, choose all repositories or just the ones you want to use.</p>
+        <div id="github-picker" hidden>
+          <label for="github-repo">Repository</label>
+          <select id="github-repo" required aria-describedby="github-status"></select>
+          <button id="github-more" class="dashboard-retry" type="button" hidden>Load more repositories</button>
+          <label for="github-branch">Branch</label>
+          <input id="github-branch" type="text" required value="main" autocomplete="off" autocapitalize="none" spellcheck="false" />
+          <p id="github-note" class="dashboard-status">Builder will commit to GitHub. Your Mainbrella working copy stays stored and billed until you choose to delete it. Use an empty branch when moving existing Git history.</p>
+        </div>
+        <p id="github-error" class="dashboard-error" role="alert" hidden></p>
+        <p id="github-status" class="dashboard-status" role="status"></p>
+        <div class="container-actions">
+          <button id="github-submit" class="button button-small" type="submit">Install GitHub app</button>
+          <button id="github-manage" class="dashboard-retry" type="button" hidden>Manage repository access</button>
+          <button id="github-cancel" class="dashboard-retry" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="project-storage-dialog" class="private-services-dialog" aria-labelledby="project-storage-title" aria-describedby="project-storage-description">
+      <h2 id="project-storage-title">Delete Mainbrella copy?</h2>
+      <p id="project-storage-description" class="dashboard-status">Delete stored source, source revisions, images and diagnostic results for <strong id="project-storage-name"></strong>. Your project, conversation and Builder access stay available using GitHub.</p>
+      <p class="dashboard-status">We’ll verify that the current code and images are pushed before deleting. Your GitHub repository stays untouched: <a id="project-storage-github" target="_blank" rel="noopener"></a>.</p>
+      <p class="dashboard-status">Storage charges for removed files stop once cleanup finishes. Earlier usage remains billable. Future builds may store new files.</p>
+      <p id="project-storage-error" class="dashboard-error" role="alert" hidden></p>
+      <p id="project-storage-status" class="dashboard-status" role="status"></p>
+      <div class="container-actions">
+        <button id="project-storage-cancel" class="dashboard-retry" type="button">Keep copy</button>
+        <button id="project-storage-delete" class="dashboard-retry button-danger project-storage-delete" type="button">Delete Mainbrella copy</button>
+      </div>
+    </dialog>
+    <dialog id="endpoint-dialog" class="private-services-dialog endpoint-dialog project-task-dialog" aria-labelledby="endpoint-title" aria-describedby="endpoint-project">
+      <header class="project-dialog-heading">
+        <div><h2 id="endpoint-title">Endpoint</h2><p id="endpoint-project" class="dashboard-status"></p></div>
+        <button id="endpoint-close" class="dashboard-retry dialog-close" type="button" aria-label="Close endpoint settings">×</button>
+      </header>
+      <div class="project-dialog-body">
+        <div class="endpoint-feedback"><p id="endpoint-status" class="dashboard-status" role="status"></p><button id="endpoint-refresh" class="dashboard-retry" type="button">Refresh</button></div>
+        <p id="endpoint-error" class="dashboard-error" role="alert" hidden></p>
+        <section id="endpoint-settings" aria-label="Endpoint settings">
+          <a id="endpoint-url" class="endpoint-public-url" target="_blank" rel="noopener" hidden></a>
+          <label for="endpoint-mode">Target</label>
+          <select id="endpoint-mode"><option value="container">Container</option><option value="network">Private Services network</option></select>
+          <div id="endpoint-container-field" class="endpoint-target-grid">
+            <div><label for="endpoint-container">Running container</label><select id="endpoint-container"></select></div>
+            <div><label for="endpoint-port">Application port</label><input id="endpoint-port" type="number" min="1024" max="65535" step="1" value="3000" inputmode="numeric" /></div>
+          </div>
+          <div id="endpoint-network-field" class="endpoint-target-grid" hidden>
+            <div><label for="endpoint-network">Network</label><select id="endpoint-network"></select></div>
+            <div><label for="endpoint-service">Registered service</label><select id="endpoint-service"></select></div>
+          </div>
+          <p class="dashboard-status">Your target must stay running to serve the public URL.</p>
+          <div class="container-actions dialog-step-actions endpoint-actions">
+            <button id="endpoint-unpublish" class="dashboard-retry" type="button" hidden>Unpublish</button>
+            <button id="endpoint-save" class="button button-small" type="button">Publish endpoint</button>
+          </div>
+        </section>
+        <section id="endpoint-domains" hidden aria-label="Custom domains">
+          <form id="endpoint-domain-form">
+            <label for="endpoint-hostname">Domain you own</label>
+            <div class="domain-search"><input id="endpoint-hostname" type="text" required maxlength="253" placeholder="app.example.com" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" /><button id="endpoint-domain-add" class="button button-small" type="submit">Connect</button></div>
+          </form>
+          <p id="endpoint-local-note" class="dashboard-status" hidden></p>
+          <div id="endpoint-domain-list" class="endpoint-domain-list"></div>
+          <details id="endpoint-dns-details"><summary>DNS records</summary>
+            <div class="endpoint-table-scroll"><table class="endpoint-dns-table"><caption class="visually-hidden">Custom domain DNS records</caption><thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Value</th><th scope="col"><span class="visually-hidden">Copy</span></th></tr></thead><tbody id="endpoint-records"></tbody></table></div>
+            <div class="endpoint-table-scroll"><table class="endpoint-dns-table"><caption class="visually-hidden">Apex DNS records</caption><thead><tr><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Value</th><th scope="col"><span class="visually-hidden">Copy</span></th></tr></thead><tbody id="endpoint-apex"></tbody></table></div>
+          </details>
+        </section>
+      </div>
+    </dialog>
+    <dialog id="domain-dialog" class="private-services-dialog domain-dialog project-task-dialog" aria-labelledby="domain-title">
+      <header class="project-dialog-heading">
+        <div><h2 id="domain-title">Domains</h2><p id="domain-context" class="dashboard-status" hidden></p></div>
+        <button id="domain-close" class="dashboard-retry dialog-close" type="button" aria-label="Close domains">×</button>
+      </header>
+      <div id="domain-body" class="project-dialog-body">
+      <ol id="domain-steps" class="domain-steps" aria-label="Purchase progress" hidden><li data-domain-step="review">Domain</li><li data-domain-step="contact">Details</li><li data-domain-step="checkout">Payment</li></ol>
+      <p id="domain-status" class="dashboard-status" role="status" aria-live="polite"></p>
+      <p id="domain-sandbox" class="dashboard-status" hidden>Test mode. No real domains are registered.</p>
+      <section id="domain-browse">
+        <p id="domain-unavailable" class="dashboard-status" hidden>Domain purchases are unavailable right now.</p>
+        <form id="domain-search-form">
+          <label for="domain-keyword">Find a domain</label>
+          <div class="domain-search"><input id="domain-keyword" type="search" required maxlength="100" placeholder="Your name or example.com" autocomplete="off" autocapitalize="none" spellcheck="false" /><button id="domain-search-submit" class="button button-small" type="submit">Search</button></div>
+          <p id="domain-connection" class="dashboard-status"></p>
+        </form>
+        <p class="dashboard-status">You can buy a domain from <a href="https://www.name.com/" target="_blank" rel="noopener">Name.com</a>, <a href="https://www.godaddy.com/" target="_blank" rel="noopener">GoDaddy</a>, or any registrar, then connect it under Custom domains. For convenience, buy here through Name.com and we’ll set up DNS for your project automatically.</p>
+        <div id="domain-results" aria-live="polite"></div>
+        <details id="domain-owned-details" class="domain-owned-details"><summary>Your domains</summary><p id="domain-empty" class="dashboard-status">You haven't purchased any domains.</p><div id="domain-owned"></div></details>
+      </section>
+      <section id="domain-review" hidden>
+        <h3 id="domain-review-name" tabindex="-1"></h3>
+        <form id="domain-review-form">
+          <label for="domain-years">Registration term</label><select id="domain-years"><option value="1">1 year</option><option value="2">2 years</option><option value="3">3 years</option><option value="4">4 years</option><option value="5">5 years</option><option value="6">6 years</option><option value="7">7 years</option><option value="8">8 years</option><option value="9">9 years</option><option value="10">10 years</option></select>
+          <p id="domain-price"></p><p class="dashboard-status">The price includes a small markup to help cover payment processing and domain setup and management costs. Domain sales aren’t a profit center for MainBrella.</p><p id="domain-renewal" class="dashboard-status"></p>
+          <label class="domain-checkbox"><input id="domain-auto-renew" type="checkbox" checked /> Auto-renew annually using my saved card</label>
+          <div class="container-actions dialog-step-actions"><button id="domain-review-back" class="dashboard-retry" type="button">Back to search</button><button id="domain-review-next" class="button button-small" type="submit">Registration details</button></div>
+        </form>
+      </section>
+      <section id="domain-contact" hidden>
+        <h3 id="domain-contact-title">Registration details</h3><p id="domain-contact-summary" class="dashboard-status"></p>
+        <form id="domain-contact-form">
+          <fieldset id="domain-contact-fields"><legend class="visually-hidden">Domain owner</legend><p class="dashboard-status">Use the domain owner’s contact details. WHOIS privacy is included where supported.</p><div class="domain-contact-grid"><div><label for="domain-contact-firstName">First name</label><input id="domain-contact-firstName" data-contact="firstName" type="text" autocomplete="given-name" required maxlength="200" /></div>
+<div><label for="domain-contact-lastName">Last name</label><input id="domain-contact-lastName" data-contact="lastName" type="text" autocomplete="family-name" required maxlength="200" /></div>
+<div><label for="domain-contact-email">Registrant email</label><input id="domain-contact-email" data-contact="email" type="email" autocomplete="email" required maxlength="200" /></div>
+<div><label for="domain-contact-phone">Phone</label><input id="domain-contact-phone" data-contact="phone" type="tel" autocomplete="tel" required pattern="\+[1-9][0-9]{7,14}" placeholder="+14155552671" /></div>
+<div><label for="domain-contact-address1">Street address</label><input id="domain-contact-address1" data-contact="address1" type="text" autocomplete="address-line1" required maxlength="200" /></div>
+<div><label for="domain-contact-address2">Apartment, suite (optional)</label><input id="domain-contact-address2" data-contact="address2" type="text" autocomplete="address-line2" maxlength="200" /></div>
+<div><label for="domain-contact-city">City</label><input id="domain-contact-city" data-contact="city" type="text" autocomplete="address-level2" required maxlength="200" /></div>
+<div><label for="domain-contact-state">State / province</label><input id="domain-contact-state" data-contact="state" type="text" autocomplete="address-level1" required maxlength="200" /></div>
+<div><label for="domain-contact-zip">Postal code</label><input id="domain-contact-zip" data-contact="zip" type="text" autocomplete="postal-code" required maxlength="200" /></div>
+<div><label for="domain-contact-country">Country code</label><input id="domain-contact-country" data-contact="country" type="text" autocomplete="country" required minlength="2" maxlength="2" pattern="[A-Z]{2}" placeholder="US" /></div></div></fieldset>
+          <label class="domain-checkbox"><input id="domain-terms" type="checkbox" required /> <span>I agree to the <a href="https://www.name.com/policies/registration-agreement" target="_blank" rel="noopener">Name.com registration agreement</a> and <a href="/terms/" target="_blank" rel="noopener">MainBrella terms</a>, including the selected renewal setting.</span></label>
+          <div class="container-actions dialog-step-actions"><button id="domain-contact-back" class="dashboard-retry" type="button">Back</button><button id="domain-continue" class="button button-small" type="submit">Continue to payment</button></div>
+        </form>
+      </section>
+      <section id="domain-checkout" hidden>
+        <h3 id="domain-checkout-name"></h3><p id="domain-total"></p>
+        <form id="domain-payment-form">
+          <label for="domain-receipt-email">Receipt email</label><input id="domain-receipt-email" type="email" required autocomplete="email" />
+          <div id="domain-billing-address"></div><div id="domain-payment"></div>
+          <p id="domain-payment-status" class="dashboard-status" role="status"></p>
+          <div class="container-actions dialog-step-actions"><button id="domain-checkout-back" class="dashboard-retry" type="button">Back</button><button id="domain-pay" class="button button-small" type="submit" disabled>Pay and register</button></div>
+        </form>
+      </section>
+      <section id="domain-progress" hidden>
+        <h3 id="domain-progress-name"></h3><p id="domain-progress-state" role="status" aria-live="polite"></p>
+        <p id="domain-verification-note" class="dashboard-status" hidden>Check your registrant email for a verification link. Complete verification within 15 days to prevent suspension.</p>
+        <p id="domain-order-id" class="dashboard-status"></p>
+        <div class="container-actions"><a id="domain-visit" class="dashboard-retry" target="_blank" rel="noopener" hidden>Open website</a><button id="domain-check" class="dashboard-retry" type="button">Check status</button><button id="domain-progress-back" class="dashboard-retry" type="button">Your domains</button></div>
+      </section>
+      <section id="domain-detail" hidden>
+        <h3 id="domain-detail-name"></h3><p id="domain-detail-expiry" class="dashboard-status"></p>
+        <form id="domain-connect-form"><label for="domain-project">Connected project</label><select id="domain-project"></select><button class="dashboard-retry" type="submit">Save connection</button></form>
+        <form id="domain-settings">
+          <label class="domain-checkbox"><input id="domain-detail-renew" type="checkbox" /> Auto-renew annually</label>
+          <label class="domain-checkbox"><input id="domain-privacy" type="checkbox" /> WHOIS privacy</label>
+          <label class="domain-checkbox"><input id="domain-locked" type="checkbox" /> Transfer lock</label>
+          <div class="container-actions"><button class="dashboard-retry" type="submit">Save settings</button><button id="domain-renew-now" class="dashboard-retry" type="button">Renew now</button></div>
+        </form>
+        <p id="domain-verify-status" class="dashboard-status"></p><button id="domain-resend" class="dashboard-retry" type="button">Resend verification email</button>
+        <details><summary>Contact details</summary><form id="domain-edit-contact"><div class="domain-contact-grid"><div><label for="domain-edit-firstName">First name</label><input id="domain-edit-firstName" data-contact="firstName" type="text" autocomplete="given-name" required maxlength="200" /></div>
+<div><label for="domain-edit-lastName">Last name</label><input id="domain-edit-lastName" data-contact="lastName" type="text" autocomplete="family-name" required maxlength="200" /></div>
+<div><label for="domain-edit-email">Registrant email</label><input id="domain-edit-email" data-contact="email" type="email" autocomplete="email" required maxlength="200" /></div>
+<div><label for="domain-edit-phone">Phone</label><input id="domain-edit-phone" data-contact="phone" type="tel" autocomplete="tel" required pattern="\+[1-9][0-9]{7,14}" placeholder="+14155552671" /></div>
+<div><label for="domain-edit-address1">Street address</label><input id="domain-edit-address1" data-contact="address1" type="text" autocomplete="address-line1" required maxlength="200" /></div>
+<div><label for="domain-edit-address2">Apartment, suite (optional)</label><input id="domain-edit-address2" data-contact="address2" type="text" autocomplete="address-line2" maxlength="200" /></div>
+<div><label for="domain-edit-city">City</label><input id="domain-edit-city" data-contact="city" type="text" autocomplete="address-level2" required maxlength="200" /></div>
+<div><label for="domain-edit-state">State / province</label><input id="domain-edit-state" data-contact="state" type="text" autocomplete="address-level1" required maxlength="200" /></div>
+<div><label for="domain-edit-zip">Postal code</label><input id="domain-edit-zip" data-contact="zip" type="text" autocomplete="postal-code" required maxlength="200" /></div>
+<div><label for="domain-edit-country">Country code</label><input id="domain-edit-country" data-contact="country" type="text" autocomplete="country" required minlength="2" maxlength="2" pattern="[A-Z]{2}" placeholder="US" /></div></div><button class="dashboard-retry" type="submit">Save contacts</button></form></details>
+        <details><summary>DNS records</summary><p class="dashboard-status">MainBrella protects the records used to connect your project.</p>
+          <div class="endpoint-table-scroll"><table class="endpoint-dns-table"><caption class="visually-hidden">Domain DNS records</caption><thead><tr><th scope="col">Type</th><th scope="col">Host</th><th scope="col">Value</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody id="domain-dns-list"></tbody></table></div>
+          <form id="domain-dns-form"><label for="domain-dns-type">Type</label><select id="domain-dns-type"><option>TXT</option><option>MX</option><option>CNAME</option><option>A</option><option>AAAA</option><option>SRV</option><option>NS</option></select>
+            <label for="domain-dns-host">Host</label><input id="domain-dns-host" type="text" placeholder="@ or mail" maxlength="253" />
+            <label for="domain-dns-answer">Value</label><input id="domain-dns-answer" type="text" required maxlength="4096" />
+            <label for="domain-dns-priority">Priority (MX / SRV)</label><input id="domain-dns-priority" type="number" min="0" max="65535" value="10" />
+            <button class="dashboard-retry" type="submit">Add record</button></form>
+          <p class="dashboard-status">Nameservers: <span id="domain-nameservers"></span></p>
+        </details>
+        <details><summary>Transfer to another registrar</summary><p class="dashboard-status">New domains are generally locked for 60 days. Turn off the transfer lock above before requesting your authorization code.</p><button id="domain-auth-code" class="dashboard-retry" type="button">Reveal transfer code</button><p><code id="domain-transfer-code"></code></p></details>
+        <button id="domain-detail-back" class="dashboard-retry" type="button">Back to domains</button>
+      </section>
+      </div>
+    </dialog>
+    <script type="module" src="/src/domains.ts"></script>
+    <script type="module" src="/src/account-menu.ts"></script>
+    <script type="module" src="/src/projects.ts"></script>
+  </body>
+</html>

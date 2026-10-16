@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="390" viewBox="0 0 880 390">
+  <title>Saved history and temporary machines</title>
+  <desc>A schematic timeline. Machine A saves commit A and stops. The saved repository continues across the gap. Machine B loads that source and saves commit B. Each preview belongs to its own running machine.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1 9 5 1 9" fill="none" stroke="#286579" stroke-width="1.8"/></marker>
+    <marker id="time" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1 9 5 1 9" fill="none" stroke="#58605e" stroke-width="1.8"/></marker>
+  </defs>
+  <rect width="880" height="390" rx="4" fill="#f7f4ec"/>
+  <g font-family="system-ui, sans-serif" fill="#263238">
+    <text x="32" y="43" font-size="23" font-weight="600">Saved history and temporary machines</text>
+    <text x="32" y="112" font-size="20">Git</text>
+    <path d="M120 106H816" fill="none" stroke="#286579" stroke-width="4" marker-end="url(#arrow)"/>
+    <g text-anchor="middle" font-size="20" font-weight="600">
+      <circle cx="270" cy="106" r="19" fill="#286579"/>
+      <text x="270" y="113" fill="#fffdf7">A</text>
+      <circle cx="735" cy="106" r="19" fill="#286579"/>
+      <text x="735" y="113" fill="#fffdf7">B</text>
+    </g>
+    <text x="450" y="85" text-anchor="middle" font-size="19" fill="#286579">Retained outside the guest</text>
+    <g stroke="#286579" stroke-width="2" fill="none" marker-end="url(#arrow)">
+      <path d="M270 211V130"/>
+      <path d="M590 109V204"/>
+      <path d="M735 211V130"/>
+    </g>
+    <g font-size="18" fill="#286579">
+      <text x="283" y="176">Save code</text>
+      <text x="602" y="176">Load A</text>
+      <text x="748" y="176">Save</text>
+    </g>
+    <g fill="#f2e4d8" stroke="#935334" stroke-width="2">
+      <rect x="120" y="214" width="290" height="114" rx="4"/>
+      <rect x="540" y="214" width="278" height="114" rx="4"/>
+    </g>
+    <g text-anchor="middle">
+      <text x="265" y="244" font-size="21" font-weight="600">Machine A</text>
+      <text x="679" y="244" font-size="21" font-weight="600">Machine B</text>
+      <text x="265" y="269" font-size="18">Build the dashboard</text>
+      <text x="679" y="269" font-size="18">Add a date filter</text>
+      <rect x="137" y="284" width="256" height="28" rx="2" fill="#935334"/>
+      <rect x="557" y="284" width="244" height="28" rx="2" fill="#935334"/>
+      <text x="265" y="304" font-size="17" fill="#fffdf7">Temporary preview</text>
+      <text x="679" y="304" font-size="17" fill="#fffdf7">New preview</text>
+      <text x="475" y="255" font-size="19" fill="#58605e">No guest</text>
+      <text x="475" y="281" font-size="19" fill="#58605e">running</text>
+    </g>
+    <path d="M414 205V337" stroke="#58605e" stroke-width="1.5" stroke-dasharray="4 5"/>
+    <path d="M120 359H816" stroke="#58605e" stroke-width="1.5" marker-end="url(#time)"/>
+    <g font-size="17" fill="#58605e">
+      <text x="120" y="382">First request</text>
+      <text x="414" y="382" text-anchor="middle">Stop</text>
+      <text x="818" y="382" text-anchor="end">Later request →</text>
+    </g>
+  </g>
+</svg>

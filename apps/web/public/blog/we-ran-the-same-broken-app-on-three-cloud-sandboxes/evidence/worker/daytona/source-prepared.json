@@ -1,0 +1,19 @@
+{
+  "process": {
+    "nonce": "f7f492f5-1915-43b6-b96e-08d994c2c393",
+    "pid": 248,
+    "node": "22.22.2",
+    "preparationId": "d61df051-5589-4e51-8cc6-bcf1a655c329",
+    "phase": "paused",
+    "pending": 5,
+    "outputCount": 0,
+    "marker": null,
+    "inputFingerprint": "c28710afcbec6fe0793a5c810c9f7c116ae6fe31f6e0bedc22947f9610f95e16",
+    "stateFingerprint": "4a420b0a13283f1a60a4c64f8443dabaa121760a365214041719c68c0d45da88"
+  },
+  "hashes": {
+    "server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+    "processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+    "prepared-marker": "0fdef621cfc08d57690dc406ac677c762992259b752a780c0011d11be08127be"
+  }
+}

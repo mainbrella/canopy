@@ -1,0 +1,33 @@
+.app-launch-article h1 { max-width: none; }
+.app-launch-article h1 .model-name { white-space: nowrap; color: inherit; }
+.app-launch-article code { overflow-wrap: anywhere; }
+.app-launch-article .docs-code code { overflow-wrap: normal; }
+.app-launch-article .article-video {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 32px auto;
+  border: 0;
+}
+.app-launch-article .lifecycle-table {
+  width: 100%;
+  margin: 24px 0;
+  border-collapse: collapse;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.app-launch-article .lifecycle-table th,
+.app-launch-article .lifecycle-table td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.app-launch-article .lifecycle-table th:first-child { width: 26%; padding-right: 16px; }
+.app-launch-article .lifecycle-table tbody th { font-weight: 400; }
+@media (max-width: 600px) {
+  .app-launch-article .lifecycle-table { font-size: 16px; }
+  .app-launch-article .lifecycle-table th:first-child { width: 30%; padding-right: 12px; }
+}

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Connecting Mastra’s file tools and commands to one Mainbrella machine, recovering dropped output streams, and finding the limits of this first adapter." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/when-it-rains-agents-bring-a-mainbrella/" />
+    <meta property="og:title" content="When It Rains Agents, Bring a mainbrella · Mainbrella" />
+    <meta property="og:description" content="Connecting Mastra’s file tools and commands to one Mainbrella machine, recovering dropped output streams, and finding the limits of this first adapter." />
+    <meta property="og:url" content="https://mainbrella.com/blog/when-it-rains-agents-bring-a-mainbrella/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/when-it-rains-agents-bring-a-mainbrella/shared-workbench.webp" />
+    <meta property="og:image:alt" content="Three mechanical assistants share a workbench and report-making machine beneath one blue umbrella." />
+    <meta property="article:published_time" content="2026-10-08T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/when-it-rains-agents-bring-a-mainbrella/article.css" />
+    <title>When It Rains Agents, Bring a mainbrella · Mainbrella</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella rains-agents">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>When It Rains Agents, Bring a mainbrella</h1>
+        <p class="article-meta"><time datetime="2026-10-08">October 8, 2026</time> · Andrew Arrow</p>
+
+        <p>An agent writes a script, tries to run it, and gets “file not found.” Both tools worked; they were looking at different disks. That’s a stupid failure to hand back to a model and ask it to debug. <a href="https://mastra.ai/docs/sandbox/overview">Mastra’s workspace interface</a> lets us connect file tools and command execution to the same Mainbrella Linux machine.</p>
+        <p>The <code>@mastra/mainbrella</code> package in <a href="https://github.com/mainbrella/mastra/commit/1461b92390b3cd4ab826800a1fbbdcd8f01f5ef9">our Mastra fork</a> does that wiring. It supplies a sandbox, an HTTP filesystem, and a provider for Mastra’s editor. The examples here use that October 8 checkout, which still has a path bug and a command-history limit we’ll get to.</p>
+        <p>Like our <a href="/blog/new-batteries-for-the-batteries-included-agent-harness/">Deep Agents adapter</a>, this keeps the framework’s tools and changes where they run. Mastra also separates a running job from its output connection and input pipe. That lets us recover a dropped output stream without starting the command again.</p>
+
+        <figure class="article-figure">
+          <img src="/images/blog/when-it-rains-agents-bring-a-mainbrella/shared-workbench.webp" width="1536" height="1024" alt="Three mechanical assistants collaborate beneath one umbrella: one supplies tabular input, one operates a calculating machine, and one inspects its printed report. All use the same workbench." decoding="async" fetchpriority="high" />
+
+        </figure>
+
+        <h2 id="same-disk">Two tools, one disk</h2>
+        <p>Mastra is a TypeScript framework for agent applications. Its workspace gives an agent file operations and command execution, enough to inspect input, write a reporting script, run it, and fix whatever fails. The model uses Mastra’s tools without needing to know Mainbrella’s API.</p>
+        <p>Pass the same <code>sandbox</code> object to the filesystem and the workspace. File writes then go to the machine that runs the commands, without an object-storage mount or a second copy to synchronize:</p>
+        <pre class="docs-code"><code>import { Workspace } from '@mastra/core/workspace';
+import {
+  MainbrellaFilesystem,
+  MainbrellaSandbox,
+} from '@mastra/mainbrella';
+
+const sandbox = new MainbrellaSandbox({ catalogId: 'node' });
+const filesystem = new MainbrellaFilesystem({ sandbox });
+const workspace = new Workspace({ sandbox, filesystem });</code></pre>
+        <p>Both default to <code>/workspace</code>, but their path syntax differs. The filesystem API accepts paths relative to that root, while command arguments use Linux paths:</p>
+        <div class="rains-table-scroll" role="region" aria-label="Workspace paths and guest paths" tabindex="0">
+          <table class="rains-table">
+            <caption>Two spellings for the same file, with the defaults above</caption>
+            <thead><tr><th scope="col">From a file tool</th><th scope="col">From a command</th></tr></thead>
+            <tbody>
+              <tr><td><code>input.json</code> or <code>/input.json</code></td><td><code>/workspace/input.json</code></td></tr>
+              <tr><td><code>report.txt</code> or <code>/report.txt</code></td><td><code>/workspace/report.txt</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>With <code>/workspace</code> as the command’s working directory, <code>node report.cjs</code> sees the file written as <code>report.cjs</code>. If you choose another filesystem <code>basePath</code>, set the sandbox’s <code>workingDirectory</code> to match and initialize the writable filesystem before running commands there.</p>
+        <p>This commit gets one part of that wrong: <code>stat('report.txt')</code> returns <code>/workspace/report.txt</code>, but handing that value back to <code>readFile()</code> looks under <code>/workspace/workspace/report.txt</code>. The path advertised by metadata should be usable by the file tools. For now, keep filesystem calls in the workspace-relative form shown above.</p>
+
+        <h2 id="running-job">Reconnect to the job that’s already running</h2>
+        <p>Suppose the reporting script prints its first progress message, then the output connection drops. Rerunning it might append the same rows twice. We need the next output from the job that’s already running.</p>
+        <p><a href="https://github.com/mainbrella/mastra/blob/1461b92390b3cd4ab826800a1fbbdcd8f01f5ef9/workspaces/mainbrella/src/sandbox/process-manager.ts">The process manager</a> starts a managed Mainbrella execution and keeps its execution ID. Output events carry increasing sequence numbers. When a stream fails, the adapter can reopen it from the SDK’s last received cursor, while the original command continues. It retries eligible stream failures up to three times; it never submits a second command to repair a failed output connection.</p>
+
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/when-it-rains-agents-bring-a-mainbrella/same-job-mobile.svg" width="440" height="650" />
+            <img src="/images/blog/when-it-rains-agents-bring-a-mainbrella/same-job.svg" width="920" height="470" alt="A client starts job J once, receives output event 1, and loses its stream. Job J keeps running and records event 2 during the gap. The client reconnects with cursor 1 and receives event 2 and completion from the same job." loading="lazy" decoding="async" />
+          </picture>
+
+        </figure>
+
+        <p>In Mastra, <code>executeCommand()</code> uses this process manager and waits for completion. A background process gives you a handle sooner, so you can inspect output, cancel it, or send stdin. Its <code>pid</code> is a Mainbrella execution UUID, not an operating-system PID. An input pipe also needs an end: after feeding <code>cat</code>, for example, call <code>closeStdin()</code> so it can finish.</p>
+        <p>The result includes stdout, stderr, an exit code, and a success flag. A timeout maps to exit code <code>124</code>; cancellation maps to <code>137</code>. Interruption and output-limit termination also report failure. The agent can see how far the program got without treating a progress message as a finished report.</p>
+        <div class="retry-examples">
+          <div class="example example-recovery">
+            <p class="example-heading">Reconnect output</p>
+            <p class="example-result">Known execution ID, last received cursor. Read the next events from that job.</p>
+          </div>
+          <div class="example example-failure">
+            <p class="example-heading">Repeat a side effect</p>
+            <p class="example-result">Unknown command or stdin outcome. Sending it again may do the work twice; the adapter surfaces the error for reconciliation.</p>
+          </div>
+        </div>
+        <p>Keeping those results costs a job record: <a href="/docs/execute/">Mainbrella retains 32 execution records per container for one hour from admission</a>. This adapter uses a managed job even for a short, ordinary <code>executeCommand()</code> call. Finishing the command releases Mastra’s local handle, but keeps the server’s record. Run 32 commands before any records expire and command 33 is rejected with <code>execution_history_limit</code>.</p>
+        <p>A coding agent can spend 32 commands just getting acquainted with a repository. Using a retained job for every command is a bad fit for a long editing session, and this version needs a better execution strategy. Restarting the machine to clear its history would lose the files along with the records.</p>
+
+        <h2 id="identity">Remember which machine did the work</h2>
+        <p>Mastra’s <code>sandbox.id</code> names the adapter in your application. To find the remote machine, Mainbrella needs both <code>id</code> and <code>createdAt</code>. Container slots get reused, so the creation timestamp tells this run apart from whatever occupies the slot later.</p>
+        <p><a href="https://github.com/mainbrella/mastra/blob/1461b92390b3cd4ab826800a1fbbdcd8f01f5ef9/workspaces/mainbrella/src/sandbox/index.ts">The sandbox</a> saves that pair after startup and uses it for files, jobs, reconnects, and cleanup. Attachment fails if that generation has stopped or been replaced. Resuming on another disk would leave the agent reasoning about a report it can’t reach.</p>
+        <p>Before a machine exists, save a <code>creationKey</code> and the creation options if you need recovery across application restarts. If the reply disappears, a retry with that key and those options can find the original creation within the 24-hour window. Generating another key asks for another start. The <a href="/blog/inside-our-brella/">lost-reply article</a> follows how the backend keeps track of the first attempt.</p>
+        <p>A static workspace also points every agent using it at the same machine. The HTTP filesystem queues its own writes, but it can’t order writes from a shell or another adapter. Its read-only flag only restricts file tools; an enabled shell can still write. If users need separate files or permissions, arrange that across both routes. Checking “read-only” on half the tools won’t do it.</p>
+
+        <h2 id="small-report">Try a small report before adding a model</h2>
+        <p>Use the file tools to write input, process it inside Linux, then read the result through the file tools. With the objects above, this example should print <code>total=42</code>:</p>
+        <pre class="docs-code"><code>try {
+  await workspace.init();
+  await filesystem.writeFile('input.json', '[12, 17, 13]');
+  await filesystem.writeFile('report.cjs', `
+    const fs = require('node:fs');
+    const values = JSON.parse(fs.readFileSync('input.json', 'utf8'));
+    const total = values.reduce((sum, value) =&gt; sum + value, 0);
+    fs.writeFileSync('report.txt', 'total=' + total + '\\n');
+  `);
+
+  const result = await sandbox.executeCommand('node', ['report.cjs']);
+  if (!result.success) throw new Error(result.stderr || 'Report failed');
+  console.log(await filesystem.readFile('report.txt', { encoding: 'utf8' }));
+} finally {
+  await workspace.destroy();
+}</code></pre>
+        <p>From a checkout of the linked fork, run <code>pnpm --filter @mastra/mainbrella build</code>. Save the two code blocks together as <code>workspaces/mainbrella/report-demo.mjs</code>, or <a href="/blog/when-it-rains-agents-bring-a-mainbrella/report-demo.mjs" download>download the complete example</a>, then run <code>node report-demo.mjs</code> from that directory with <code>MAINBRELLA_API_KEY</code> configured. The account needs an active compute allowance.</p>
+        <p>For a local Mainbrella service, set <code>MAINBRELLA_API_URL=http://localhost:8787</code> and use that service’s credential. The key belongs to the application making API calls; it doesn’t need to enter the guest’s command environment.</p>
+        <p>The example shows the intended flow; we haven’t run it with a model or qualified this adapter against a live service for this article. Review used the fake HTTP API, where we reproduced the metadata-path bug and the rejection at the retained-history limit. Passing those unit tests leaves the live integration work to do.</p>
+        <p>The example reads the report before cleanup because <code>workspace.destroy()</code> stops this statically configured sandbox and discards its unsaved files. Saving a conversation doesn’t save that disk. Individual HTTP file transfers are limited to 1 MiB; managed output is bounded to 1 MiB, and jobs have a maximum 15-minute timeout within the machine’s lease. Export the finished artifact or explicitly save a workspace through <code>sandbox.mainbrella</code> if it needs to survive.</p>
+        <p>After that example works against your service, try the same small task with a Mastra agent and check its total. Keep the session short until the execution strategy is fixed; even <code>pwd</code> takes one of those 32 records.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

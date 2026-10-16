@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Run Mainbrella's GPLv3 voice receptionist in your own Cloudflare account, starting with the $5/month Workers plan. How it works, what usage costs, and how it compares with buying Bland." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/automate-your-call-center/" />
+    <meta property="og:title" content="Automate Your Call Center - Open Source run on Cloudflare Infra" />
+    <meta property="og:description" content="A voice agent you can operate yourself: GPLv3 source, Cloudflare Workers and Workers AI, browser testing, inbound Twilio calls, and saved transcripts. The $5 is the base plan; inference and phone service cost extra." />
+    <meta property="og:url" content="https://mainbrella.com/blog/automate-your-call-center/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/automate-your-call-center/call-path.png" />
+    <meta property="og:image:width" content="1680" />
+    <meta property="og:image:height" content="1160" />
+    <meta property="og:image:alt" content="Browser audio and inbound phone audio reach a per-call Mainbrella Durable Object. Speech recognition, the language model, speech generation, and transcripts run in the operator's Cloudflare account; Twilio supplies the phone connection." />
+    <meta property="article:published_time" content="2026-10-15T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/automate-your-call-center/article.css" />
+    <title>Automate Your Call Center - Open Source run on Cloudflare Infra</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella voice-article">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>Automate Your Call Center - Open Source run on Cloudflare Infra</h1>
+        <p class="article-meta"><time datetime="2026-10-15">October 15, 2026</time> · Andrew Arrow</p>
+
+        <p>Suppose someone calls your bike shop to ask whether you're open on Saturday. A receptionist can answer from your hours, explain which repairs you handle, and take a name and callback number when the question needs a mechanic. You should be able to run that conversation on infrastructure you already pay for.</p>
+        <p>Mainbrella now includes an end-to-end voice agent system. The <a href="https://github.com/mainbrella/web">frontend</a> and <a href="https://github.com/mainbrella/backend">backend</a> are available under <a href="https://github.com/mainbrella/backend/blob/main/LICENSE">GPLv3</a>, free to download and run. You can host your own copy on Cloudflare's <a href="https://developers.cloudflare.com/workers/platform/pricing/">Workers Paid plan, starting at $5 a month</a>, instead of buying a managed voice platform such as Bland. <strong>That $5 is the base plan. AI inference, telephone service, and usage beyond included allowances are additional.</strong></p>
+        <p>The current agent handles reception: questions about your business and messages you can read afterward. It has browser voice and text tests, inbound phone support, and saved transcripts. Outbound calls, live transfers, appointment booking, and CRM updates aren't implemented yet. If those are the job, there's more to build.</p>
+
+        <h2 id="receptionist">Give it the facts it can answer from</h2>
+        <p>In <a href="/voice/app/">Voice</a>, you set the business name, the receptionist's name, its greeting, its instructions, and a voice. For our example shop, the instructions would contain Saturday's hours, the kinds of bikes it services, and what information to collect for a callback. The screenshot below shows the actual application running locally with sample shop settings.</p>
+
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/automate-your-call-center/receptionist-mobile.webp" width="700" height="1482" />
+            <img src="/images/blog/automate-your-call-center/receptionist-desktop.webp" width="1440" height="1100" alt="Mainbrella's receptionist settings for sample business Cedar Bicycle Repair: Sam's AI greeting, hours and repair services, callback instructions, and the Luna voice." decoding="async" fetchpriority="high" />
+          </picture>
+        </figure>
+
+        <p>You can test the saved settings with a microphone or type a conversation before connecting a phone number. Each call keeps the settings it started with, so editing Saturday's hours during a call doesn't replace that caller's instructions halfway through the conversation.</p>
+        <p>The <a href="https://github.com/mainbrella/backend/blob/fc4b546e55c73573a1135b96baf2869442b01749/worker/lib/voice.ts">system prompt</a> tells the receptionist to use the supplied business facts, admit when information is missing, and offer to take a message. It also explicitly says it cannot book appointments, send messages, update a CRM, or transfer a call. A model saying “you're booked” isn't a booking. Until there's a scheduling integration that can do the work and report the result, the agent shouldn't pretend otherwise.</p>
+
+        <h2 id="call-path">From a ringing phone to a spoken answer</h2>
+        <p>A browser call goes over a WebSocket to a <a href="https://github.com/mainbrella/backend/blob/fc4b546e55c73573a1135b96baf2869442b01749/worker/durable-objects/receptionist-call.ts">Durable Object created for that call</a>. That's Cloudflare's application runtime with its own identity and persistent state. Each caller gets a separate conversation history. The shop's receptionist is shared configuration; the conversation belongs to the individual call.</p>
+        <p>Inside that conversation, Deepgram Flux transcribes incoming speech, Llama 3.3 70B generates the reply, and Deepgram Aura-1 turns the reply into audio. The call agent invokes all three through Workers AI; the arrows below follow the data through that sequence. You don't need to rent a GPU or run a separate speech server. Twilio remains the external phone carrier.</p>
+
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/automate-your-call-center/call-path-mobile.svg" width="440" height="820" />
+            <img src="/images/blog/automate-your-call-center/call-path.svg" width="840" height="580" alt="Two audio routes enter the operator's Cloudflare account: the browser connects directly, while a telephone connects through Twilio and the Worker's audio bridge. A per-call Durable Object sends audio to Flux, text to Llama, and replies to Aura. Generated audio returns to the caller, and call transcripts are saved separately in D1." decoding="async" loading="lazy" />
+          </picture>
+        </figure>
+
+        <p>The phone route has an extra, decidedly unglamorous job. Twilio sends 8 kHz μ-law audio; the voice pipeline uses 16 kHz PCM. Our <a href="https://github.com/mainbrella/backend/blob/fc4b546e55c73573a1135b96baf2869442b01749/worker/app/voice-twilio.ts">phone bridge</a> converts between them in both directions. It also forwards a playback interruption as a Twilio <code>clear</code> message, so buffered speech can stop when the caller interrupts. A nice LLM response doesn't help much if the phone keeps playing the previous one.</p>
+        <p>Call transcripts go to D1, Cloudflare's SQL database, along with the call's status and timing. We don't save raw audio recordings. The temporary per-call state is scheduled for cleanup after the call ends, while the D1 transcript stays in account history. There's no transcript deletion control yet, so a private deployment needs its own retention policy.</p>
+        <p>The defaults allow three active calls per account and 100 starts in a rolling day, with a 15-minute or 60-turn limit per call. Those are application limits in the source. Raising a number is easy; qualifying the resulting workload is another job. The automated voice tests use simulated model responses and phone media, so they don't establish live call quality, latency, or large-scale capacity.</p>
+
+        <h2 id="cost">What the $5 plan buys</h2>
+        <p>With your own deployment, Cloudflare runs the application and inference, your carrier connects phone calls, and you operate the service. Mainbrella doesn't charge a software license fee for that copy.</p>
+        <p>These are the published Cloudflare rates on October 15, 2026, before free allocations. Inference rates come from <a href="https://developers.cloudflare.com/workers-ai/platform/pricing/">Workers AI's pricing table</a>; the base subscription comes from <a href="https://developers.cloudflare.com/workers/platform/pricing/">Workers pricing</a>.</p>
+
+        <div class="voice-cost-table" tabindex="0" role="region" aria-label="Cloudflare base plan and voice model rates">
+          <table>
+            <thead><tr><th scope="col">Item</th><th scope="col">Published rate</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Workers Paid base plan</th><td>$5/month minimum, with included usage</td></tr>
+              <tr><th scope="row">Flux speech recognition</th><td>$0.0077 per audio minute</td></tr>
+              <tr><th scope="row">Llama 3.3 70B input</th><td>$0.293 per million tokens</td></tr>
+              <tr><th scope="row">Llama 3.3 70B output</th><td>$2.253 per million tokens</td></tr>
+              <tr><th scope="row">Aura-1 speech generation</th><td>$0.015 per 1,000 input characters</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>For example, 1,000 minutes of audio sent to Flux is $7.70 at its listed rate, before allowances. That's just transcription. The assistant's replies add speech-generation charges, and each model turn includes conversation context in its input. Phone numbers and carrier minutes add their own charges. <a href="https://developers.cloudflare.com/durable-objects/platform/pricing/">Durable Object duration and requests</a>, database activity, storage, and any other enabled Mainbrella services also count toward your infrastructure bill.</p>
+        <p><a href="https://www.bland.ai/pricing">Bland's current pricing page</a> lists its Start plan at $0.14 per minute with no platform fee, and Build at $299 a month plus $0.12 per minute. It says those rates include the language model, transcription, and speech generation, with telephony billed separately. A $5 base subscription and an inclusive AI-minute rate measure different things; there's no honest savings percentage without a workload. Self-hosting lets you pay the component costs directly and choose how much operating work to take on.</p>
+
+        <h2 id="self-hosting">Running your own copy</h2>
+        <p>Start with the <a href="https://github.com/mainbrella/backend#ai-receptionist">backend's receptionist setup</a> and the <a href="https://github.com/mainbrella/web">web repository</a>. These are the same application repositories we work in, with account, authentication, and billing code alongside voice. Setting up a private deployment takes configuration; the production Wrangler files contain our domains, bindings, and resource IDs.</p>
+        <ol class="voice-setup-steps">
+          <li>Provision your own Cloudflare resources and apply the backend migrations. Voice uses the AI binding, D1, and the SQLite-backed <code>RECEPTIONIST_CALL</code> Durable Object. Keep the account and wallet bindings required by your checkout.</li>
+          <li>Configure authentication, trusted origins, and the frontend's <code>VITE_API_URL</code> for your deployment. The current voice code checks the prepaid wallet before starting calls, so configure funding in your instance or adapt that policy for private use.</li>
+          <li>Set <code>VOICE_ENABLED=true</code> and <code>VOICE_PUBLIC_ORIGIN</code> to your public HTTPS API origin. Save a receptionist and test it in the browser.</li>
+          <li>For phone calls, provision a Twilio number, set its account and number configuration, store <code>TWILIO_AUTH_TOKEN</code> as a secret, and map <code>TWILIO_AGENT_ID</code> to your saved receptionist. Configure the carrier rate required by voice billing. Point the number's incoming-call webhook at the URL shown in Voice, using HTTP POST.</li>
+        </ol>
+        <p>The current phone configuration maps one number to one agent; it doesn't buy numbers for you. Incoming webhooks and media connections are checked against Twilio signatures, and the media connection also needs a short-lived token that can be used once. Keep those checks when adapting the code. Your public phone endpoint can start paid inference.</p>
+
+        <h2 id="bland">The work you're choosing to do yourself</h2>
+        <p><a href="https://www.bland.ai/automate-your-call-center">Bland's call-center page</a> makes its offer pretty clear: “We Build, Deploy &amp; Manage Everything For You.” It advertises a deployment team, integrations with existing enterprise systems, and ongoing operation. It also advertises self-hosting. Owning the deployment alone isn't the difference here; Mainbrella gives you GPLv3 application source you can inspect and change yourself.</p>
+        <p>If you need a vendor to implement a complex call flow, maintain your CRM integration, and answer when something breaks, that work can be worth paying for. Mainbrella's current receptionist doesn't provide Bland's broader contact-center feature set or its enterprise assurances. The software is open source; Cloudflare's hosting and the speech models it serves have their own terms.</p>
+        <p>For the bike shop's hours and callback intake, I'd start with the smaller job. Put the business facts in the receptionist, test the questions customers actually ask, and read the messages it collects. You can run that system in your own $5/month Cloudflare plan, pay for the usage it generates, and change the code when the shop needs more. Buying a voice platform is now a choice about who does that work.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

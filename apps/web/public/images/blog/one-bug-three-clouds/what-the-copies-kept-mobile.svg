@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="1258" viewBox="0 0 390 1258" role="img" aria-labelledby="title desc">
+  <title id="title">What the copies kept</title>
+  <desc id="desc">Observed topology from the retained runs, not a measured timeline. All three providers preserved the checked files. Mainbrella and E2B sources retained their process nonce through capture; Daytona’s source had no listener afterward. E2B’s three branches inherited the source nonce. Mainbrella and Daytona branches initially had no listener. Explicit starts or restarts gave every branch a fresh nonce. Letters identify nonces within each provider, not across providers.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#69727a" stroke-width="1.3"/></marker>
+    <g id="files" fill="#f7f4ec" stroke="#374650" stroke-width="1.8" stroke-linejoin="round"><path d="M1 7h23l9 9v27H1z"/><path d="M6 1h23l9 9v27H6z"/><path d="M29 1v9h9M13 18h17M13 25h17M13 32h11"/></g>
+  </defs>
+  <style>
+    text{font-family:Helvetica,Arial,sans-serif;fill:#263238;font-size:18px}
+    .heading{font-size:24px;font-weight:600}.provider{font-size:23px;font-weight:600}
+    .small{font-size:16px;fill:#53616a}.label{font-size:17px}.nonce{font-size:19px;font-weight:600}
+    .flow{fill:none;stroke:#69727a;stroke-width:1.6;marker-end:url(#arrow)}
+    .process{fill:#f7f4ec;stroke:#374650;stroke-width:2.4}.absent{fill:#f7f4ec;stroke:#69727a;stroke-width:1.8;stroke-dasharray:4 4}
+    .empty{fill:none;stroke:#69727a;stroke-width:1.6}.separator{stroke:#ced1cf;stroke-width:1}
+  </style>
+  <rect width="390" height="1258" rx="4" fill="#f7f4ec"/>
+<text x="20" y="36" class="heading" text-anchor="start">What the copies kept</text>
+<text x="20" y="62" class="small" text-anchor="start">Observed topology, not a timeline</text>
+<use href="#files" transform="translate(20 82) scale(0.5)"/>
+<text x="47" y="101" class="small" text-anchor="start">Files</text>
+<g><circle cx="123" cy="95" r="18" class="process"/><text x="123" y="101" class="nonce" text-anchor="middle">A</text></g>
+<text x="150" y="101" class="small" text-anchor="start">Nonce</text>
+<g><circle cx="252" cy="95" r="18" class="absent"/><path d="M246 95h12" class="empty"/></g>
+<text x="280" y="101" class="small" text-anchor="start">No listener</text>
+<text x="20" y="144" class="provider" text-anchor="start">Mainbrella</text>
+<text x="20" y="168" class="small" text-anchor="start">Saved workspace</text>
+<text x="195" y="197" class="label" text-anchor="middle">Source after capture</text>
+<use href="#files" transform="translate(152 206) scale(1)"/><g><circle cx="220" cy="226" r="18" class="process"/><text x="220" y="232" class="nonce" text-anchor="middle">A</text></g>
+<path d="M195 248V269M69 269H321" fill="none" stroke="#69727a" stroke-width="1.6"/>
+<path d="M69 269V289" class="flow"/>
+<use href="#files" transform="translate(26 295) scale(1)"/><g><circle cx="94" cy="315" r="18" class="absent"/><path d="M88 315h12" class="empty"/></g>
+<text x="69" y="362" class="label" text-anchor="middle">Baseline</text>
+<path d="M69 373V393" class="flow"/>
+<g><circle cx="69" cy="418" r="18" class="process"/><text x="69" y="424" class="nonce" text-anchor="middle">B</text></g>
+<path d="M195 269V289" class="flow"/>
+<use href="#files" transform="translate(152 295) scale(1)"/><g><circle cx="220" cy="315" r="18" class="absent"/><path d="M214 315h12" class="empty"/></g>
+<text x="195" y="362" class="label" text-anchor="middle">Correct</text>
+<path d="M195 373V393" class="flow"/>
+<g><circle cx="195" cy="418" r="18" class="process"/><text x="195" y="424" class="nonce" text-anchor="middle">C</text></g>
+<path d="M321 269V289" class="flow"/>
+<use href="#files" transform="translate(278 295) scale(1)"/><g><circle cx="346" cy="315" r="18" class="absent"/><path d="M340 315h12" class="empty"/></g>
+<text x="321" y="362" class="label" text-anchor="middle">Misleading</text>
+<path d="M321 373V393" class="flow"/>
+<g><circle cx="321" cy="418" r="18" class="process"/><text x="321" y="424" class="nonce" text-anchor="middle">D</text></g>
+<text x="195" y="458" class="small" text-anchor="middle">Fresh nonces after explicit start / restart</text>
+<path d="M20 474H370" class="separator"/>
+<text x="20" y="500" class="provider" text-anchor="start">E2B</text>
+<text x="20" y="524" class="small" text-anchor="start">Native memory fork</text>
+<text x="195" y="553" class="label" text-anchor="middle">Source after capture</text>
+<use href="#files" transform="translate(152 562) scale(1)"/><g><circle cx="220" cy="582" r="18" class="process"/><text x="220" y="588" class="nonce" text-anchor="middle">A</text></g>
+<path d="M195 604V625M69 625H321" fill="none" stroke="#69727a" stroke-width="1.6"/>
+<path d="M69 625V645" class="flow"/>
+<use href="#files" transform="translate(26 651) scale(1)"/><g><circle cx="94" cy="671" r="18" class="process"/><text x="94" y="677" class="nonce" text-anchor="middle">A</text></g>
+<text x="69" y="718" class="label" text-anchor="middle">Baseline</text>
+<path d="M69 729V749" class="flow"/>
+<g><circle cx="69" cy="774" r="18" class="process"/><text x="69" y="780" class="nonce" text-anchor="middle">B</text></g>
+<path d="M195 625V645" class="flow"/>
+<use href="#files" transform="translate(152 651) scale(1)"/><g><circle cx="220" cy="671" r="18" class="process"/><text x="220" y="677" class="nonce" text-anchor="middle">A</text></g>
+<text x="195" y="718" class="label" text-anchor="middle">Correct</text>
+<path d="M195 729V749" class="flow"/>
+<g><circle cx="195" cy="774" r="18" class="process"/><text x="195" y="780" class="nonce" text-anchor="middle">C</text></g>
+<path d="M321 625V645" class="flow"/>
+<use href="#files" transform="translate(278 651) scale(1)"/><g><circle cx="346" cy="671" r="18" class="process"/><text x="346" y="677" class="nonce" text-anchor="middle">A</text></g>
+<text x="321" y="718" class="label" text-anchor="middle">Misleading</text>
+<path d="M321 729V749" class="flow"/>
+<g><circle cx="321" cy="774" r="18" class="process"/><text x="321" y="780" class="nonce" text-anchor="middle">D</text></g>
+<text x="195" y="814" class="small" text-anchor="middle">Fresh nonces after explicit start / restart</text>
+<path d="M20 830H370" class="separator"/>
+<text x="20" y="856" class="provider" text-anchor="start">Daytona</text>
+<text x="20" y="880" class="small" text-anchor="start">Container snapshot</text>
+<text x="195" y="909" class="label" text-anchor="middle">Source after capture</text>
+<use href="#files" transform="translate(152 918) scale(1)"/><g><circle cx="220" cy="938" r="18" class="absent"/><path d="M214 938h12" class="empty"/></g>
+<path d="M195 960V981M69 981H321" fill="none" stroke="#69727a" stroke-width="1.6"/>
+<path d="M69 981V1001" class="flow"/>
+<use href="#files" transform="translate(26 1007) scale(1)"/><g><circle cx="94" cy="1027" r="18" class="absent"/><path d="M88 1027h12" class="empty"/></g>
+<text x="69" y="1074" class="label" text-anchor="middle">Baseline</text>
+<path d="M69 1085V1105" class="flow"/>
+<g><circle cx="69" cy="1130" r="18" class="process"/><text x="69" y="1136" class="nonce" text-anchor="middle">B</text></g>
+<path d="M195 981V1001" class="flow"/>
+<use href="#files" transform="translate(152 1007) scale(1)"/><g><circle cx="220" cy="1027" r="18" class="absent"/><path d="M214 1027h12" class="empty"/></g>
+<text x="195" y="1074" class="label" text-anchor="middle">Correct</text>
+<path d="M195 1085V1105" class="flow"/>
+<g><circle cx="195" cy="1130" r="18" class="process"/><text x="195" y="1136" class="nonce" text-anchor="middle">C</text></g>
+<path d="M321 981V1001" class="flow"/>
+<use href="#files" transform="translate(278 1007) scale(1)"/><g><circle cx="346" cy="1027" r="18" class="absent"/><path d="M340 1027h12" class="empty"/></g>
+<text x="321" y="1074" class="label" text-anchor="middle">Misleading</text>
+<path d="M321 1085V1105" class="flow"/>
+<g><circle cx="321" cy="1130" r="18" class="process"/><text x="321" y="1136" class="nonce" text-anchor="middle">D</text></g>
+<text x="195" y="1170" class="small" text-anchor="middle">Fresh nonces after explicit start / restart</text>
+<text x="20" y="1214" class="small" text-anchor="start">A = source nonce within each provider.</text>
+<text x="20" y="1237" class="small" text-anchor="start">B, C, D = fresh nonces.</text>
+</svg>

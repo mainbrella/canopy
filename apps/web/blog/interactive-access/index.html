@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="How to reconnect to a Mainbrella shell, use SSH from your own terminal, and keep a dropped connection from becoming lost work." />
+    <meta name="theme-color" content="#0d1014" />
+    <link rel="canonical" href="https://mainbrella.com/blog/interactive-access/" />
+    <meta property="og:title" content="An interactive shell has a different lifetime · Mainbrella" />
+    <meta property="og:description" content="How to reconnect to a Mainbrella shell, use SSH from your own terminal, and keep a dropped connection from becoming lost work." />
+    <meta property="og:url" content="https://mainbrella.com/blog/interactive-access/" />
+    <meta property="og:type" content="article" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <title>An interactive shell has a different lifetime · Mainbrella</title>
+  </head>
+  <body class="info-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap">
+<article>
+<a class="article-back" href="/blog/">← Engineering blog</a>
+<h1>An interactive shell has a different lifetime</h1>
+<p class="article-meta"><time datetime="2026-10-05">October 5, 2026</time> · Mainbrella Engineering</p>
+
+<p>When an agent gets stuck, opening a shell in its workspace is often the quickest way to see what happened. You may need to answer a prompt, inspect a process, or watch a command run. A short HTTP request won’t cover all of that. Mainbrella offers a browser terminal and SSH into the same machine, with a shell you can reattach to after losing the connection.</p>
+<h2>Reload the page, reattach to the shell</h2>
+<p>The browser terminal uses xterm.js over a WebSocket. It authenticates with the browser’s HttpOnly session cookie and a trusted Origin, so an API key alone won’t open that connection. The request includes the selected machine’s creation timestamp and the terminal dimensions.</p>
+<p>Behind the connection is a fixed tmux session named <code>main</code>. Closing the terminal panel detaches your client; it doesn’t shut down the shell. Reload the page while that machine is still alive and you can reattach. After an abnormal disconnect, the <a href="https://github.com/mainbrella/web/blob/main/src/container-terminal.ts">browser client</a> retries up to five times with exponential backoff. A clean exit stays closed.</p>
+<p>That’s useful recovery from a dropped connection, but the machine still has to exist. If polling shows that it stopped or the slot now holds a different instance, the client closes the terminal. Reconnecting must never quietly drop you into a different task, and tmux won’t preserve files after the machine stops.</p>
+<h2>Use your own terminal over SSH</h2>
+<p>The dashboard or <code>POST /containers/ssh</code> returns an SSH command for the selected running machine. Access goes through <code>ssh.mainbrella.com</code> using <code>cloudflared</code> on your computer. You don’t need a public IP for the container or a Mainbrella CLI.</p>
+<p>That command contains a credential, so paste it into your terminal and keep it out of repositories, shared transcripts, and diagnostic logs. The token lasts at most 15 minutes, or until the machine’s hard deadline if that comes first. Stopping or recreating the machine invalidates it.</p>
+<h2>A busy terminal still has a deadline</h2>
+<p>Terminal input and output renew the idle lease. Reading status and requesting an SSH token don’t. Reconnection won’t extend the hard deadline either. Sending a command every few minutes can prevent an idle timeout, but it can’t turn a fixed session into a machine that runs forever.</p>
+<p>Each container permits four combined browser and SSH terminal connections, and each account permits ten live SSH tokens. HTTP commands use a separate concurrent-operation pool. If a terminal connection fails because its pool is full, telling the user that the entire account is full sends them debugging the wrong problem. The <a href="/docs/limits/">limits reference</a> lists the separate pools.</p>
+<p>Use <a href="/docs/execute/">HTTP execution</a> when you need a bounded foreground command with structured stdout, stderr, and exit status. Use <a href="/docs/ssh/">SSH or the browser terminal</a> when you need to interact. Before ending the session, export the files you want to keep or save a workspace.</p>
+
+</article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

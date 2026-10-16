@@ -1,0 +1,31 @@
+.images-article .image-lifetimes {
+  width: 100%;
+  margin: 28px 0;
+  border-collapse: collapse;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.images-article .image-lifetimes th,
+.images-article .image-lifetimes td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.images-article .image-lifetimes th:first-child {
+  width: 31%;
+  padding-right: 20px;
+}
+.images-article .image-lifetimes thead th {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 500;
+}
+.images-article .image-lifetimes tbody th { font-weight: 500; }
+@media (max-width: 600px) {
+  .images-article .image-lifetimes { font-size: 16px; }
+  .images-article .image-lifetimes th:first-child {
+    width: 34%;
+    padding-right: 16px;
+  }
+}

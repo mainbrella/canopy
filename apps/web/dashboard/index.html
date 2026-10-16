@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0d1014" />
+    <meta name="description" content="Build apps and manage your Mainbrella projects, prepaid balance, and containers." />
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href="https://mainbrella.com/dashboard/" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <script data-dashboard-view-bootstrap>
+      (() => {
+        const requested = new URLSearchParams(location.search).get('view');
+        const view = requested === 'production' || requested === 'ad-hoc' ? requested : 'overview';
+        const observer = new MutationObserver(() => {
+          const title = document.querySelector('#dashboard-title');
+          const status = document.querySelector('#dashboard-status');
+          if (!title || !status) return;
+          title.textContent = view === 'overview' ? 'Overview' : view === 'production' ? 'Production' : 'Ad Hoc';
+          document.querySelector('#main')?.setAttribute('data-view', view);
+          for (const link of document.querySelectorAll('.app-navigation a')) {
+            const url = new URL(link.href, location.href);
+            if (url.pathname !== '/dashboard/') continue;
+            const linkedView = new URLSearchParams(url.search).get('view');
+            const normalized = linkedView === 'production' || linkedView === 'ad-hoc' ? linkedView : 'overview';
+            if (normalized === view) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
+          }
+          observer.disconnect();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/app.css" />
+    <title>Dashboard · Mainbrella</title>
+  </head>
+  <body class="info-body sandbox-home app-body dashboard-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- app-header -->
+    <main id="main" class="dashboard-main" aria-busy="true">
+      <h1 id="dashboard-title">Overview</h1>
+      <p id="dashboard-status" class="dashboard-status" role="status">Checking your session…</p>
+      <p id="dashboard-error" class="dashboard-error" role="alert" hidden></p>
+      <button id="dashboard-retry" class="dashboard-retry" type="button" hidden>Retry</button>
+      <div id="dashboard-content" hidden>
+        <section class="dashboard-subscription" aria-labelledby="subscription-title">
+          <h2 id="subscription-title" class="visually-hidden">Billing</h2>
+          <div class="dashboard-plan-row">
+            <p id="subscription-level" aria-live="polite">Loading…</p>
+            <a id="subscription-manage" class="text-link" href="/pricing/">Balance and billing</a>
+          </div>
+          <p id="subscription-note" class="dashboard-status" hidden></p>
+        </section>
+        <dl id="container-usage" class="container-usage" aria-label="Account usage" hidden>
+          <div><dt>Containers</dt><dd id="usage-containers">—</dd><dd id="usage-network-containers" class="usage-detail" hidden></dd><dd id="usage-concurrency" class="usage-detail"></dd></div>
+          <div id="usage-networks-group" hidden><dt>Networks</dt><dd id="usage-networks">—</dd><dd id="usage-networks-detail" class="usage-detail"></dd></div>
+          <div><dt id="usage-compute-label">Compute-unit hours available</dt><dd id="usage-compute">—</dd><dd id="usage-compute-detail" class="usage-detail"></dd></div>
+          <div><dt>Starts remaining this month</dt><dd id="usage-starts">—</dd><dd id="usage-starts-detail" class="usage-detail"></dd></div>
+        </dl>
+        <section id="dashboard-overview" class="overview-feed" aria-labelledby="overview-title" aria-busy="true" hidden>
+          <div class="overview-heading">
+            <h2 id="overview-title">Activity</h2>
+            <div class="overview-feed-actions">
+              <span id="overview-updated" class="overview-updated"></span>
+              <button id="overview-refresh" class="dashboard-retry" type="button" disabled>Refresh</button>
+            </div>
+          </div>
+          <p id="overview-status" class="dashboard-status" role="status">Loading your activity…</p>
+          <p id="overview-error" class="dashboard-error" role="alert" hidden></p>
+          <button id="overview-retry" class="dashboard-retry" type="button" hidden>Retry</button>
+          <div id="overview-feed" hidden>
+            <dl class="overview-cost-summary">
+              <div><dt>Current compute rate</dt><dd><span id="overview-hourly">—</span><span class="overview-rate-unit">/hour</span></dd></div>
+              <div><dt>Spent this month</dt><dd id="overview-monthly">—</dd><dd id="overview-cap" class="overview-summary-detail"></dd></div>
+            </dl>
+            <p id="overview-storage-warning" class="dashboard-error" role="status" hidden></p>
+            <section class="overview-feed-section" aria-labelledby="overview-running-title">
+              <h3 id="overview-running-title">Running now</h3>
+              <ul id="overview-running" class="overview-activity-list"></ul>
+              <p id="overview-running-empty" class="dashboard-status" hidden>No containers are currently consuming balance.</p>
+            </section>
+            <section id="overview-summaries-section" class="overview-feed-section" aria-labelledby="overview-summaries-title" hidden>
+              <h3 id="overview-summaries-title">Usage summaries</h3>
+              <ul id="overview-summaries" class="overview-activity-list"></ul>
+            </section>
+            <section class="overview-feed-section" aria-labelledby="overview-recent-title">
+              <h3 id="overview-recent-title">Recent activity</h3>
+              <ol id="overview-recent" class="overview-activity-list"></ol>
+              <p id="overview-recent-empty" class="dashboard-status" hidden>No recent activity yet.</p>
+            </section>
+            <div class="overview-history-link">
+              <p id="overview-history-note" class="dashboard-status" hidden>Showing the latest activity. Older workload details may be limited.</p>
+              <a class="text-link" href="/balance/">View full cost history <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+        </section>
+        <section id="dashboard-resources" class="dashboard-containers" aria-label="Resources">
+          <div class="dashboard-section-heading">
+            <div class="resource-tabs" role="tablist" aria-label="Resources">
+              <button id="containers-tab" type="button" role="tab" aria-selected="true" aria-controls="resources-panel" data-resource-tab="containers">Containers</button>
+              <button id="networks-tab" type="button" role="tab" aria-selected="false" aria-controls="resources-panel" tabindex="-1" data-resource-tab="networks">Networks</button>
+              <button id="workspaces-tab" type="button" role="tab" aria-selected="false" aria-controls="saved-workspaces" tabindex="-1" data-resource-tab="workspaces">Saved workspaces</button>
+              <button id="secrets-tab" type="button" role="tab" aria-selected="false" aria-controls="sandbox-secrets" tabindex="-1" data-resource-tab="secrets">Secrets</button>
+            </div>
+            <div class="container-actions">
+              <button id="containers-refresh" class="dashboard-retry" type="button" disabled>Refresh</button>
+              <button id="network-create-open" class="dashboard-retry" type="button" hidden disabled>New network</button>
+              <button id="container-launch-open" class="button button-small" type="button" disabled>New container</button>
+            </div>
+          </div>
+          <div id="resources-panel" role="tabpanel" aria-labelledby="containers-tab">
+            <div id="container-filters" class="network-filters">
+              <label for="container-search">Search containers</label>
+              <input id="container-search" type="search" placeholder="Container name or ID" autocomplete="off" aria-controls="container-list">
+            </div>
+            <p id="containers-status" class="dashboard-status" role="status">Loading containers…</p>
+            <p id="containers-empty" class="dashboard-status containers-empty" hidden>You have no active containers.</p>
+            <div id="private-services-feedback" hidden>
+              <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+              <button type="button" class="dashboard-retry" disabled>Refresh Private Services</button>
+            </div>
+            <div id="network-filters" class="network-filters" hidden>
+              <label for="network-search">Search networks</label>
+              <input id="network-search" type="search" placeholder="Network name" maxlength="63" autocomplete="off" aria-controls="container-list">
+            </div>
+            <p id="networks-empty" class="dashboard-status" role="status" hidden>No networks match your search.</p>
+            <div id="container-list" class="machine-groups" hidden></div>
+            <nav id="network-pagination" class="container-pagination" aria-label="Network pages" hidden>
+              <button id="networks-previous" class="dashboard-retry" type="button">Previous</button>
+              <span id="networks-range" aria-live="polite"></span>
+              <button id="networks-next" class="dashboard-retry" type="button">Next</button>
+            </nav>
+            <section id="container-observations" class="container-observations" aria-labelledby="history-title" hidden>
+              <div class="history-heading"><h3 id="history-title" tabindex="-1">History</h3><div class="container-actions"><button type="button" class="dashboard-retry" data-history-refresh>Refresh history</button><button type="button" class="dashboard-retry" data-history-close>Close</button></div></div>
+              <p class="dashboard-status" data-history-identity></p>
+              <p class="dashboard-status" data-history-metrics hidden></p>
+              <ol class="lifecycle-list" aria-label="Lifecycle events"></ol>
+              <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+              <button type="button" class="dashboard-retry" data-history-more hidden>More events</button>
+              <details class="container-webhooks" data-container-webhooks hidden>
+                <summary>Lifecycle webhook</summary>
+                <form>
+                  <label for="webhook-url">Approved HTTPS relay URL</label>
+                  <input id="webhook-url" type="url" maxlength="2048" required autocomplete="off" placeholder="https://relay.example.com/events">
+                  <div class="container-actions"><button type="submit" class="dashboard-retry" data-webhook-save>Save webhook</button><button type="button" class="dashboard-retry" data-webhook-remove hidden>Remove webhook</button><button type="button" class="dashboard-retry" data-webhook-refresh>Refresh webhook</button></div>
+                </form>
+                <p class="dashboard-status">Saving replaces the signing key and clears previous deliveries.</p>
+                <div data-webhook-secret hidden><label for="webhook-signing-secret">Signing key · shown once</label><input id="webhook-signing-secret" readonly autocomplete="off" spellcheck="false"><p class="dashboard-status">Copy this key to your receiver before closing history.</p></div>
+                <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+                <ul aria-label="Webhook deliveries"></ul>
+              </details>
+            </section>
+            <nav id="container-pagination" class="container-pagination" aria-label="Container pages" hidden>
+              <button id="containers-previous" class="dashboard-retry" type="button">Previous</button>
+              <span id="containers-range" aria-live="polite"></span>
+              <button id="containers-next" class="dashboard-retry" type="button">Next</button>
+            </nav>
+            <section id="container-terminal" class="container-terminal" aria-labelledby="terminal-title" hidden>
+              <div class="terminal-heading">
+                <h3 id="terminal-title">Terminal</h3>
+                <button class="dashboard-retry" type="button">Close terminal</button>
+              </div>
+              <p class="dashboard-status" role="status">Connecting…</p>
+              <div class="terminal-output" aria-label="Container terminal"></div>
+            </section>
+            <p id="containers-error" class="dashboard-error" role="alert" hidden></p>
+          </div>
+          <section id="saved-workspaces" role="tabpanel" aria-labelledby="workspaces-tab" hidden>
+            <dl class="workspace-usage" data-workspace-usage aria-label="Workspace storage and capture usage"></dl>
+            <p class="dashboard-status workspace-usage-note" data-workspace-usage-note></p>
+            <div class="workspace-pending" data-workspace-pending hidden>
+              <p class="dashboard-status" data-workspace-pending-message></p>
+              <div class="container-actions"><button type="button" class="dashboard-retry" data-workspaces-retry>Retry original request</button><button type="button" class="dashboard-retry" data-workspaces-forget>Discard saved request</button></div>
+            </div>
+            <div class="network-filters">
+              <label for="workspace-search">Search saved workspaces</label>
+              <input id="workspace-search" type="search" placeholder="Workspace name" autocomplete="off" aria-controls="workspace-list">
+            </div>
+            <ul id="workspace-list" class="container-list" aria-label="Saved workspaces"></ul>
+            <p class="dashboard-status" role="status"></p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="button" class="dashboard-retry" data-workspaces-refresh>Refresh workspaces</button></div>
+          </section>
+          <section id="sandbox-secrets" role="tabpanel" aria-labelledby="secrets-tab" hidden>
+            <div class="container-actions"><button type="button" class="dashboard-retry" data-secrets-refresh>Refresh secrets</button><button type="button" class="button button-small" data-secrets-new>New secret</button></div>
+            <ul class="container-list" aria-label="Sandbox secrets"></ul>
+            <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+          </section>
+        </section>
+        <dialog id="sandbox-secret-dialog" class="private-services-dialog" aria-labelledby="sandbox-secret-title">
+          <form>
+            <h2 id="sandbox-secret-title">New sandbox secret</h2>
+            <fieldset class="sandbox-secret-fields">
+              <legend class="visually-hidden">Secret destination</legend>
+              <label for="sandbox-secret-name">Name</label><input id="sandbox-secret-name" type="text" required maxlength="80" autocomplete="off">
+              <label for="sandbox-secret-host">Allowed HTTPS hostname</label><input id="sandbox-secret-host" type="text" required maxlength="253" placeholder="api.example.com" autocomplete="off" autocapitalize="none" spellcheck="false">
+              <label for="sandbox-secret-header">Request header</label><select id="sandbox-secret-header"><option value="authorization">Authorization</option><option value="x-api-key">X-API-Key</option><option value="api-key">API-Key</option></select>
+              <label for="sandbox-secret-prefix">Value prefix (optional)</label><input id="sandbox-secret-prefix" type="text" maxlength="32" autocomplete="off" spellcheck="false" placeholder="Bearer ">
+            </fieldset>
+            <label for="sandbox-secret-value">Secret value</label><input id="sandbox-secret-value" type="password" required maxlength="4096" autocomplete="new-password" spellcheck="false" aria-describedby="sandbox-secret-note">
+            <p id="sandbox-secret-note" class="dashboard-status">Injected into HTTPS requests to the allowed hostname. Values cannot be read back. Use a scoped credential with a trusted service.</p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Save secret</button><button type="button" class="dashboard-retry" data-secret-close>Cancel</button></div>
+          </form>
+        </dialog>
+        <dialog id="network-create-dialog" class="private-services-dialog" aria-labelledby="network-create-title">
+          <form>
+            <h2 id="network-create-title">New network</h2>
+            <label for="private-network-name">Network name</label>
+            <input id="private-network-name" type="text" required pattern="[a-z][a-z0-9-]{0,62}" maxlength="63" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="app-stack" aria-describedby="private-network-name-note">
+            <p id="private-network-name-note" class="dashboard-status">Start with a lowercase letter. Use lowercase letters, numbers, and hyphens.</p>
+            <p id="network-lifecycle-note" class="dashboard-status"></p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Create network</button><button type="button" class="dashboard-retry" data-private-close>Cancel</button></div>
+          </form>
+        </dialog>
+        <dialog id="private-member-dialog" class="private-services-dialog" aria-labelledby="private-member-title">
+          <form>
+            <h2 id="private-member-title">Attach machine</h2>
+            <label for="private-member-network">Network</label>
+            <input id="private-member-network" type="text" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Search networks">
+            <label for="private-member-machine">Running machine</label>
+            <input id="private-member-machine" type="text" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Search running machines">
+            <label for="private-member-name">Service name</label>
+            <input id="private-member-name" type="text" required pattern="[a-z][a-z0-9-]{0,62}" maxlength="63" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="api" aria-describedby="private-member-name-note">
+            <p id="private-member-name-note" class="dashboard-status">Unique in this network. Use lowercase letters, numbers, and hyphens; start with a letter.</p>
+            <label for="private-member-port">Application port <span class="dashboard-status">(optional)</span></label>
+            <input id="private-member-port" type="number" min="1024" max="65535" step="1" inputmode="numeric" placeholder="8080" aria-describedby="private-member-port-note">
+            <p id="private-member-port-note" class="dashboard-status">Register a port to receive HTTP at http://NAME.internal. Leave blank to only call services. Public previews are enabled separately.</p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Attach machine</button><button type="button" class="dashboard-retry" data-private-close>Cancel</button></div>
+          </form>
+        </dialog>
+        <dialog id="container-fork-dialog" class="private-services-dialog" aria-labelledby="container-fork-title">
+          <form>
+            <h2 id="container-fork-title">Fork container</h2>
+            <label for="container-fork-name">Name</label>
+            <input id="container-fork-name" type="text" required maxlength="80" autocomplete="off">
+            <p class="dashboard-status">Copies saved filesystem changes into a new container. Running processes and memory are not copied. The new machine uses your normal compute allowance.</p>
+            <p class="dashboard-status" data-fork-startup tabindex="0" aria-label="Application startup after copying"></p>
+            <p class="dashboard-status" role="status"></p>
+            <p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Create fork</button><button type="button" class="dashboard-retry" data-fork-close>Cancel</button></div>
+          </form>
+        </dialog>
+        <dialog id="container-launch-dialog" class="container-launch" aria-labelledby="launch-title">
+          <div class="launch-heading">
+            <h2 id="launch-title">New container</h2>
+            <button id="container-launch-close" class="dashboard-retry" type="button" aria-label="Close new container dialog">Close</button>
+          </div>
+          <div class="resource-tabs launch-image-tabs" role="tablist" aria-label="Image source">
+            <button id="stock-images-tab" type="button" role="tab" aria-selected="true" aria-controls="stock-images-panel" data-image-tab="stock">Stock Images</button>
+            <button id="custom-images-tab" type="button" role="tab" aria-selected="false" aria-controls="custom-images-panel" tabindex="-1" data-image-tab="custom">Custom Images</button>
+          </div>
+          <div id="stock-images-panel" role="tabpanel" aria-labelledby="stock-images-tab">
+            <form id="container-launch-form">
+              <div class="container-image-picker">
+                <label for="container-name">Name</label>
+                <input id="container-name" type="text" required maxlength="80" autocomplete="off" placeholder="My container" disabled>
+              </div>
+              <div class="container-image-picker">
+                <label for="container-image">Image</label>
+                <select id="container-image" disabled><option value="">Node 24 + TypeScript</option></select>
+              </div>
+              <div id="production-launch-settings" class="production-launch-settings" hidden>
+                <label for="container-startup-command">Startup command</label>
+                <input id="container-startup-command" type="text" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="cd /workspace/app &amp;&amp; npm start">
+                <p class="dashboard-status">Runs when the machine starts. Include everything needed to start your app from the image. Use an external database for durable data.</p>
+              </div>
+              <fieldset id="container-size" class="machine-picker" disabled aria-describedby="container-size-rate">
+                <legend>Machine size</legend>
+                <div id="machine-options" class="machine-options"><p class="dashboard-status">Loading machine sizes…</p></div>
+              </fieldset>
+              <details id="sandbox-network-settings" class="sandbox-network-settings" hidden>
+                <summary>Outbound access</summary>
+                <label for="sandbox-network-mode">Internet access</label>
+                <select id="sandbox-network-mode"><option value="unrestricted">Unrestricted</option><option value="blocked">No internet</option><option value="restricted">Allow listed destinations</option></select>
+                <div data-network-policy hidden>
+                  <label for="sandbox-network-allow">Allow</label><textarea id="sandbox-network-allow" rows="3" maxlength="16384" placeholder="api.example.com&#10;*.example.org" aria-describedby="sandbox-network-note" autocapitalize="none" spellcheck="false"></textarea>
+                  <label for="sandbox-network-deny">Deny (optional)</label><textarea id="sandbox-network-deny" rows="2" maxlength="16384" placeholder="private.example.org" autocapitalize="none" spellcheck="false"></textarea>
+                  <p id="sandbox-network-note" class="dashboard-status">One domain, wildcard domain, or public IP range per line, up to 64 each. Deny rules take precedence. Restricted access supports HTTP and HTTPS only. This policy is fixed for the machine’s lifetime.</p>
+                </div>
+                <fieldset data-secret-bindings hidden><legend>Inject secrets</legend><div data-binding-list></div><p class="dashboard-status">Allow each selected secret’s hostname above.</p></fieldset>
+              </details>
+              <div class="launch-footer">
+                <div class="launch-notes">
+                  <p id="container-size-rate" class="dashboard-status"></p>
+                  <p id="container-limits" class="dashboard-status">Checking your account’s container limits…</p>
+                  <a id="production-billing-link" class="text-link" href="/pricing/" hidden>Add balance or adjust spending cap</a>
+                </div>
+                <button id="container-create" class="button button-small" type="submit" disabled aria-describedby="container-limits container-size-rate">Create container</button>
+              </div>
+              <p id="container-launch-status" class="dashboard-status" role="status"></p>
+              <p id="container-launch-error" class="dashboard-error" role="alert" hidden></p>
+            </form>
+          </div>
+          <div id="custom-images-panel" role="tabpanel" aria-labelledby="custom-images-tab" hidden>
+            <div id="custom-image-launch"></div>
+            <div class="custom-images-content">
+              <p id="images-status" class="dashboard-status" role="status">Loading images…</p>
+              <ul id="image-list" class="container-list" aria-label="Custom images" hidden></ul>
+              <h3 class="image-form-heading">Build an image</h3>
+              <form id="image-form" class="image-form">
+                <label for="image-name">Image name</label>
+                <input id="image-name" name="name" type="text" required maxlength="80" placeholder="Python workspace" autocomplete="off" />
+                <label for="image-file">Load Dockerfile or Containerfile <span class="dashboard-status">(optional)</span></label>
+                <input id="image-file" type="file" aria-describedby="image-source-note" />
+                <label for="image-dockerfile">Dockerfile</label>
+                <textarea id="image-dockerfile" name="dockerfile" rows="7" required spellcheck="false" aria-describedby="image-source-note">FROM mainbrella:base
+
+# Install additional tools here.
+WORKDIR /workspace</textarea>
+                <p id="image-source-note" class="dashboard-status">Start with FROM mainbrella:base to keep terminal support. Single-stage Dockerfiles only, up to 16 KiB. Containers use a workspace shell; CMD and ENTRYPOINT do not start your app.</p>
+                <label for="image-context">Build context <span class="dashboard-status">(optional)</span></label>
+                <input id="image-context" name="context" type="file" accept=".tar.gz" aria-describedby="image-context-note" />
+                <p id="image-context-note" class="dashboard-status">A .tar.gz archive up to 512 KiB for COPY instructions. Put files at the archive root and exclude secrets.</p>
+                <p class="dashboard-status">Your account includes 10 image builds per month, up to 5 minutes each, and 3 saved images. Failed builds count toward the allowance.</p>
+                <button id="image-build" class="button button-small" type="submit" disabled>Build image</button>
+              </form>
+              <section id="image-logs" class="image-logs" aria-labelledby="image-logs-title" hidden>
+              <div class="terminal-heading"><h3 id="image-logs-title">Build output</h3><button class="dashboard-retry" type="button">Close output</button></div>
+              <pre tabindex="0" aria-label="Build output"></pre>
+              </section>
+              <p id="images-error" class="dashboard-error" role="alert" hidden></p>
+              <button id="images-refresh" class="dashboard-retry" type="button" disabled>Refresh images</button>
+            </div>
+          </div>
+        </dialog>
+        <dialog id="container-startup-dialog" class="workspace-save-dialog" aria-labelledby="container-startup-title">
+          <form>
+            <h3 id="container-startup-title">Startup settings</h3>
+            <p class="dashboard-status" data-startup-container></p>
+            <label class="workspace-stop-choice"><input type="checkbox" data-startup-enabled> Start application on resume or fork</label>
+            <p class="dashboard-status">Starts a fresh process after files are restored. Memory is not preserved. Saving these settings does not restart the current application.</p>
+            <fieldset class="workspace-launch-settings workspace-launch-fields" data-startup-fields hidden>
+              <legend class="visually-hidden">Application startup</legend>
+              <label for="startup-command">Startup command</label>
+              <textarea id="startup-command" rows="3" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start"></textarea>
+              <label for="startup-cwd">Working directory</label>
+              <input id="startup-cwd" type="text" maxlength="1024" value="/workspace" autocomplete="off" spellcheck="false">
+              <div class="workspace-launch-grid">
+                <div><label for="startup-port">HTTP readiness port</label><input id="startup-port" type="number" min="1024" max="65535" step="1" inputmode="numeric" placeholder="3000"></div>
+                <div><label for="startup-timeout">Wait up to (seconds)</label><input id="startup-timeout" type="number" min="1" max="60" step="1" value="30" inputmode="numeric"></div>
+              </div>
+              <label for="startup-path">HTTP readiness path</label>
+              <input id="startup-path" type="text" maxlength="1024" value="/" autocomplete="off" spellcheck="false">
+              <p class="dashboard-status">Use a foreground command and an HTTP path that returns 2xx when the application is ready.</p>
+            </fieldset>
+            <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Save settings</button><button type="button" class="dashboard-retry" data-startup-close>Close</button></div>
+          </form>
+        </dialog>
+        <dialog id="workspace-save-dialog" class="workspace-save-dialog" aria-labelledby="workspace-save-title">
+          <form>
+            <h3 id="workspace-save-title">Save workspace</h3>
+            <label for="workspace-name">Name</label>
+            <input id="workspace-name" type="text" maxlength="80" required autocomplete="off">
+            <label class="workspace-stop-choice"><input type="checkbox"> Stop container after saving</label>
+            <p class="dashboard-status">Pause file writes before saving. Files are saved; running processes do not resume on restore.</p>
+            <fieldset class="workspace-launch-settings" data-workspace-launch hidden>
+              <legend>Application on restore</legend>
+              <label class="workspace-stop-choice"><input type="checkbox" data-workspace-launch-enabled> Start the application when restored</label>
+              <div class="workspace-launch-fields" data-workspace-launch-fields hidden>
+                <label for="workspace-launch-command">Startup command</label>
+                <textarea id="workspace-launch-command" rows="3" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="npm start"></textarea>
+                <label for="workspace-launch-cwd">Working directory</label>
+                <input id="workspace-launch-cwd" type="text" maxlength="1024" value="/workspace" autocomplete="off" spellcheck="false">
+                <div class="workspace-launch-grid">
+                  <div><label for="workspace-launch-port">HTTP readiness port</label><input id="workspace-launch-port" type="number" min="1024" max="65535" step="1" inputmode="numeric" placeholder="3000"></div>
+                  <div><label for="workspace-launch-timeout">Wait up to (seconds)</label><input id="workspace-launch-timeout" type="number" min="1" max="60" step="1" value="30" inputmode="numeric"></div>
+                </div>
+                <label for="workspace-launch-path">HTTP readiness path</label>
+                <input id="workspace-launch-path" type="text" maxlength="1024" value="/" autocomplete="off" spellcheck="false">
+                <p class="dashboard-status">The command runs once per restored machine. HTTP readiness is checked separately from whether the machine is running.</p>
+              </div>
+            </fieldset>
+            <p class="dashboard-status" role="status"></p><p class="dashboard-error" role="alert" hidden></p>
+            <div class="container-actions"><button type="submit" class="button button-small">Save workspace</button><button type="button" class="dashboard-retry" data-workspace-cancel>Cancel</button></div>
+          </form>
+        </dialog>
+      </div>
+      <noscript><p>Enable JavaScript to view your dashboard.</p></noscript>
+    </main>
+    <script type="module" src="/src/dashboard.ts"></script>
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

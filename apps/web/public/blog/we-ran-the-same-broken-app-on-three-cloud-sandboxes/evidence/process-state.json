@@ -1,0 +1,772 @@
+{
+  "schemaVersion": 1,
+  "description": "Allowlisted process observations from the October 12 editor runs. Each input receipt was checked against its sealed result hash. Nonces originate in process memory, not a file.",
+  "limitations": "The private receipts include credentials and are not published. This extract makes reported values inspectable; it does not independently replay the original verification. Browser localStorage is external to these servers.",
+  "runs": [
+    {
+      "provider": "Mainbrella",
+      "runId": "mainbrella-2026-10-12T09-16-42-489Z-0c1b3f68",
+      "mode": "saved-workspace",
+      "sourceCommit": "3eb5f1d144324793492bed765d94bc6463614ef3",
+      "runnerCommit": "1c6f044a457f28edbcbdd295c91eafec7a0298df",
+      "result": "/blog/one-bug-three-clouds/mainbrella-production/result.json",
+      "resultSha256": "d6b966dfc4f1776e8ee13443c11688febe8066c84dc99489579a4d2646be6ca3",
+      "observations": [
+        {
+          "copy": "source",
+          "stage": "before capture",
+          "process": {
+            "nonce": "df39c83d-c9a1-4b2d-8613-2c92f05553e6",
+            "pid": 134,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:17:27.695Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/20bbc88f49ad9c0153f920b93726d205.json",
+                "sha256": "4beec95bd1d85badb30eab3ad3fb6b6ef360af4cb715b58338e8a968cdd54644"
+              },
+              {
+                "path": "journal-snapshot/operations/7b17d17244e1a2e517d5a6564275f9e5.json",
+                "sha256": "cbd76ca2e4356f2fec5b15adae5b029fc27603754bc11974e24c1348a9b3e43b"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "source",
+          "stage": "after capture",
+          "process": {
+            "nonce": "df39c83d-c9a1-4b2d-8613-2c92f05553e6",
+            "pid": 134,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:18:01.147Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-after-capture",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/172d58846330f77919ee01c595464abb.json",
+                "sha256": "11045eab78e53e7a142f9ecfea8d880a2cc7e47b1abefefc7904076993dd49cc"
+              },
+              {
+                "path": "journal-snapshot/operations/e530551e8157d69c8a2a3bcb8479822e.json",
+                "sha256": "cf4e076dd353aec230082e1dad542e5d1b332ead8673cdad5d7986029cffb7a3"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "baseline",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:18:04.067Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "baseline-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/2de74040a3f16ad7c12ef75b2f9ae299.json",
+                "sha256": "8d578d35fe7f2a28fe19596e781acd04657dd82637c32ec07df1618ac8ac446a"
+              },
+              {
+                "path": "journal-snapshot/operations/06c766608ec00dfd5e0e167e510c5111.json",
+                "sha256": "51132bcfad414c609df93d74247de4c3111d633b4ccf0e1e097ae3901e292547"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "baseline",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "7e69fda7-4792-4349-b9c7-6a36229731b8",
+            "pid": 33,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:18:08.452Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "baseline-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/8b0cb202f1cfc8792f40fd574bcd1846.json",
+                "sha256": "30f70cbccc98ea35aae4c14200412afdfaf9744442f4829b3f20d768a14730e5"
+              },
+              {
+                "path": "journal-snapshot/operations/ec5895a3715cb5b30efe8d8db1288a13.json",
+                "sha256": "e33038f25a8ee26a59eee516a251555f4ee01116f817407efadf3dc10af51477"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "correct",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:18:31.246Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "correct-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/55029c27e614ea275470f34fe593bfa0.json",
+                "sha256": "5e9ac51ebe8d9b5de380e5c7be9c9747415d132c855cf0851f8f30494a0548e7"
+              },
+              {
+                "path": "journal-snapshot/operations/6593b9ae24bfcf9f74e84f4f9e550284.json",
+                "sha256": "e8b6190875b4162ae689450faf48e5215c46208907bbc7f2f148d088d2e46640"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "correct",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "b17ce4bc-f8ef-4ee3-8356-8f2ae97bde30",
+            "pid": 44,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:18:36.621Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "correct-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/089005ee48eaa0b6b83322da6df36da5.json",
+                "sha256": "a12cca8128646f5f71c3f2401c5000fcbda4b3ecfed04bf31f0df499c11a1f74"
+              },
+              {
+                "path": "journal-snapshot/operations/be4b20aba841034376fc5ae72fb7374d.json",
+                "sha256": "a34359abc486a250a0c0972d01e3726da93b57511fdedd8fa801537be1e7543b"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "misleading",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:19:08.486Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "misleading-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/ff89538d41e062d0251fea47bb3330d6.json",
+                "sha256": "9780f3e68c814ea9af735da76012950759a0bdba18c939317f225789dada792c"
+              },
+              {
+                "path": "journal-snapshot/operations/e59eafaabb8dd70af92f2681f1cda617.json",
+                "sha256": "67adb85baf0237a772fb8cf57ef88747bc96daea414e64b0e3cd851d042ca052"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "misleading",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "f603f36b-148f-40a0-98f2-aa80c08a6d26",
+            "pid": 44,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:19:15.012Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "865655d448a711cbad17f778ce3f54bcac4c871aa84cb54e4f65ea70a7fe6d32",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "misleading-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/c598ffa26d270f69ba2f867706bfe969.json",
+                "sha256": "33a89b2c84d918bfd04ac76acd93bdef34c980f8cfd3698032d36500f56b592f"
+              },
+              {
+                "path": "journal-snapshot/operations/e94f98cd6d56913ee508c699e3a99f46.json",
+                "sha256": "4c9138e2c50dfa93122fdd289cc0c41c2a1c7ef4af16f6ba18ddbc748d8a7f8f"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "provider": "E2B",
+      "runId": "e2b-2026-10-12T03-28-03-665Z-3d023cb6",
+      "mode": "memory-fork",
+      "sourceCommit": "3eb5f1d144324793492bed765d94bc6463614ef3",
+      "runnerCommit": "0c4e076f186dabdee76fe6ee02d14f820167403b",
+      "result": "/blog/one-bug-three-clouds/e2b-followup/result.json",
+      "resultSha256": "864ff6402aeaf93fe8904e2b024526a1ad03428086d4338f2006028c2a0e6936",
+      "observations": [
+        {
+          "copy": "source",
+          "stage": "before capture",
+          "process": {
+            "nonce": "bc4fdc6d-c468-46b7-bb05-a632319736c6",
+            "pid": 1627,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:25.631Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/20bbc88f49ad9c0153f920b93726d205.json",
+                "sha256": "f2b003dc7b80d0211d7002f72abd549e0caf31b72b34b4c4b317ba2eb38677a0"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "source",
+          "stage": "after capture",
+          "process": {
+            "nonce": "bc4fdc6d-c468-46b7-bb05-a632319736c6",
+            "pid": 1627,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:38.427Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-after-capture",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/172d58846330f77919ee01c595464abb.json",
+                "sha256": "d4ac78137377976a73e6a08c3bacf114cad813b598ef8947889b0fe2e4c7b97e"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "baseline",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": "bc4fdc6d-c468-46b7-bb05-a632319736c6",
+            "pid": 1627,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:38.743Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "baseline-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/2de74040a3f16ad7c12ef75b2f9ae299.json",
+                "sha256": "de709d49fe50ef8e1202328287992d4abd9815041c90aef843dc63da17c10b13"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "baseline",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "fbbd73e7-b8e3-44f6-b8b6-73dbacbc60ff",
+            "pid": 1722,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:39.675Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "baseline-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/8b0cb202f1cfc8792f40fd574bcd1846.json",
+                "sha256": "b35eee0a24155080cbdf10bdafab2016499d26ee567560e392b740caee70e69c"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "correct",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": "bc4fdc6d-c468-46b7-bb05-a632319736c6",
+            "pid": 1627,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:47.670Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "correct-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/55029c27e614ea275470f34fe593bfa0.json",
+                "sha256": "82d9c24ad86c46926c354e9c576bbbf40e195ba873f515d4d2f0e686b34b2c3b"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "correct",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "002a42cd-598b-43e9-a2e1-98e77d2278c7",
+            "pid": 1726,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:49.656Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "correct-ready-1",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/99efb708b4e3fbde255ee1d47b9b3f20.json",
+                "sha256": "fe2ad6cfabb4dc707da0cc8ba425a75386363c05e78c867a350ea79ad5e19955"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "misleading",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": "bc4fdc6d-c468-46b7-bb05-a632319736c6",
+            "pid": 1627,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:28:59.255Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "misleading-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/ff89538d41e062d0251fea47bb3330d6.json",
+                "sha256": "40ee39ff5131ab45a5d236e7d98106a6fcd9aa6dcc34a356cc636fdca7d2ca0c"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "misleading",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "e897724e-7cde-414f-853a-675e9b14f0f3",
+            "pid": 1726,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T03:29:01.276Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "misleading-ready-1",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/755c64a1637cf8a93eed85bf56ff9ed5.json",
+                "sha256": "3395d40d58bad069d26e4b9c6e143d83c52f9378a367f0ccb71155e6818c21e2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "provider": "Daytona",
+      "runId": "daytona-2026-10-12T09-49-17-236Z-53310c71",
+      "mode": "saved-workspace",
+      "sourceCommit": "3eb5f1d144324793492bed765d94bc6463614ef3",
+      "runnerCommit": "2c0b5f9a879fc199e4c9db78ea6e0832e572f057",
+      "result": "/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/evidence/daytona-rerun/result.json",
+      "resultSha256": "7af7c844ef701fd73614a8a111cb09381b241a9c0490a4f3f12f85ae24c58ceb",
+      "observations": [
+        {
+          "copy": "source",
+          "stage": "before capture",
+          "process": {
+            "nonce": "0cac9b03-92f2-47d3-9ad0-ec345c91bd3f",
+            "pid": 394,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:49:42.611Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/20bbc88f49ad9c0153f920b93726d205.json",
+                "sha256": "29e03838372027cd2d56b78462041049312ac1174c19719e353f8bed9736c8c5"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "source",
+          "stage": "after capture",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:50:46.286Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-after-capture",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/172d58846330f77919ee01c595464abb.json",
+                "sha256": "64db862d48c84073fc2d8eb26a489190b923a89f9f660ede7ad9dd12a287e571"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "source",
+          "stage": "after explicit restart",
+          "process": {
+            "nonce": "4fb458d1-d7c8-4778-8818-2d366793a7f1",
+            "pid": 194,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:50:47.834Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "source-resumed-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/334f68c2ff026359601fb897c1cec506.json",
+                "sha256": "4b1fac3ea30e62675bbc0404e3bb7ef843231119260101e039fd245437c39033"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "baseline",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:51:02.133Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "baseline-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/2de74040a3f16ad7c12ef75b2f9ae299.json",
+                "sha256": "5545cb2989b4dfb7f916368e7e457b57bc01525068efe585ecfc4ee0244a54f4"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "baseline",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "b93a0d8f-651f-4a11-bf01-1c9b1a077c2e",
+            "pid": 212,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:51:03.816Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "baseline-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/8b0cb202f1cfc8792f40fd574bcd1846.json",
+                "sha256": "f3fb09cc7938d59b0a7b4f1e1d39729f0683b12b0f80538ea2d73f8698fcd46a"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "correct",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:51:35.572Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "correct-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/55029c27e614ea275470f34fe593bfa0.json",
+                "sha256": "6775ae3f1ad847182227822d4a038640a1ef95e26e96e4b409cdc3561f2307de"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "correct",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "c9de1650-8dac-40b3-ae64-a60593963b42",
+            "pid": 240,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:51:39.018Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "correct-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/089005ee48eaa0b6b83322da6df36da5.json",
+                "sha256": "007830321bca9d92a8f8de0d4a163f5be5f1171991ae805c0f7011e3c692c62c"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "misleading",
+          "stage": "before launch or patch",
+          "process": {
+            "nonce": null,
+            "pid": null,
+            "serverReachable": false,
+            "observedAt": "2026-10-12T09:52:19.162Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "misleading-restored-state",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/ff89538d41e062d0251fea47bb3330d6.json",
+                "sha256": "a853d5232cedf520004470186ca96300a4f4347f1c8b5f795595e5dfffcacaa3"
+              }
+            ]
+          }
+        },
+        {
+          "copy": "misleading",
+          "stage": "after patch and explicit restart",
+          "process": {
+            "nonce": "29d55494-abe6-4b4f-8afd-c87645db55ac",
+            "pid": 239,
+            "serverReachable": true,
+            "observedAt": "2026-10-12T09:52:21.650Z"
+          },
+          "filesystem": {
+            "checkedFiles": 417,
+            "matchesExpectedHashes": true,
+            "dependenciesMatchSource": true,
+            "dependencyLockSha256": "a61a5dc3850ef2d54abe224e90b9d8403cf26e68345d50ce3b26832f8ce0c13b",
+            "preparedMarkerMatchesSource": true,
+            "permissionMode": "755",
+            "symlinkTarget": "/workspace/rodeo-prepared"
+          },
+          "provenance": {
+            "operation": "misleading-ready-0",
+            "receipts": [
+              {
+                "path": "journal-snapshot/operations/c598ffa26d270f69ba2f867706bfe969.json",
+                "sha256": "71acb8a3697cc80493d244b2bab2e41dfce6324a1a16caac84f16b7a3894bf94"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

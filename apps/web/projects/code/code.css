@@ -1,0 +1,6 @@
+.project-code-back { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; }
+.project-code-main .dashboard-section-heading { flex-wrap: wrap; gap: 8px 16px; }
+.project-code-main h1 { min-width: 0; overflow-wrap: anywhere; }
+.project-code-main #code-download { min-height: 44px; }
+.project-code-source { height: max(360px, calc(100dvh - 280px)); margin-top: 16px; border: 1px solid var(--line); border-radius: 4px; }
+.project-code-main #code-status:empty { display: none; }

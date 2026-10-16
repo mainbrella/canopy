@@ -1,0 +1,49 @@
+name: Web and contract checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: web
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: mainbrella/backend
+          path: backend
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run docs:check
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - id: targets
+        run: node scripts/affected-targets.mjs "$BASE_SHA" "$HEAD_SHA"
+        working-directory: web
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+
+      - if: contains(fromJSON(steps.targets.outputs.targets), 'site')
+        run: npm run build:site
+        working-directory: web
+      - if: contains(fromJSON(steps.targets.outputs.targets), 'builder')
+        run: npm run build:builder
+        working-directory: web

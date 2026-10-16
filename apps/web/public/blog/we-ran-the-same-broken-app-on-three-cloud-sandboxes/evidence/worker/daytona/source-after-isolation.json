@@ -1,0 +1,8 @@
+{
+  "process": null,
+  "hashes": {
+    "server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+    "processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+    "prepared-marker": "0fdef621cfc08d57690dc406ac677c762992259b752a780c0011d11be08127be"
+  }
+}

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Reading one app's release notes shouldn't require a tour of Apple's resource graph. How Parsequerade turns App Store Connect into ordinary JSON, and where the difficult decisions belong." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/apples-app-store-connect-api-facelift/" />
+    <meta property="og:title" content="Apple's App Store Connect API Facelift" />
+    <meta property="og:description" content="Flat JSON is the easy part. Parsequerade also has to resolve locales, prove resource ownership, hold Apple credentials, and keep pagination honest." />
+    <meta property="og:url" content="https://mainbrella.com/blog/apples-app-store-connect-api-facelift/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/apples-app-store-connect-api-facelift/metadata-ownership.png" />
+    <meta property="og:image:width" content="1680" />
+    <meta property="og:image:height" content="880" />
+    <meta property="og:image:alt" content="An app branches into app information and versions. Each has its own localizations and owns different listing fields." />
+    <meta property="article:published_time" content="2026-10-14T00:00:00-07:00" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/inside-our-brella/article.css" />
+    <link rel="stylesheet" href="/blog/apples-app-store-connect-api-facelift/article.css" />
+    <title>Apple's App Store Connect API Facelift</title>
+  </head>
+  <body class="info-body brella-article-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap inside-brella parsequerade-article">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>Apple's App Store Connect API Facelift</h1>
+        <p class="article-meta"><time datetime="2026-10-14">October 14, 2026</time> · Andrew Arrow</p>
+
+        <p>You want the French release notes for an iOS app. You know the app, the version, and the locale. Apple knows the release notes. Somewhere between those two facts, your little script has acquired a JWT signer, a pagination loop, and a working knowledge of <code>appStoreVersionLocalizations</code>.</p>
+        <p>App Store Connect already has a REST API that returns JSON. The awkward part is how much of Apple's resource model you have to absorb before doing ordinary work. A localized listing spans several resources, each with its own ID. Fetching the first version or the first localization can produce a perfectly valid response for the wrong thing. That's a lousy default for release tooling.</p>
+        <p>We're building <a href="https://parsequerade.mainbrella.com/">Parsequerade</a>, an open-source JSON facade over that API. Clients use app IDs, explicit version or app-info IDs, and locale strings; the service handles Apple authentication and the resource traversal. The current Worker implements 12 resource GET routes, plus hosted connection setup and revocation. Writes, sales reports, and copy workflows are still planned. The interesting work starts with making those reads mean what the caller asked for.</p>
+
+        <h2 id="app-list">Start with the list of apps</h2>
+        <p>Apple's <a href="https://developer.apple.com/documentation/appstoreconnectapi/get-v1-apps">List apps documentation</a> makes the problem visible. The <code>fields[apps]</code> parameter puts ordinary attributes beside relationships to versions, builds, subscriptions, review submissions, and plenty more. Those are optional choices, not requirements for listing apps. But a newcomer has to sort through the graph to find the three fields their screen needs.</p>
+        <figure class="article-figure apple-docs-figure">
+          <a class="apple-docs-crop" href="/images/blog/apples-app-store-connect-api-facelift/apple-list-apps.png" aria-label="View the full screenshot of Apple's List apps documentation">
+            <img src="/images/blog/apples-app-store-connect-api-facelift/apple-list-apps.png" width="3424" height="1836" alt="Apple's List apps documentation shows fields[apps] mixing name and bundleId with a long list of relationships, including appStoreVersions, builds, and reviewSubmissions." decoding="async" />
+          </a>
+        </figure>
+        <p>Even the small response uses a typed resource envelope. Here are selected fields from a fictional app, followed by the equivalent Parsequerade collection:</p>
+        <div class="json-comparison">
+          <div class="json-example">
+            <p class="json-label">Apple</p>
+            <pre class="docs-code" tabindex="0" role="region" aria-label="Selected fields in an Apple app list response"><code>{
+  "data": [{
+    "type": "apps",
+    "id": "1234567890",
+    "attributes": {
+      "name": "Example Notes",
+      "bundleId": "com.example.notes"
+    }
+  }]
+}</code></pre>
+          </div>
+          <div class="json-example">
+            <p class="json-label">Parsequerade</p>
+            <pre class="docs-code" tabindex="0" role="region" aria-label="Equivalent flat Parsequerade app list response"><code>{
+  "items": [{
+    "id": "1234567890",
+    "name": "Example Notes",
+    "bundleId": "com.example.notes"
+  }],
+  "nextCursor": null
+}</code></pre>
+          </div>
+        </div>
+        <p>The facade translates <code>bundleId=com.example.notes</code> into Apple's <code>filter[bundleId]</code>. Single-resource reads return an object; collections consistently return <code>items</code> and <code>nextCursor</code>. The <a href="https://github.com/mainbrella/parsequerade/blob/88c346a763b96754612546c95bf5fd3ad7e449b2/worker/resources.js">adapter</a> copies reviewed attributes into the object and turns supported relationship linkage into fields such as <code>primaryCategoryId</code>. It checks resource types and value types, rather than blindly spreading whatever arrived upstream.</p>
+        <p>Removing <code>data.attributes</code> is pleasant, but you could do that in a helper function. Resolving the right child resource is where a shared service earns its keep.</p>
+
+        <h2 id="locales">Keep the version; hide the localization ID</h2>
+        <p>An app's name, subtitle, and privacy URL belong to an app-info localization. Its description, keywords, and release notes belong to a version localization. They can all appear on one App Store page, which makes it tempting to stuff them into one metadata object. Their ownership still matters when you select or change them.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/apples-app-store-connect-api-facelift/metadata-ownership-mobile.svg" width="440" height="600" />
+            <img src="/images/blog/apples-app-store-connect-api-facelift/metadata-ownership.svg" width="840" height="440" alt="One app branches into app information and a selected version. App-info localizations own name, subtitle, and privacy URL. Version localizations separately own description, keywords, and release notes. Both branches have an en-US and a fr-FR locale." decoding="async" loading="lazy" />
+          </picture>
+        </figure>
+        <p>For the French release notes, the facade route is relative to your connection:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Read one exact version localization"><code>GET /apps/1234567890/versions/version_123/localizations/fr-FR</code></pre>
+        <p>You still choose <code>version_123</code>. The version list accepts filters such as <code>platform=IOS</code> and <code>state=PREPARE_FOR_SUBMISSION</code>, then returns IDs you can inspect. An API that silently chooses “latest” has to guess whether you mean the live release, an editable draft, or another platform. Keeping that choice visible prevents a shorter URL from becoming a less predictable operation.</p>
+        <p>The Worker first proves that the selected version belongs to the app by finding it in the app's scoped version collection. Nesting two IDs in a URL doesn't prove that relationship. This check also works when Apple omits relationship linkage from the response.</p>
+        <p>Next it lists that version's localizations, asks Apple to filter by <code>fr-FR</code>, and verifies exact locale matches itself. It follows every returned page to establish uniqueness. Zero matches produces <code>localization_not_found</code>; two matches produces <code>409 ambiguous_selection</code>. There is no fallback to English and no first-item lottery.</p>
+        <p>Once it has exactly one localization ID, it fetches the resource and checks the returned ID, locale, and any supplied parent linkage before flattening the fields. The client gets the localization's data with its app and version context. This can take several Apple requests, so the gain is simpler client logic, not a claim of lower upstream latency.</p>
+
+        <h2 id="credentials">One place to hold the Apple key</h2>
+        <p>That script also shouldn't need to know when an Apple token expires. Apple requires <a href="https://developer.apple.com/documentation/appstoreconnectapi/generating-tokens-for-api-requests">signed JWTs</a>. Parsequerade accepts an Apple team key's issuer ID, key ID, and <code>.p8</code> private key during connection setup, then issues a separate facade bearer key. Subsequent resource requests use the connection's base URL and that bearer key.</p>
+        <p>During hosted setup, the Worker imports and validates the P-256 private key, then probes <code>GET /v1/apps?limit=1</code>. It checks the read access it will issue without requiring an administrator-only users request. Successful setup stores the Apple credentials encrypted with AES-GCM in a SQLite Durable Object, one per connection. Only a SHA-256 hash of the facade key is stored.</p>
+        <p>The <a href="https://github.com/mainbrella/parsequerade/blob/88c346a763b96754612546c95bf5fd3ad7e449b2/worker/apple.js">Apple transport</a> signs ES256 JWTs using native Web Crypto. Tokens expire ten minutes after generation and are reused until they're within a minute of expiry. Concurrent requests share an in-progress signing operation. If Apple rejects a cached token, the transport can refresh it once within the read's retry budget.</p>
+        <p>Hosted facade keys currently grant read access to every app accessible through the supplied Apple team key. Operator-configured deployments can restrict grants to explicit app IDs; the app-list adapter pushes that restriction into Apple's <code>filter[id]</code> instead of crawling the account and filtering afterward. Facade access cannot add permissions that Apple denied.</p>
+        <p>There is a cost to this arrangement: the hosted operator holds a credential capable of signing Apple requests. Encryption at rest doesn't remove that trust. The <a href="https://github.com/mainbrella/parsequerade">GPL-licensed Worker</a> can be self-hosted if you want the translation without handing the private key to another operator. Deleting a hosted connection removes its stored credentials and revokes its facade key; revoking the Apple key is a separate action.</p>
+
+        <h2 id="pagination">Pagination has to preserve the question</h2>
+        <p>Suppose page one lists only the apps your key may read, but Apple's next-page link omits the original filter. Following that link verbatim would change the question halfway through the list. A convenient pagination helper can become a permission bug.</p>
+        <p>Parsequerade validates the next link's Apple origin and resource path, rejects changed query values, then reconstructs the next request with the original filters, field selection, and page size. It carries only Apple's cursor forward. Redirects are rejected, and callers cannot supply an arbitrary upstream URL.</p>
+        <p>The client receives an <a href="https://github.com/mainbrella/parsequerade/blob/88c346a763b96754612546c95bf5fd3ad7e449b2/worker/pagination.js">HMAC-signed cursor</a> bound to the connection, Apple credential fingerprint, caller's grant, resource path, and query. Changing credentials, permissions, filters, or page size invalidates it. Cursors expire after fifteen minutes, and repeated pages fail explicitly. A cursor continues a particular authorized read; it isn't a portable bookmark for any nearby list.</p>
+        <p>All the internal reads share a budget: 25 seconds, at most 32 Apple attempts, and bounded response bodies. Locale and ownership searches allow at most 20 pages. Exhaustion returns an error rather than a partial list dressed up as a complete result. The four-read concurrency limit is local to each Worker isolate, so it doesn't yet enforce a global quota across the deployment.</p>
+        <p>Errors preserve that honesty too. A bad facade key produces <code>401</code>. Valid facade access paired with Apple rejecting its credentials produces <code>502 upstream_authentication_failed</code>, because regenerating the caller's facade key won't fix the connection. API responses use <code>private, no-store</code>, and logs omit tokens, private keys, queries, and Apple response bodies.</p>
+
+        <h2 id="contracts">Keep the reference tied to the runtime</h2>
+        <p>A facade takes on maintenance that an SDK can often delegate to generated types. Apple's schema changes; our smaller contract needs deliberate mappings. The repository pins an Apple documentation snapshot and OpenAPI specification, currently version 4.5.1. An explicit sync command refreshes the source; ordinary builds work offline.</p>
+        <p>The same reviewed mappings generate the runtime query and response contracts and the facade OpenAPI document. A separate manifest selects implemented adapters. That separation matters: the <a href="https://parsequerade.mainbrella.com/docs/">reference</a> covers 457 GET endpoint pages found through Apple's App Store topic tree, while the runtime implements twelve resource routes. Reference pages label implementation status. A documented design shouldn't masquerade as a working endpoint.</p>
+        <p>The deployed service combines Workers Static Assets for the site with small JavaScript modules for the API. There are no runtime packages. A generated SDK could make Apple's payloads easier to type, but it would still leave each client deciding how to resolve locales, prove ownership, and recover from incomplete traversal. Those decisions belong in the shared implementation.</p>
+
+        <h2 id="writes">A write needs a record of what happened</h2>
+        <p>Writes make the case for centralizing this work stronger, and they make the implementation harder. The <a href="https://github.com/mainbrella/parsequerade/blob/88c346a763b96754612546c95bf5fd3ad7e449b2/rest.md">planned mutation contract</a> would let a client send an ordinary description update to the locale route. The service would resolve the localization ID and assemble Apple's typed update body. Today's resource routes reject mutation methods.</p>
+        <p>Resolving an ID isn't enough. Apple might apply an update just before its response disappears. Retrying because the caller saw a timeout can send the same write again. For a create, that can be much worse than a duplicated log line.</p>
+        <figure class="article-figure figure-narrow">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/apples-app-store-connect-api-facelift/uncertain-write-mobile.svg" width="440" height="480" />
+            <img src="/images/blog/apples-app-store-connect-api-facelift/uncertain-write.svg" width="720" height="430" alt="Planned write handling, with time moving downward: Parsequerade saves an intent and sends a write to Apple. Apple applies it, but the reply is lost. Parsequerade records the outcome as unknown and uses a fresh read to reconcile it." decoding="async" loading="lazy" />
+          </picture>
+        </figure>
+        <p>The plan is to persist a write intent before dispatch and require an <code>Idempotency-Key</code>. The key is scoped to the caller and operation, with a body hash so reuse for different content fails. If a dispatched write can't be confirmed, the service records an unknown outcome and attempts reconciliation with a fresh read. If that read can't establish what happened, the outcome stays unresolved. Its idempotency record prevents duplicate facade execution; it cannot manufacture an idempotency guarantee from Apple.</p>
+        <p>A metadata copy would build on those records: preview the selected changes, check that the destination hasn't changed, then execute in a known order. Completed changes stay completed if a later step fails. Cancellation stops future dispatches; it doesn't undo earlier edits. The client should be able to inspect partial progress without pretending several Apple resources share one transaction.</p>
+        <p>Sales reports need a different adapter again. Apple returns compressed tabular reports. The proposed route would parse bounded downloads into typed JSON rows, preserve monetary precision with decimal strings, and keep currencies separate. An unavailable report must stay an error rather than quietly becoming zero revenue. Those are useful decisions to implement once instead of rediscovering in every reporting app.</p>
+        <p>You can try the read slice through the <a href="https://parsequerade.mainbrella.com/docs/quickstart/">quickstart</a>: connect a team key, find an app, list its versions, and fetch an exact locale. Check the returned parent IDs and release notes against the version you selected. Your script should finish with the French text it asked for, without knowing the localization ID Apple used to store it.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

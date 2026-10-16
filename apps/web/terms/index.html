@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Terms for Mainbrella’s website, prepaid compute, and Cloudflare-powered agent sandbox services." />
+    <meta name="theme-color" content="#0d1014" />
+    <link rel="canonical" href="https://mainbrella.com/terms/" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <title>Terms of Service · Mainbrella</title>
+  </head>
+  <body class="info-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+
+    <main id="main" class="legal-content wrap">
+      <h1>Terms of Service</h1>
+      <p class="legal-updated">Last updated: <time datetime="2026-10-05">October 5, 2026</time></p>
+      <p>These terms govern mainbrella.com, its account and billing services, and any Mainbrella sandbox access we make available (the “Services”). The Services are provided by Andrew Arrow, doing business as Mainbrella Co., a sole proprietorship based in Culver City, California, United States (“we,” “us,” or “our”). By using the Services, you agree to these terms. If you use them for an organization, you must have authority to agree on its behalf.</p>
+
+      <h2>Service status and eligibility</h2>
+      <p>Mainbrella provides managed Linux containers for AI agents on Cloudflare infrastructure to signed-in users with funded prepaid access, an existing legacy subscription, or a valid coupon trial. Prototype benchmarks and illustrative sessions are not performance commitments.</p>
+      <p>You must be at least 18 and legally able to enter into this agreement. Use the Services only in compliance with applicable laws, including data protection, export controls, and trade sanctions.</p>
+
+      <h2>Accounts and security</h2>
+      <p>Website sign-in is required to purchase compute credit and use containers. Google sign-in is used for website accounts and management of account-linked billing. Keep your account information accurate, protect your sign-in credentials and any service credentials, and tell us promptly if you suspect unauthorized access. You are responsible for users and workloads you authorize under your account.</p>
+
+      <h2>Subscriptions, charges, and cancellation</h2>
+      <p>New accounts purchase prepaid compute credit with a $5 USD minimum one-time payment. Purchased credit carries forward until used. Compute costs $0.02 per compute-unit hour, weighted by the selected machine size; provisioning and idle time count. Credit is added only after a successful payment is verified. Stripe collects payments and provides receipts. Existing legacy subscriptions retain their contracted prices and allowances; contact support to manage them.</p>
+      <p>Prepaid accounts default to a $5 spending cap per UTC month, separate from their credit balance. Starting or renewing a machine reserves funded runtime against the wallet and spending cap. Only elapsed runtime is consumed; unused reservations are released after a confirmed stop. You can change the cap in billing, but cannot lower it below incurred or reserved usage without first stopping machines. New production services require funding and cap room for 24 hours of the full desired fleet. Resources stop when their funded runtime or spending cap is exhausted. A refund or dispute removes the corresponding funding and may stop affected resources.</p>
+      <p>Automatic recharge is optional and requires explicit authorization in <a href="/pricing/">billing</a>. You choose the recharge amount and a separate monthly recharge limit. Disable automatic recharge to prevent new recharge attempts; an already pending payment may still complete. Failed or pending payments do not add credit. Signing out, closing a browser, or requesting account deletion does not stop running resources or revoke existing payment authorizations. Stop resources and disable automatic recharge before closing your account. Contact <a href="mailto:support@mainbrella.com">support@mainbrella.com</a> if you cannot access billing or need to manage an existing subscription.</p>
+      <p>Compute is the only resource with usage charges in this release; ephemeral machine disk is included in its rate. Before adding separate storage, IP address, email, snapshot, or network charges, we will disclose the rates and billing basis and obtain any required agreement. We will notify subscribers of material price changes before they apply to a renewal.</p>
+      <p>Applicable taxes and total charges will be disclosed before payment. Cancellation does not automatically refund a completed billing period. Contact <a href="mailto:support@mainbrella.com">support@mainbrella.com</a> about billing errors or refunds. Mandatory refund and cancellation rights under applicable law remain available.</p>
+
+      <h2>Your content and workloads</h2>
+      <p>You retain your rights in code, files, prompts, data, and outputs you submit or create (“Customer Content”). If we provide sandbox access, you authorize us and our infrastructure providers to process that content as needed to execute your commands, store and restore workspaces where supported, and deliver and protect the Services. This does not transfer ownership of your content to us.</p>
+      <p>You must have the rights and permissions needed for your content and instructions, including any personal data you supply. You are responsible for reviewing generated code and outputs, securing secrets, limiting agent permissions, and keeping independent backups. Isolation does not make unsafe code harmless or guarantee that files, snapshots, or running processes will persist.</p>
+      <p>Do not submit regulated or sensitive personal data unless we have agreed in writing to support that use and put any required data processing agreement in place. Our <a href="/privacy/">Privacy Policy</a> describes current information handling; it is not a substitute for a required data processing agreement.</p>
+
+      <h2 id="acceptable-use">Acceptable use</h2>
+      <p>Do not use the Services for unlawful activity, infringement, harassment, privacy violations, malware distribution, credential theft, spam, denial-of-service attacks, or unauthorized access. Do not escape sandbox isolation, probe systems you lack permission to test, interfere with other workloads, or bypass authentication, billing, quotas, or resource limits. You must also comply with licenses for software and packages you run. Good-faith security research authorized by our <a href="/security/disclosure/">vulnerability disclosure policy</a> is permitted within that policy’s scope.</p>
+      <p>We may limit or suspend workloads or accounts to address misuse, nonpayment, legal requirements, or risks to security and service stability. We will provide notice where reasonably possible, but urgent security or legal issues may require immediate action.</p>
+
+      <h2 id="availability">Infrastructure, limits, and availability</h2>
+      <p>Mainbrella depends on Cloudflare for hosting and sandbox infrastructure and on Google and Stripe for sign-in and billing. Sandbox capacity, CPU, memory, disk, request limits, lifecycle behavior, and regional placement depend on our configuration and the underlying platform. Limits may change, and workloads may stop, fail, or become unavailable. See <a href="https://developers.cloudflare.com/sandbox/">Cloudflare’s sandbox documentation</a> and its <a href="https://developers.cloudflare.com/sandbox/sdk/platform/limits/">Sandbox SDK 0.x limits</a> for provider context; Mainbrella’s available limits may differ.</p>
+      <p>We do not currently offer an uptime SLA, guaranteed response time, or automatic service credits. Cloudflare’s <a href="https://www.cloudflare.com/workers-service-level-agreement/">Workers SLA</a> and <a href="https://www.cloudflare.com/business-sla/">Business SLA</a> have their own scope, eligibility, and exclusions. They do not create an uptime commitment or credit entitlement from Mainbrella to you. Any Mainbrella SLA must be separately agreed in writing.</p>
+      <p>Mainbrella is operated independently of its infrastructure providers. Provider terms, SLAs, and data processing agreements do not replace these terms or constitute an agreement between you and Mainbrella. Third-party services you connect to your workloads have their own terms and privacy practices.</p>
+
+      <h2>Our software and materials</h2>
+      <p>We and our licensors retain rights in Mainbrella’s software, website, branding, and documentation. We grant you permission to access the Services for their intended purpose while you comply with these terms. Do not redistribute our software or materials without permission, except as allowed by applicable law or an applicable open-source license.</p>
+
+      <h2>Disclaimers and liability</h2>
+      <p>To the extent permitted by law, the Services are provided “as is” and “as available,” without warranties of merchantability, fitness for a particular purpose, non-infringement, uninterrupted availability, or error-free operation. We do not guarantee the accuracy or safety of AI-generated code, outputs, or third-party packages.</p>
+      <p>To the extent permitted by law, we are not liable for indirect or consequential losses, lost profits, or losses resulting from your code, instructions, or third-party services. Nothing in these terms excludes liability that cannot lawfully be excluded or limits mandatory consumer rights. If a provision is unenforceable, the remaining provisions continue to apply.</p>
+
+      <h2>Ending use and changes</h2>
+      <p>You may stop using the Services at any time and contact us to request account deletion. Stop running resources and disable automatic recharge in billing. Contact support to cancel any existing legacy subscription. Export content you need and terminate running resources before closing your account. Account closure does not erase charges already incurred or records we must retain by law.</p>
+      <p>We may update or discontinue features as development progresses, subject to applicable law and any separate written commitments. We may revise these terms and will post an updated date. For material changes affecting subscribers, we will provide notice by email or through the Services before they take effect, and obtain agreement where required by law.</p>
+
+      <h2>Governing law</h2>
+      <p>These terms are governed by the laws of California, United States, subject to any mandatory protections and rights that apply under the laws of your place of residence.</p>
+
+      <h2>Contact and legal notices</h2>
+      <p>The operator and contracting party is Andrew Arrow, doing business as Mainbrella Co. Send legal notices to:</p>
+      <address>Andrew Arrow · Mainbrella Co.<br />5427 Emporia Ave<br />Culver City, CA 90230<br />United States</address>
+      <p>For legal notices, account requests, or billing support, email <a href="mailto:support@mainbrella.com">support@mainbrella.com</a>. For security reports, email <a href="mailto:security@mainbrella.com">security@mainbrella.com</a>.</p>
+    </main>
+
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

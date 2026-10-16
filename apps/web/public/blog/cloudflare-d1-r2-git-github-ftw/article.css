@@ -1,0 +1,25 @@
+.git-article h1 { max-width: none; }
+.git-article .screenshot-modal,
+.git-article .screenshot-account { max-width: 560px; }
+.git-article .screenshot-crop { position: relative; display: block; overflow: hidden; background: #0d1014; }
+.git-article .screenshot-crop img { position: absolute; max-width: none; height: auto; }
+.git-article .crop-modal { aspect-ratio: 955 / 755; }
+.git-article .crop-modal img { width: 358.534%; left: -127.539%; top: -76.159%; }
+.git-article .crop-account { aspect-ratio: 980 / 830; }
+.git-article .crop-account img { width: 349.388%; left: -121.429%; top: -51.807%; }
+.git-article .crop-access { aspect-ratio: 1775 / 590; }
+.git-article .crop-access img { width: 192.901%; left: -63.099%; top: -169.492%; }
+.git-article .handoff-steps { padding-left: 24px; margin: 24px 0; }
+.git-article .handoff-steps li + li { margin-top: 12px; }
+.git-article .git-costs { width: 100%; margin: 28px 0; border-collapse: collapse; font-size: 18px; line-height: 1.5; }
+.git-article .git-costs th,
+.git-article .git-costs td { text-align: left; padding: 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.git-article .git-costs th:first-child { width: 42%; padding-right: 20px; }
+.git-article .git-costs thead th { color: var(--muted); font-size: 16px; font-weight: 500; }
+.git-article .git-costs tbody th { font-weight: 500; }
+@media (max-width: 600px) {
+  .git-article .crop-access { aspect-ratio: 940 / 590; }
+  .git-article .crop-access img { width: 364.255%; left: -119.149%; }
+  .git-article .git-costs { font-size: 16px; }
+  .git-article .git-costs th:first-child { width: 44%; padding-right: 16px; }
+}

@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "experiment": "mainbrella-automatic-restore-launch",
+  "status": "completed",
+  "startedAt": "2026-10-12T12:08:25.837Z",
+  "apiUrl": "https://api.mainbrella.com",
+  "seed": 12346,
+  "recipe": {
+    "command": "/opt/rodeo-node/bin/node server.mjs",
+    "cwd": "/workspace/memory-worker",
+    "readiness": {
+      "port": 5173,
+      "path": "/probe",
+      "timeoutMs": 30000
+    }
+  },
+  "ledger": {
+    "preparationId": "f0682dda-1ff0-4eb9-8d4b-1cea921e67a0",
+    "jobs": [
+      {
+        "id": "job-12346-b",
+        "quantity": 1,
+        "unitCents": 0
+      },
+      {
+        "id": "job-12346-c",
+        "quantity": 3,
+        "unitCents": 475
+      },
+      {
+        "id": "job-12346-d",
+        "quantity": 4,
+        "unitCents": 0
+      },
+      {
+        "id": "job-12346-e",
+        "quantity": 0,
+        "unitCents": 825
+      },
+      {
+        "id": "job-12346-a",
+        "quantity": 2,
+        "unitCents": 125
+      }
+    ],
+    "expected": [
+      {
+        "id": "job-12346-b",
+        "totalCents": 0
+      },
+      {
+        "id": "job-12346-c",
+        "totalCents": 1425
+      },
+      {
+        "id": "job-12346-d",
+        "totalCents": 0
+      },
+      {
+        "id": "job-12346-e",
+        "totalCents": 0
+      },
+      {
+        "id": "job-12346-a",
+        "totalCents": 250
+      }
+    ],
+    "fingerprint": "c28710afcbec6fe0793a5c810c9f7c116ae6fe31f6e0bedc22947f9610f95e16"
+  },
+  "runner": {
+    "commit": "497e33591fc6c4ffa4f3e79be058f4f7e51cc122",
+    "dirty": true
+  },
+  "source": {
+    "sandbox": {
+      "id": "small",
+      "generation": "2026-10-12T12:08:30.090Z"
+    },
+    "beforeCapture": {
+      "nonce": "7ba1e2e8-8c2d-44ef-b34a-0baa4713722f",
+      "pid": 42,
+      "node": "22.22.2",
+      "preparationId": "f0682dda-1ff0-4eb9-8d4b-1cea921e67a0",
+      "phase": "paused",
+      "pending": 5,
+      "outputCount": 0,
+      "marker": null,
+      "inputFingerprint": "c28710afcbec6fe0793a5c810c9f7c116ae6fe31f6e0bedc22947f9610f95e16",
+      "stateFingerprint": "818feddbb6264cec9b1db0008f45b57f1ed969a39f3f009d4db81d261b9331ea"
+    },
+    "afterRestore": {
+      "nonce": "7ba1e2e8-8c2d-44ef-b34a-0baa4713722f",
+      "pid": 42,
+      "node": "22.22.2",
+      "preparationId": "f0682dda-1ff0-4eb9-8d4b-1cea921e67a0",
+      "phase": "paused",
+      "pending": 5,
+      "outputCount": 0,
+      "marker": null,
+      "inputFingerprint": "c28710afcbec6fe0793a5c810c9f7c116ae6fe31f6e0bedc22947f9610f95e16",
+      "stateFingerprint": "818feddbb6264cec9b1db0008f45b57f1ed969a39f3f009d4db81d261b9331ea"
+    }
+  },
+  "restore": {
+    "sandbox": {
+      "id": "c1",
+      "generation": "2026-10-12T12:08:51.624Z"
+    },
+    "clientSideLaunchCommands": 0,
+    "readiness": {
+      "status": "ready",
+      "port": 5173,
+      "path": "/probe",
+      "logPath": "/tmp/mainbrella-restore-3306ae39-ff3b-4890-8a64-1e418b4b690f.log",
+      "checkedAt": "2026-10-12T12:08:52.257Z"
+    },
+    "process": {
+      "nonce": "95d47995-09ff-4abb-8c6b-caa689940bb4",
+      "pid": 13,
+      "node": "22.22.2",
+      "preparationId": null,
+      "phase": "empty",
+      "pending": 0,
+      "outputCount": 0,
+      "marker": null,
+      "inputFingerprint": null,
+      "stateFingerprint": "36e974931baec75a1ebe878b1629e101f7f107e0577dd5faa60ae57536652644"
+    }
+  },
+  "errors": [],
+  "cleanup": {
+    "confirmed": true,
+    "sandboxes": [
+      {
+        "sandbox": {
+          "id": "c1",
+          "generation": "2026-10-12T12:08:51.624Z"
+        },
+        "absent": true
+      },
+      {
+        "sandbox": {
+          "id": "small",
+          "generation": "2026-10-12T12:08:30.090Z"
+        },
+        "absent": true
+      }
+    ],
+    "workspaces": [
+      {
+        "id": "60d26b65-b6d9-4e27-be83-493a3203b11f",
+        "absent": true
+      }
+    ],
+    "physicalStorage": "not-measured",
+    "errors": []
+  },
+  "limitations": [
+    "One automatic-startup qualification, not a matched provider or performance comparison.",
+    "The restored worker has a fresh nonce and an empty heap; this is not live process cloning.",
+    "API cleanup is checked; physical storage reclamation is not measured."
+  ],
+  "inputHashes": {
+    "fixtures/memory-worker/processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+    "fixtures/memory-worker/server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+    "src/providers/mainbrella.ts": "1b2a1622484a8264b2f03643ea55c91872ff1360c7aac891189f332b33bb74d0",
+    "src/restore-launch-experiment.ts": "21d89239c254fd49274ba3cc90a5506769167f5bffb4501ea3111c2c033c6b9a",
+    "src/worker-verifier.ts": "348b2ae577bb856fd2fc8b0ee088c3ce31e70bded2fa17dbd47b9f0dcc876d8b"
+  },
+  "advertisedPersistence": {
+    "restoreLaunch": true,
+    "filesystemAfterStop": false,
+    "filesystemFork": false,
+    "snapshots": true,
+    "workspaces": true,
+    "exports": true,
+    "memory": false,
+    "volumes": false
+  },
+  "inventoryBefore": {
+    "sandboxes": [],
+    "activeContainers": 0,
+    "containerLimits": {
+      "maxContainers": 100
+    },
+    "workspaces": [],
+    "workspaceUsage": {
+      "saved": 0,
+      "reservedBytes": 0,
+      "savesThisMonth": 8,
+      "captureBytesThisMonth": 46000000000,
+      "retainedCaptureBytes": 46000000000
+    },
+    "workspaceLimits": {
+      "maxSaved": 20,
+      "maxReservedBytes": 160000000000,
+      "maxSavesPerMonth": 100,
+      "maxCaptureBytesPerMonth": 400000000000,
+      "maxRetainedCaptureBytes": 400000000000
+    }
+  },
+  "capture": {
+    "id": "60d26b65-b6d9-4e27-be83-493a3203b11f",
+    "preservation": "filesystem"
+  },
+  "inventoryAfter": {
+    "sandboxes": [],
+    "activeContainers": 0,
+    "containerLimits": {
+      "maxContainers": 100
+    },
+    "workspaces": [],
+    "workspaceUsage": {
+      "saved": 0,
+      "reservedBytes": 0,
+      "savesThisMonth": 9,
+      "captureBytesThisMonth": 54000000000,
+      "retainedCaptureBytes": 54000000000
+    },
+    "workspaceLimits": {
+      "maxSaved": 20,
+      "maxReservedBytes": 160000000000,
+      "maxSavesPerMonth": 100,
+      "maxCaptureBytesPerMonth": 400000000000,
+      "maxRetainedCaptureBytes": 400000000000
+    }
+  },
+  "finishedAt": "2026-10-12T12:09:03.289Z",
+  "evidence": {
+    "privateDirectory": "private",
+    "files": {
+      "account.json": "e15344e4246a1993fe633e6c891f9223950e81cc126ed2d34db1c1170c1b2f0e",
+      "inputs/fixtures/memory-worker/processor.mjs": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6",
+      "inputs/fixtures/memory-worker/server.mjs": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+      "inputs/src/providers/mainbrella.ts": "1b2a1622484a8264b2f03643ea55c91872ff1360c7aac891189f332b33bb74d0",
+      "inputs/src/restore-launch-experiment.ts": "21d89239c254fd49274ba3cc90a5506769167f5bffb4501ea3111c2c033c6b9a",
+      "inputs/src/worker-verifier.ts": "348b2ae577bb856fd2fc8b0ee088c3ce31e70bded2fa17dbd47b9f0dcc876d8b",
+      "journal-snapshot/operations/02994ce0eb0606eb3268d402f76c807a.json": "b9e5193f282ee80a6d92e5610f10b562f11c341b1213fb2072cd26e6141b968a",
+      "journal-snapshot/operations/14786c3384e2da6ce578d2ea1e12c11a.json": "bdbdf76a7e0b82119793664a554c8bef95bc3d07f9643f837c3993ae05593716",
+      "journal-snapshot/operations/14fbd745041ff021775663ece0b7a864.json": "ba3ddf5eb29c9ad311ff38c637920ffa5710ee7ab7ba3bef8041ba1a3a044348",
+      "journal-snapshot/operations/16fcd09114647c0cf0e8ecef7670013d.json": "e9382644b0584bb6a7b52830d2cd86c140922ad3efe9040001e02590c7adbf71",
+      "journal-snapshot/operations/25eae97e0d61b6d3f5e51cb51178b019.json": "ef4c10516f3d0c371a0883e25a0186b50cb81c250b20db33e8e33db9d64f9199",
+      "journal-snapshot/operations/33a01eb45cb82407663817eb17acfb9f.json": "f7614c58039834feffbbe4a3ea6067b7aaa26c39ebe1644faf3869d01ac9fc80",
+      "journal-snapshot/operations/3c302e10e06bcefb6f89d98adc59d8ab.json": "6bade477b0564d82c3eb98f6b71f1f6d6ba1a953213b6a84a86fd95b16b16b12",
+      "journal-snapshot/operations/5272c8c942a123a4b443aa7d18132576.json": "91d2b7fcc83f5523bdecd29fe62397d02c49fef10f1134d2fe2639ec107c93ba",
+      "journal-snapshot/operations/5b80eda39daa8eaa46c0a447c719cda2.json": "3b0a6b6e487c5022450f4d81b5728a216556529a729b366ef4680d64bd48a281",
+      "journal-snapshot/operations/8ca7b41493b138abc1b11a804ea2b0b0.json": "736a8f7f596e8709765eb72cb426df6e4046d3456f8ab79e9284b43d9e7ed9ab",
+      "journal-snapshot/operations/8f1c737b6149a75f4b2a781f23f86e08.json": "274a3e3ca775ed7f7e218df679e30a2d1c8ffab8b565c25b3fcc9c9f661bb71b",
+      "journal-snapshot/operations/9260366889fb1df835f3a1c0f6f84757.json": "d7813480855d504568f8b4c5be19a5a9120a61eba5222b2a2e56976395dd1516",
+      "journal-snapshot/operations/a5c4429f0ae84e8dd1052ed5a91f9259.json": "1e5135e78efa914a64b51b982b74236072bae444657296dee7e7ed19f242dfac",
+      "journal-snapshot/operations/b3e0b3e924f933f64d3d3f6251606c01.json": "2348f6800f50a88d2bcc6d7bcb0224e1c417fa504da1cf9462aea7f757000113",
+      "journal-snapshot/operations/c1cb781935acabf1924719d3973445f8.json": "48193390acb4f3d880004d575ca2a5a7a930136f2645d3af0eaf31e806a16a2f",
+      "journal-snapshot/operations/caea800b615924dfd9ca6e5ce6cedd8f.json": "e7cd490cbebc5951fbf478753a38a1519afd1617980ae6c2a0e2f283fa7c0319",
+      "journal-snapshot/operations/f355b9d8cebe2775ba7e9fe2715ee264.json": "849de06cea8cfbfc302b6da6e38a702dcd926b1212b51314ff5a3964ab434d88",
+      "journal-snapshot/operations/fb43c55de0e321acf4ed2c9eae545b5c.json": "b2bd4e4133e0be5d83393170f24c194cdd2da9cc7ab13c5ed9e5c81d17ad3ce4",
+      "journal-snapshot/operations/fe832142965aef7ddcee69156e9a0cb5.json": "dd3a0f7cbd9b2c187891e9721e1fa975f6e10876dc1c2d7dc5180e1a21b4b720",
+      "journal-snapshot/operations/ff9656b452e666bf584df1951f6011b5.json": "6b28f22cd945386b37e86e70959b2b09f47cb7897e8d0a9acb3ce61cc36eaed1",
+      "journal-snapshot/owned/job-092e5cee14418f4c0122feaa9eb839e6.json": "9378082aefacf3412d98aadd1fad91e38f6d0f147b88d9cde440fbddd87b2454",
+      "journal-snapshot/owned/job-65531dcf712acb7fbf0b6b2795d1a287.json": "4134c3477163b94015899b945fff5dcdfda73de0b3d6f88cb6045cca967a4e15",
+      "journal-snapshot/owned/job-69c58fc7fa409d2d115b96b8d83ae8ca.json": "c27fad50b18748be2dd3415a8e4da0537c903c73f0d7625574ad47d94435c329",
+      "journal-snapshot/owned/preview-38ff0fd4cfc5a34168cdd6ee8e63324f.json": "e8895498373bd8b488e13cef2eb1f204aa352140223fc41a627962162457d452",
+      "journal-snapshot/owned/preview-fc9ea3f358c2bdae4750ca870271ddad.json": "6aaa30e048968baabb85fe315df47047dee59f29bcc045abed18142d982ce089",
+      "journal-snapshot/owned/sandbox-2a5af2cbcd2a4a99510ad3d405659005.json": "6fc243782277b60d3ca923fad2f93694a4feca5061bad62812f8fafc34ef7169",
+      "journal-snapshot/owned/sandbox-ad9c4e1f3f52732c8625e4d796d36d15.json": "856b21778869dd65278b81e4ec8554ed0fa1482f6226abf6b45c4a61b45936db",
+      "journal-snapshot/owned/workspace-cd543c0b74a267bee4f99bd36504c861.json": "e1fb393f030a772d9010eef30951dc2cc58bcfb8158e128fc33d2a24b7952562",
+      "journal-snapshot/receipts/2eef5ae3-d461-4c0b-a800-043e87beb9a3.json": "8dc4c82569b96d78183b1b582e9626f02ec88554142b3fe39c67e7a0476ed25e",
+      "journal-snapshot/receipts/3beb1140-bad6-4da5-ac83-eeef1708a2a4.json": "233ac2caf70e73890e6d929c530afa68a011eb92a59be2a4457104a1481245be",
+      "journal-snapshot/receipts/478604ed-8727-40a9-bef2-9db09b601850.json": "6d7dad5c009b80cbb07b26b7f8ec16f6fcac1469a63ef0736584e3b3774373ef",
+      "previews.json": "17406a06b89b4181d8984a980f5c1683e30674ebb76843dfeaed9ff1bbe57381",
+      "restored-preview.json": "f3ea8308f64c084da4a158858cfa8447d9048bda3db90cc59acb9b226621e49c",
+      "uploads/02994ce0eb0606eb3268d402f76c807a.bin": "af55a070e3bb5de40c11be7a16af045d493a573c43496bd45f7512495baff632",
+      "uploads/33a01eb45cb82407663817eb17acfb9f.bin": "7132aaafcd616d93948b80896525c1336bba193b76d308bdd6ef59ce7ff715d6"
+    }
+  }
+}

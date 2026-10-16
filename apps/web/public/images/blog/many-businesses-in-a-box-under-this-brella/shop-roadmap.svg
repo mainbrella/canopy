@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="600" viewBox="0 0 840 600" role="img" aria-labelledby="title desc">
+    <title id="title">A bike shop's planned MainBrella composition</title>
+    <desc id="desc">A shop website flows through planned web scraping into a planned knowledge base. Planned background jobs refresh the scrape on a schedule. The same knowledge base is planned to connect to existing voice, app, and Linux agent services. These connections are planned, not implemented.</desc>
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#a45f47"/></marker><style>
+  text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  .planned-box{fill:#f4e9df;stroke:#a45f47;stroke-width:1.8;stroke-dasharray:6 5}
+  .existing-box{fill:#e8eee7;stroke:#698476;stroke-width:1.8}
+  .planned-line{fill:none;stroke:#a45f47;stroke-width:2;stroke-dasharray:6 5;stroke-linecap:round;stroke-linejoin:round}
+  .existing-line{fill:none;stroke:#698476;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+</style></defs><rect width="840" height="600" fill="#f7f4ec"/>
+    <text x="38" y="43" text-anchor="start" font-size="12" font-weight="700" fill="#a45f47">PLANNED COMPOSITION</text>
+    <text x="38" y="75" text-anchor="start" font-size="23" font-weight="650" fill="#263238">One bike shop, shared business context</text>
+
+    <!-- Website input -->
+    <g><g transform="translate(50 145) scale(0.9)" fill="none" stroke="#263238" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 2h27l12 12v42H2z"/><path d="M29 2v13h12M10 27h22M10 36h22M10 45h16"/>
+  </g>
+      <text x="69" y="224" text-anchor="middle" font-size="16" font-weight="600" fill="#263238">Shop website</text>
+      <text x="69" y="246" text-anchor="middle" font-size="14" font-weight="450" fill="#64716d">Service info</text>
+    </g>
+    <path d="M104 176 L177 176" class="planned-line" marker-end="url(#arrow)"/>
+
+    <!-- Planned scraping -->
+    <rect class="planned-box" x="177" y="132" width="142" height="102" rx="8"/>
+    <g transform="translate(222 145) scale(1)" fill="none" stroke="#a45f47" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1" y="2" width="50" height="39" rx="4"/><path d="M1 12h50M8 7h.1M14 7h.1M20 7h.1M12 21h27M12 28h20M12 35h13"/>
+  </g>
+    <text x="248" y="207" text-anchor="middle" font-size="16" font-weight="650" fill="#263238">Web scraping</text>
+    <text x="248" y="225" text-anchor="middle" font-size="14" font-weight="500" fill="#64716d">Extract site info</text>
+    <path d="M319 176 L381 176" class="planned-line" marker-end="url(#arrow)"/>
+
+    <!-- Planned knowledge base -->
+    <rect class="planned-box" x="381" y="132" width="146" height="102" rx="8"/>
+    <g transform="translate(427 142) scale(0.95)" fill="none" stroke="#a45f47" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 8 24 2l22 6-22 7zM2 8v27l22 7 22-7V8M24 15v27"/>
+    <circle cx="13" cy="24" r="1.4" fill="#a45f47"/><circle cx="34" cy="26" r="1.4" fill="#a45f47"/><circle cx="18" cy="34" r="1.4" fill="#a45f47"/>
+  </g>
+    <text x="454" y="207" text-anchor="middle" font-size="16" font-weight="650" fill="#263238">Knowledge base</text>
+    <text x="454" y="225" text-anchor="middle" font-size="14" font-weight="500" fill="#64716d">Shared shop data</text>
+
+    <!-- Planned recurring refresh -->
+    <rect class="planned-box" x="172" y="326" width="148" height="94" rx="8"/>
+    <g transform="translate(224 339)" fill="none" stroke="#a45f47" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="21" cy="21" r="17"/><path d="M21 11v11l8 5M13 1h16"/>
+  </g>
+    <text x="246" y="393" text-anchor="middle" font-size="16" font-weight="650" fill="#263238">Background jobs</text>
+    <text x="246" y="411" text-anchor="middle" font-size="14" font-weight="500" fill="#64716d">Refresh scrape</text>
+    <path d="M246 326V234" class="planned-line" marker-end="url(#arrow)"/>
+
+    <!-- Fan-out from shared context -->
+    <path d="M527 183H554V442" class="planned-line"/>
+    <path d="M554 183H570" class="planned-line" marker-end="url(#arrow)"/>
+    <path d="M554 312H570" class="planned-line" marker-end="url(#arrow)"/>
+    <path d="M554 442H570" class="planned-line" marker-end="url(#arrow)"/>
+    <!-- Existing voice -->
+    <rect class="existing-box" x="570" y="137" width="222" height="91" rx="8"/>
+    <g transform="translate(586 154)" fill="none" stroke="#698476" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 4c-3 1-5 4-4 8 3 11 12 20 23 23 4 1 7-1 8-4l1-5-10-5-4 5c-4-2-7-5-9-9l5-4-5-10z"/>
+  </g>
+    <text x="650" y="176" text-anchor="start" font-size="16" font-weight="650" fill="#263238">Voice calls</text>
+    <text x="650" y="201" text-anchor="start" font-size="14" font-weight="500" fill="#64716d">Answer callers</text>
+
+    <!-- Existing app builder/output -->
+    <rect class="existing-box" x="570" y="266" width="222" height="91" rx="8"/>
+    <g transform="translate(586 282)" fill="none" stroke="#698476" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1" y="2" width="48" height="34" rx="3"/><path d="M1 10h48M18 44h14M25 36v8M9 6h.1M15 6h.1M10 17h12M10 23h28M10 29h20"/>
+  </g>
+    <text x="650" y="305" text-anchor="start" font-size="16" font-weight="650" fill="#263238">Shop app</text>
+    <text x="650" y="330" text-anchor="start" font-size="14" font-weight="500" fill="#64716d">Built with Builder</text>
+
+    <!-- Existing Linux agent -->
+    <rect class="existing-box" x="570" y="396" width="222" height="91" rx="8"/>
+    <g transform="translate(586 412)" fill="none" stroke="#698476" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="1" y="2" width="49" height="37" rx="3"/><path d="M1 10h49M9 19l6 5-6 5M20 30h12"/>
+  </g>
+    <text x="650" y="435" text-anchor="start" font-size="16" font-weight="650" fill="#263238">Linux agent</text>
+    <text x="650" y="461" text-anchor="start" font-size="14" font-weight="500" fill="#64716d">Custom processing</text>
+
+    <!-- Compact status key and shared account -->
+    <path d="M38 526H802" stroke="#d8d2c7" stroke-width="1"/>
+    <rect x="40" y="545" width="22" height="17" rx="3" class="existing-box"/>
+    <text x="71" y="558" text-anchor="start" font-size="14" font-weight="550" fill="#263238">Existing service</text>
+    <rect x="183" y="545" width="22" height="17" rx="3" class="planned-box"/>
+    <text x="214" y="558" text-anchor="start" font-size="14" font-weight="550" fill="#263238">Planned service / connection</text>
+    <text x="800" y="558" text-anchor="end" font-size="13" font-weight="550" fill="#64716d">One owner · one prepaid wallet</text>
+  </svg>

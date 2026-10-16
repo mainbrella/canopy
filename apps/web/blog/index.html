@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Technical notes on Mainbrella container lifecycle, startup measurements, interactive access, and custom images." />
+    <meta name="theme-color" content="#0d1014" />
+    <link rel="canonical" href="https://mainbrella.com/blog/" />
+    <meta property="og:title" content="Engineering blog · Mainbrella" />
+    <meta property="og:description" content="Technical notes on Mainbrella container lifecycle, startup measurements, interactive access, and custom images." />
+    <meta property="og:url" content="https://mainbrella.com/blog/" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <title>Engineering blog · Mainbrella</title>
+  </head>
+  <body class="info-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap">
+<h1>Engineering blog</h1>
+<p>Notes on building and using agent compute, with links to the contracts and code behind it.</p>
+<ul class="article-list">
+<li><article><h2><a href="/blog/the-cloudflare-appstore-appflare-malware-audit/">The Cloudflare Appstore (Appflare) Malware Audit</a></h2>
+<p>An agent-assisted review of 139 catalog entries found a password-reset token leak and private note data leaving self-hosted installs. The sources, captured payloads, and limits of the audit.</p><p><time datetime="2026-10-16">October 16, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/many-businesses-in-a-box-under-this-brella/">Many businesses in a box under this brella</a></h2>
+<p>Linux boxes, an app builder, and voice calls already share MainBrella's Cloudflare infrastructure. Scraping, background jobs, and knowledge bases are next, with an open-source foundation you can use to run your own service.</p><p><time datetime="2026-10-15">October 15, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/automate-your-call-center/">Automate Your Call Center - Open Source run on Cloudflare Infra</a></h2>
+<p>Run Mainbrella's GPLv3 voice receptionist in your own Cloudflare account instead of buying a managed voice platform. The $5/month Workers plan is the starting point; inference and phone service are metered separately.</p><p><time datetime="2026-10-15">October 15, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/app-store-connect-to-parsequerade/">I changed my direct App Store Connect API calls to Parsequerade</a></h2>
+<p>Before-and-after Rust from Studio's migration: flat JSON, one shared list reader, and no client-side Apple JWT signer. The app-list loader shrank from 63 lines to 23; writes and live sales still need service support.</p><p><time datetime="2026-10-15">October 15, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/ios-app-review-new-assets/">Anecdotal, but my iOS App got approved much faster with new assets!</a></h2>
+<p>After months of roughly month-long waits for new iOS apps, a submission with Apple's new creative assets was approved in two days. One anecdote, with the images and sizes.</p><p><time datetime="2026-10-14">October 14, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/apples-app-store-connect-api-facelift/">Apple's App Store Connect API Facelift</a></h2>
+<p>Reading one locale's release notes shouldn't require a tour of Apple's resource graph. How Parsequerade resolves the right resource, holds Apple credentials, and keeps pagination honest.</p><p><time datetime="2026-10-14">October 14, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/ai-agent-linux-box/">Give your AI agent a computer it can break</a></h2>
+<p>A screenshot tour of the Linux computers behind AI agents: terminals, running apps, independent repair attempts, and copies that preserve unfinished work.</p><p>Draft</p></article></li>
+<li><article><h2><a href="/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/">We ran the same broken app on three cloud sandboxes</a></h2>
+<p>Three clouds caught a fake editor repair. A worker with five jobs held only in memory made their copies differ: E2B kept the queue; filesystem restores lost the reproduction.</p><p><time datetime="2026-10-11">October 11, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/deep-dive-into-under-the-brella/">Deep Dive into under the brella</a></h2>
+<p>What Mainbrella handles between an agent writing code and you using it: checked builds, Linux workspaces, portable Git history, and a budget enforced outside the browser.</p><p><time datetime="2026-10-11">October 11, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/cloudflare-d1-r2-git-github-ftw/">Cloudflare D1+R2 buckets for git but github.com FTW</a></h2>
+<p>How we save Builder’s Git history in D1 and R2, move the commits to GitHub, and stop charging for our Git storage. Comparing our connection dialog with the Codex Connector helped us fix how users grant access.</p><p><time datetime="2026-10-11">October 11, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/lovable-style-builder-cloudflare-inference/">Lovable style Builder via CF Inference GLM-5.3, Kimi K2.7 Code, and GLM-5.3 Flash</a></h2>
+<p>A conversational app builder using Cloudflare’s GPU inference, with native Git history stored in R2 so new users can start without a GitHub account.</p><p><time datetime="2026-10-10">October 10, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/tabdance-good-enough-to-use/">Getting a signed macOS DMG release working with free GitHub Actions</a></h2>
+<p>The certificate imported, but codesign couldn’t find it. Getting TabDance’s signed DMG onto GitHub Releases meant fixing a keychain lookup, then a surprising 403.</p><p><time datetime="2026-10-10">October 10, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/tabdance-terminal-feel/">Building TabDance to feel like macOS Terminal</a></h2>
+<p>I wanted cmux’s workspaces without relearning how to clear and copy. A Rio fork and Apple Terminal’s disassembly helped pin down what TabDance needs to get right.</p><p><time datetime="2026-10-10">October 10, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/opencode-one-workspace/">Put OpenCode’s whole workbench in the sandbox</a></h2>
+<p>Moving only the shell can leave an agent testing the wrong checkout. Our OpenCode adapter puts the server in the sandbox, then deals with expiring access and cleanup.</p><p><time datetime="2026-10-08">October 8, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/open-swe-memory-and-machines/">A coding agent’s memory outlives its machine</a></h2>
+<p>Open SWE remembers the patch after its machine expires. Our provider checks that it can reach the same files, but a timeout default and a broken deletion helper still need work.</p><p><time datetime="2026-10-08">October 8, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/open-your-mainbrella-with-two-hands/">Open your mainbrella with two hands</a></h2>
+<p>Our OpenHands prototype can connect to a running workspace, but it can’t yet refresh an expired access URL. That gap belongs in the provider interface.</p><p><time datetime="2026-10-08">October 8, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/when-it-rains-agents-bring-a-mainbrella/">When It Rains Agents, Bring a mainbrella</a></h2>
+<p>Mastra’s file tools and commands use one Linux workspace. Dropped output streams can reconnect, but the adapter still hits a limit after 32 quick commands.</p><p><time datetime="2026-10-08">October 8, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/new-batteries-for-the-batteries-included-agent-harness/">New batteries for the batteries-included agent harness</a></h2>
+<p>We connected Deep Agents’ file tools and shell to Mainbrella. Keeping cleanup away from a replacement machine takes more than remembering its slot.</p><p><time datetime="2026-10-08">October 8, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/the-benefits-of-rain/">The benefits of rain</a></h2>
+<p>You can fork Mainbrella and sell a competing service. We think the hosted version should earn its fee by handling the work of running it.</p><p><time datetime="2026-10-07">October 7, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/inside-our-brella/">When the machine boots but the reply disappears</a></h2>
+<p>The machine started, but your client never heard back. Follow a Python job through launch retries, delayed cleanup, dropped streams, and a saved disk.</p><p><time datetime="2026-10-07">October 7, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/virtual-companies-producing-reports/">Fifteen companies, 480 containers, one awkward profit question</a></h2>
+<p>We provisioned 480 containers across fifteen private networks and hit Docker’s address limit. Here’s the recovery and the reporting app we plan to run on them.</p><p><time datetime="2026-10-07">October 7, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/account-owned-compute/">Reserving a machine before booting it</a></h2>
+<p>Two agents can’t both have the last slot. We reserve account capacity before booting, then let the machines start in parallel.</p><p><time datetime="2026-10-05">October 5, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/measuring-startup/">What a 100-machine burst measures</a></h2>
+<p>An old 100-machine test reported a 680 ms P95, but its raw samples are missing. Here’s what we can claim and how the current runner measures startup.</p><p><time datetime="2026-10-05">October 5, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/safe-container-creation/">Retry creation without losing the machine</a></h2>
+<p>A launch can succeed after its reply disappears. Keep the creation key and exact machine identity so a retry or late cleanup reaches the right instance.</p><p><time datetime="2026-10-05">October 5, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/interactive-access/">An interactive shell has a different lifetime</a></h2>
+<p>Reloading the browser can reconnect you to the same shell. How tmux, SSH credentials, and machine deadlines determine what survives a dropped connection.</p><p><time datetime="2026-10-05">October 5, 2026</time></p></article></li>
+<li><article><h2><a href="/blog/custom-images/">Stop reinstalling the tools before every task</a></h2>
+<p>Move repeated setup into a custom image, wait for publication before launching, and keep the report after its machine stops.</p><p><time datetime="2026-10-05">October 5, 2026</time></p></article></li>
+</ul>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

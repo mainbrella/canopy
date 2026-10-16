@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="What Mainbrella does, from an agent’s first shell command to a checked app, portable Git history, and a cloud bill with limits." />
+    <meta name="theme-color" content="#181a1b" />
+    <link rel="canonical" href="https://mainbrella.com/blog/deep-dive-into-under-the-brella/" />
+    <meta property="og:title" content="Deep Dive into under the brella · Mainbrella" />
+    <meta property="og:description" content="What Mainbrella does, from an agent’s first shell command to a checked app, portable Git history, and a cloud bill with limits." />
+    <meta property="og:url" content="https://mainbrella.com/blog/deep-dive-into-under-the-brella/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://mainbrella.com/images/blog/deep-dive-into-under-the-brella/work-outlives-compute.png" />
+    <meta property="og:image:width" content="880" />
+    <meta property="og:image:height" content="390" />
+    <meta property="og:image:alt" content="Saved Git history connects two build sessions even though the first machine has stopped." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="article:published_time" content="2026-10-11" />
+    <link rel="icon" href="/images/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/mainbrella.css" />
+    <link rel="stylesheet" href="/blog/deep-dive-into-under-the-brella/article.css" />
+    <title>Deep Dive into under the brella · Mainbrella</title>
+  </head>
+  <body class="info-body brella-deep-dive-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- site-header -->
+    <main id="main" class="legal-content wrap brella-deep-dive">
+      <article>
+        <a class="article-back" href="/blog/">← Engineering blog</a>
+        <h1>Deep Dive into under the brella</h1>
+        <p class="article-meta"><time datetime="2026-10-11">October 11, 2026</time> · Andrew Arrow</p>
+
+        <p>Ask an AI agent to build a reporting dashboard, and getting a screenful of React is the easy part. Somebody still has to install dependencies, run the code, check the result, and keep the files when the machine stops. “Here’s your app” is doing a hell of a lot of work when what you’ve received is a code block.</p>
+        <p>Mainbrella is an open-source platform that gives agents Linux computers to work on, with an API for operating them and a dashboard for the humans supervising them. Our Builder uses those computers to turn a conversation into a frontend app. You can bring your own agent instead, run existing repositories, or operate the platform yourself.</p>
+
+        <h2 id="entry-points">Start with an idea, a repository, or your agent</h2>
+        <p>In <a href="/build/">Build</a>, describe a dashboard that imports a CSV and charts monthly totals. The agent writes React and TypeScript, runs tools, and shows a preview. You keep talking to change the app. Model inference runs through Cloudflare Workers AI; the project’s toolchain runs inside Linux.</p>
+        <p>If you already have code, <a href="/try/">Try</a> helps you prepare its runtime, installation command, startup command, and port with your coding agent. Review the setup before launching. Mainbrella resolves the repository to a specific commit, so the run has a reproducible source identity. An installation failure leaves the checkout and terminal available for repair. Throwing everything away because one dependency failed is a lousy debugging workflow.</p>
+        <p>For your own agent application, use the HTTP API or JavaScript and Python SDKs. Write the input, run a program, and read its output on the same guest filesystem. You can open SSH or the browser terminal to inspect that workspace yourself. We’ve also built experimental integrations in our forks of <a href="/blog/new-batteries-for-the-batteries-included-agent-harness/">Deep Agents</a>, <a href="/blog/when-it-rains-agents-bring-a-mainbrella/">Mastra</a>, <a href="/blog/open-your-mainbrella-with-two-hands/">OpenHands</a>, <a href="/blog/open-swe-memory-and-machines/">Open SWE</a>, and <a href="/blog/opencode-one-workspace/">OpenCode</a>. Those are fork implementations with different scopes and limitations.</p>
+
+        <h2 id="verification">Make “done” mean something</h2>
+        <p>Builder doesn’t accept the model’s final message as a passing build. After installing dependencies, the platform invokes the compiler and bundler directly from the app directory:</p>
+        <pre class="docs-code" tabindex="0" role="region" aria-label="Builder’s compile check, run inside the app directory"><code>./node_modules/.bin/tsc --noEmit &amp;&amp;
+./node_modules/.bin/vite build</code></pre>
+        <p>The generated <code>package.json</code> can’t redefine this check as a script that prints “success.” Compiler failures go back to the agent for repair, and the preview serves compiled output. The <a href="https://github.com/mainbrella/backend/blob/main/worker/lib/build-agent.ts">build loop</a> makes success depend on a tool result we control.</p>
+        <p>That still doesn’t prove the dashboard adds up the CSV correctly. Try known inputs and check the totals. Mainbrella gives you running software and evidence about its build; deciding whether the software does the right thing remains an engineering job.</p>
+
+        <h2 id="saved-work">Keep the code when compute ends</h2>
+        <p>Now ask for a date filter. Builder saves native Git history, so the first dashboard and the revised one are inspectable versions. You don’t need a GitHub account to start. R2, Cloudflare’s object storage, holds source and Git bundles; D1, its SQL database, records versions and the current head. A later build loads that work into another machine.</p>
+        <p>In this schematic, the first machine stops between requests. The saved repository carries the work into the second session. The preview and unsaved guest files have shorter lives.</p>
+        <figure class="article-figure">
+          <picture>
+            <source media="(max-width: 600px)" srcset="/images/blog/deep-dive-into-under-the-brella/work-outlives-compute-mobile.svg" width="440" height="540" />
+            <img src="/images/blog/deep-dive-into-under-the-brella/work-outlives-compute.svg" width="880" height="390" alt="Time moves from the first build to a later edit. Machine A saves commit A and stops. Git history continues across the gap, restores into machine B, and gains commit B. Each machine has its own temporary preview." decoding="async" loading="lazy" />
+          </picture>
+        </figure>
+        <p>You can download a source ZIP or a Git bundle that clones into an ordinary repository. The Worker assembles the bundle from storage without booting a paid guest. Downloading your own code shouldn’t require renting another computer. Our <a href="/blog/cloudflare-d1-r2-git-github-ftw/">Git storage article</a> also covers moving that history to GitHub and sending subsequent Builder commits there.</p>
+        <p>Retained source has funding and retention rules; it isn’t stored forever for free. For work outside Builder, explicitly save a workspace or export useful files before stopping. A saved workspace restores the filesystem into a fresh machine, without RAM or running processes. A chat transcript remembering a filename doesn’t preserve its bytes.</p>
+
+        <h2 id="sharing">Give the app an address worth keeping</h2>
+        <p>A protected preview gives you a temporary URL for the app without DNS setup. Anyone holding that URL can use it while the grant and machine remain active. That’s handy for checking a build; it’s an awkward bookmark for a dashboard you’ll open every morning.</p>
+        <p><a href="/projects/">Projects</a> can bind a stable public endpoint to a running machine and port. Explicitly publish a replacement, and the project keeps its address. Custom domains alias that endpoint. The URL doesn’t extend the guest’s lease, and a public app still needs its own user authentication.</p>
+
+        <h2 id="recovery">A dropped connection shouldn’t change the job</h2>
+        <p>Suppose your agent starts a machine and loses the response. Repeating the request with the same <code>Idempotency-Key</code> looks up the original creation. Generating a new key asks for another start. We save the creation receipt before booting, so recovery has something to find.</p>
+        <p>Once running, an Ad Hoc machine is identified by its slot and exact <code>createdAt</code> timestamp. Slots get reused. A delayed cleanup request must distinguish yesterday’s dashboard from today’s occupant. The <a href="https://github.com/mainbrella/backend/blob/main/containers/container-account-core.js">account coordinator</a> and runtime enforce those identities; cleanup shouldn’t guess.</p>
+        <p>Longer commands can use managed executions with retained results and numbered output events. Jobs run for up to fifteen minutes within the machine’s lease, with results retained for an hour. A disconnected viewer can reconnect using its cursor while the job continues within its deadline. A runtime restart is different: unfinished jobs become interrupted, without silently replaying commands. Automatically rerunning a side effect because its reply disappeared is how a “helpful” retry becomes a second invoice.</p>
+
+        <h2 id="billing">Put the budget on the server</h2>
+        <p>The Linux guests run on Cloudflare Containers. The account coordinator is a Durable Object, persistent application code outside those guests. It reserves capacity and runtime before provisioning, while a separate controller enforces each machine’s deadlines and access. Concurrent agents share the account’s funding; they can’t each spend the same remaining dollar.</p>
+        <p>Current <a href="/pricing/">prepaid compute</a> starts with a $5 top-up, carries unused funds forward, and has no monthly subscription. Here are representative sizes; provisioning and idle time count too.</p>
+        <table class="machine-rates">
+          <thead><tr><th scope="col">Machine</th><th scope="col">RAM</th><th scope="col">Compute / hour</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Lite</th><td>256 MiB</td><td>$0.02</td></tr>
+            <tr><th scope="row">Small</th><td>4 GiB</td><td>$0.12</td></tr>
+            <tr><th scope="row">XL</th><td>12 GiB</td><td>$0.56</td></tr>
+          </tbody>
+        </table>
+        <p>A separate monthly spending cap bounds consumption. Stopping releases unused runtime reservations; model inference and retained storage have their own usage charges. The cloud bill shouldn’t depend on whether a browser remembered to run its cleanup handler.</p>
+        <p>Temporary Ad Hoc sessions have idle and hard deadlines. The backend’s newer <a href="https://github.com/mainbrella/backend/blob/main/docs/production.md">Production lifecycle</a> renews funded five-minute reservations and supervises a startup command for longer-lived services. Its live rollout still needs qualification. Recovery starts from the image and command, so durable application data belongs outside the guest; persistent disks, replica failover, and an uptime SLA aren’t included.</p>
+
+        <h2 id="ownership">Buy the service, or run it</h2>
+        <p>The <a href="https://github.com/mainbrella/backend">backend</a> and <a href="https://github.com/mainbrella/web">web client</a> are open source under GPLv3, including accounts, billing, and lifecycle enforcement. You can develop locally with Wrangler and a Docker-compatible engine, or adapt a deployment to your own Cloudflare account. That takes operator work, and the infrastructure layer depends on Cloudflare.</p>
+        <p>With the hosted service, we handle platform deployment and maintenance. A self-hosted deployment leaves those jobs with you, alongside control over the implementation. Start with a small task: <a href="/build/">build the CSV dashboard</a>, check its totals, download its repository, and run it in your editor. You should leave that experiment with useful software and code you can keep working on.</p>
+      </article>
+    </main>
+    <!-- site-footer -->
+    <script type="module" src="/src/account-menu.ts"></script>
+  </body>
+</html>

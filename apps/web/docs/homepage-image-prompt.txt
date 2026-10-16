@@ -1,0 +1,17 @@
+Homepage umbrella asset
+
+Output: public/images/home-umbrella.webp
+Generated with the built-in image generation tool, then compressed to WebP.
+The existing Mainbrella logo is reused separately; no logo or UI is baked into the image.
+
+Prompt:
+Use case: stylized-concept.
+Asset type: atmospheric background illustration for the Mainbrella developer platform homepage, behind an existing live HTML terminal preview.
+Primary request: a large, unmistakable open blue umbrella sheltering a small futuristic cloud computing city, inspired by a luminous cyan umbrella canopy over dark blue server buildings and the restrained midnight-blue Mainbrella landing page aesthetic.
+Scene/backdrop: near-black midnight navy (#030b15), soft low clouds, an understated cluster of server-like architectural towers and curved illuminated connections in the bottom right. The umbrella is the clear focal point.
+Subject: one elegant open umbrella, seen from slightly below and in front, large cobalt-blue canopy with distinct scalloped edges, visible fabric panels and curved ribs, fine cyan lighting along its outer rim. A slender shaft and subtly curved J handle identify it clearly as an umbrella rather than a dome. Keep the umbrella silhouette fully inside the image, with its crown near the top and its canopy occupying the upper half of the right three quarters. The shaft descends into the cloud city.
+Style/medium: polished cinematic 3D illustration, architectural scale, careful material detail, restrained light bloom and realistic translucent blue canopy; sophisticated developer infrastructure art.
+Composition/framing: landscape 1536x1024. Place the umbrella centered around 65 percent of image width; large and readable, spanning approximately 75 percent of the canvas width. Leave the far left quarter nearly black and uncluttered to blend into homepage copy. Crown around 12 percent of image height; the curved scalloped rim around 42 percent of height. The middle lower part will be covered by an HTML terminal, so the umbrella must remain recognizable by its canopy above it. Sparse clouds and a few small luminous server towers around the lower and right edges, much quieter than the umbrella. Fade all outer edges smoothly into the dark navy background.
+Lighting/mood: calm midnight-blue atmosphere, luminous blue canopy and crisp cyan rim, subtle cobalt haze, trustworthy and technically precise rather than busy or playful.
+Color palette: dark navy #030b15, cobalt #167cff, cyan #38c5ff, no extra accent colors.
+Constraints: image artwork only, no text, no labels, no logos, no UI, no dashboards, no terminal windows, no frames, no watermark. Do not render a globe, Earth, planets or a spherical dome. No people. No dense star field.
