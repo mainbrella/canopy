@@ -45,8 +45,9 @@ R2 billing, domain purchases, voice, custom-domain project hosting, custom image
 builds, SSH, and security provisioning are disabled. Billing has no credentials by
 default, and staging rejects live Stripe keys at both deployment and runtime.
 Optional Stripe test credentials do not create a test product/price catalog or
-fund accounts. Use the existing admin credit controls on staging accounts when
-testing usage; admin authorization is unchanged.
+fund accounts automatically. To test paid usage, configure test prepaid billing
+as described below and top up with a Stripe test payment. Admin authorization is
+unchanged.
 
 Container workers reuse the maintained catalog's immutable image digests from
 the `terminal-image` release in `mainbrella/backend`. The release validates those
@@ -100,6 +101,10 @@ an object with only these supported keys:
 - `STRIPE_PUBLISHABLE_KEY`: a `pk_test_` key.
 - `STRIPE_WEBHOOK_SECRET`: a new endpoint secret for a Stripe test webhook at
   the staging API.
+- `STRIPE_PREPAID_PRICE_ID`: an active, one-time USD price for $5.00 on an active
+  product in the same Stripe test account. Requires an explicit test secret key
+  in this JSON. The existing billing code verifies the price through that test
+  account before checkout; a production price ID will not work.
 
 Leave unused keys out. The API receives these values in the same code version;
 the private admin service receives only the test Stripe secret key if supplied.
@@ -196,9 +201,11 @@ After installation, verify:
 - A credited staging account can start a terminal, persist a file, and open a
   preview under `*.stg.mainbrella.dev`.
 - `https://api-stg.mainbrella.com/openapi.json` advertises the staging server and
-  cookie. For SDK/CLI testing, explicitly set
-  `MAINBRELLA_API_URL=https://api-stg.mainbrella.com`; published SDK documentation
-  examples retain their canonical production defaults.
+  cookie. For CLI/MCP testing, explicitly set
+  `MAINBRELLA_API_URL=https://api-stg.mainbrella.com`. For JavaScript SDK clients,
+  pass `baseUrl: 'https://api-stg.mainbrella.com'`; Python clients take
+  `base_url='https://api-stg.mainbrella.com'`. Published SDK documentation examples
+  retain their canonical production defaults.
 
 Roll back only the affected `*-stg` worker versions, coordinating with the
 staging lock. A worker rollback does not undo D1 or Durable Object migrations.

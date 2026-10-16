@@ -187,9 +187,12 @@ test('operation and secret gates reject the wrong source or live credentials bef
   ]) assert.throws(() => validateStagingOperation('deploy', 'api', { ...releaseEnv, ...change }, sha));
   for (const invalid of ['{', '[]', '{"STRIPE_SECRET_KEY":"sk_live_bad"}',
     '{"STRIPE_PUBLISHABLE_KEY":"pk_live_bad"}', '{"UNKNOWN":"value"}',
-    '{"MONITORING_SECRET":"short"}']) assert.throws(() => stagingSecrets(invalid));
+    '{"MONITORING_SECRET":"short"}', '{"STRIPE_PREPAID_PRICE_ID":"price_test"}',
+    '{"STRIPE_SECRET_KEY":"sk_test_safe","STRIPE_PREPAID_PRICE_ID":"invalid"}']) assert.throws(() => stagingSecrets(invalid));
   assert.deepEqual(stagingSecrets('{"STRIPE_SECRET_KEY":"rk_test_safe","STRIPE_PUBLISHABLE_KEY":"pk_test_safe"}'),
     { STRIPE_SECRET_KEY: 'rk_test_safe', STRIPE_PUBLISHABLE_KEY: 'pk_test_safe' });
+  assert.deepEqual(stagingSecrets('{"STRIPE_SECRET_KEY":"sk_test_safe","STRIPE_PREPAID_PRICE_ID":"price_test"}'),
+    { STRIPE_SECRET_KEY: 'sk_test_safe', STRIPE_PREPAID_PRICE_ID: 'price_test' });
   const f = fixture(t);
   f.options.env.STAGING_SECRETS_JSON = '{"STRIPE_SECRET_KEY":"sk_live_bad"}';
   await assert.rejects(stagingOperation('deploy', { ...f.options, target: 'api' }), /test keys only/);

@@ -48,13 +48,15 @@ export function stagingSecrets(raw) {
   let secrets;
   try { secrets = JSON.parse(raw); } catch { throw new Error('STAGING_SECRETS_JSON must be a JSON object.'); }
   assert.ok(secrets && typeof secrets === 'object' && !Array.isArray(secrets), 'STAGING_SECRETS_JSON must be a JSON object.');
-  const allowed = new Set(['MONITORING_SECRET', 'IMAGE_BUILD_SECRET', 'STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET']);
+  const allowed = new Set(['MONITORING_SECRET', 'IMAGE_BUILD_SECRET', 'STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PREPAID_PRICE_ID']);
   for (const [name, value] of Object.entries(secrets)) {
     assert.ok(allowed.has(name) && typeof value === 'string' && value.length > 0, 'Only explicitly supported STAGING_SECRETS_JSON keys may be installed.');
     if (name === 'STRIPE_SECRET_KEY') assert.ok(/^(?:sk|rk)_test_/.test(value), 'Staging accepts Stripe test keys only.');
     if (name === 'STRIPE_PUBLISHABLE_KEY') assert.ok(value.startsWith('pk_test_'), 'Staging accepts Stripe test publishable keys only.');
+    if (name === 'STRIPE_PREPAID_PRICE_ID') assert.ok(/^price_[A-Za-z0-9_]+$/.test(value), 'Staging prepaid pricing needs a Stripe price ID.');
     if (name === 'MONITORING_SECRET' || name === 'IMAGE_BUILD_SECRET') assert.ok(value.length >= 32, 'Staging operational secrets need at least 32 characters.');
   }
+  if (secrets.STRIPE_PREPAID_PRICE_ID) assert.ok(secrets.STRIPE_SECRET_KEY, 'Staging prepaid pricing requires an explicit Stripe test key.');
   if (secrets.MONITORING_SECRET && secrets.IMAGE_BUILD_SECRET) assert.notEqual(secrets.MONITORING_SECRET, secrets.IMAGE_BUILD_SECRET, 'Operational secrets must be distinct.');
   return secrets;
 }
