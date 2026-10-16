@@ -40,9 +40,7 @@ import { registerAcquisitionRoutes } from './openapi-acquisition';
 import { registerBuildRoutes } from './openapi-build';
 import { forward, type LegacyHandler } from "./openapi-shared";
 import { registerSecurityInfrastructureRoutes } from './openapi-security-infrastructure';
-import { registerVoiceRoutes } from './openapi-voice';
-import { registerVoiceTelnyxRoutes } from './openapi-voice-telnyx';
-import { registerVoiceNumberSearchRoutes } from './openapi-voice-number-search';
+import { registerVoiceRoutes, registerVoiceTelnyxRoutes, registerVoiceNumberSearchRoutes } from '@canopy/voice/openapi';
 import { isStaging, publicApiOrigin, publicWebOrigin } from '../lib/deployment-environment';
 
 // Independent service documents keep infrastructure routes off the customer API.

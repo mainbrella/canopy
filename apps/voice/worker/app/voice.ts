@@ -1,5 +1,5 @@
 import { billingError } from '../lib/voice-billing';
-import { authCorsHeaders, authJson, currentUser } from './auth-core';
+import { authCorsHeaders, authJson, currentUser } from '../../../backend/worker/app/auth-core';
 import { callStub, createCall, expireCalls, initializeCall, publicAgent, publicCall, publicVoiceOrigin, readAgent, readCall, telephonyConfigured, twilioSipUri, VOICE_MODELS, voiceAgentInput, voiceEnabled, type VoiceCallRow } from '../lib/voice';
 import { handleTwilioRequest } from './voice-twilio';
 import { handleTelnyxRequest } from './voice-telnyx';

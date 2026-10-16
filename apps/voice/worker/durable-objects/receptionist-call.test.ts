@@ -6,7 +6,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { VoiceClient, type VoiceTransport } from '@cloudflare/voice/client';
 import { getExpectedTwilioSignature } from 'twilio/lib/webhooks/webhooks.js';
 import { TELNYX_TEST_ACCOUNT, TELNYX_TEST_BINDINGS, TELNYX_TEST_CALL, TELNYX_TEST_CONNECTION, TELNYX_TEST_SIP, telnyxTestSignature } from '../app/voice-telnyx-test-helpers';
-import { hashToken } from '../app/auth-core';
+import { hashToken } from '../../../backend/worker/app/auth-core';
 import { pcmToTelnyx } from '../lib/voice-telnyx';
 
 const acknowledgmentPhrases=['One second please.','Got it, just a sec.','I see, let me think.'];
@@ -21,11 +21,11 @@ async function runtime(t: test.TestContext, bindings: Record<string,string> = {}
   t.after(()=>mf.dispose());
   const db=await mf.getD1Database('DB');
   for (const migration of ['001_initial','002_auth_sessions','043_voice_receptionist','044_voice_billing','045_voice_sip','046_voice_telnyx','047_voice_logic','048_voice_languages']) {
-    const statements=readFileSync(new URL(`../../migrations/${migration}.sql`,import.meta.url),'utf8').split(';').map(value=>value.trim()).filter(Boolean);
+    const statements=readFileSync(new URL(`../../../backend/migrations/${migration}.sql`,import.meta.url),'utf8').split(';').map(value=>value.trim()).filter(Boolean);
     for (const statement of statements) await db.prepare(statement).run();
   }
   for (const migration of ['020_accounting_ledger','026_build_ai_billing']) {
-    const sql=readFileSync(new URL(`../../migrations/${migration}.sql`,import.meta.url),'utf8').replace(/^--.*$/gm,'');
+    const sql=readFileSync(new URL(`../../../backend/migrations/${migration}.sql`,import.meta.url),'utf8').replace(/^--.*$/gm,'');
     const statements=sql.match(/\s*CREATE TRIGGER[\s\S]*?END;|\s*[^;]+;/g)!;
     for (const statement of statements) await db.prepare(statement.trim()).run();
   }

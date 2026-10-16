@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { paidContainerFixture, USER_ONE } from './paid-container-test-helpers';
+import { paidContainerFixture, USER_ONE } from '../../../backend/worker/app/paid-container-test-helpers';
 import { voiceBillingFixture } from './voice-billing-test-helpers';
 import { checkVoiceBalance, llmCost, llmReservation, meteredVoiceInference, reportVoiceUsage, reserveVoiceUsage, settleReportedVoiceUsage, sttCost, ttsCost } from '../lib/voice-billing';
 import { VOICE_MODELS } from '../lib/voice';

@@ -1,4 +1,4 @@
-import { settleReportedVoiceUsage } from './lib/voice-billing';
+import { settleReportedVoiceUsage } from '@canopy/voice/billing';
 import { notifyStorageRetention } from './lib/r2-retention';
 import { reconcileDomainOrders } from './app/domains';
 import { checkStorageHealth } from './lib/r2-health';
@@ -13,7 +13,7 @@ import { cleanupDeletedBuildGit } from './lib/build-git';
 import { reconcileBuildTurns } from './app/build';
 
 export { AppState };
-export { ReceptionistCall } from './durable-objects/receptionist-call';
+export { ReceptionistCall } from '@canopy/voice/call';
 export { ContainerAccount } from "./durable-objects/container-account";
 export { AccountActivity } from './durable-objects/account-activity';
 export { BuildWorkflow } from './workflows/build';

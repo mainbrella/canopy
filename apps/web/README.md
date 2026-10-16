@@ -1,5 +1,11 @@
 # website
 
+Web owns public pages, shared account UI, and route/build composition. Voice's
+browser implementation and tests live in [apps/voice/web](../voice/web); the two
+Voice source entries here supply session/configuration or load landing behavior.
+Voice HTML and CSS remain here during the first extraction milestone. See the
+root [product boundaries](../../README.md#product-boundaries) for the next steps.
+
 ```sh
 npm ci
 npm run dev       # One Vite development server for the site and /build/

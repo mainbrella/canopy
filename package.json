@@ -6,7 +6,8 @@
   "workspaces": [
     "apps/backend",
     "apps/web",
-    "apps/raindrop"
+    "apps/raindrop",
+    "apps/voice"
   ],
   "packageManager": "npm@10.9.7",
   "engines": {
@@ -41,6 +42,8 @@
     "stg:deploy": "node scripts/staging.mjs deploy",
     "stg:bootstrap": "node scripts/staging.mjs bootstrap",
     "stg:migrate:api": "node scripts/staging.mjs migrate-api",
-    "stg:migrate:previews": "node scripts/staging.mjs migrate-previews"
+    "stg:migrate:previews": "node scripts/staging.mjs migrate-previews",
+    "test:voice": "npm test -w @canopy/voice",
+    "check:boundaries": "node scripts/check-app-boundaries.mjs"
   }
 }

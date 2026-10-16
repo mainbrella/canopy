@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
-import { ContainerAccountController } from '../../containers/container-account-core.js';
-import { appendAccountingEvent } from '../lib/accounting-ledger';
+import { ContainerAccountController } from '../../../backend/containers/container-account-core.js';
+import { appendAccountingEvent } from '../../../backend/worker/lib/accounting-ledger';
 // Deterministic Workers AI fixture: exercises the production Agent, STT/TTS
 // protocol and persistence without running paid inference during tests.
 import { ReceptionistCall as BaseCall } from '../durable-objects/receptionist-call';

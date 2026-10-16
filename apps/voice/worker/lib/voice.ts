@@ -1,7 +1,7 @@
 import { billingError, checkVoiceBalance, phoneRate, stopUserCalls } from './voice-billing';
 import { z } from 'zod';
 import { speechModelAvailable, validSpeechSelection, voiceLanguage, voiceModel, VOICE_LANGUAGES } from './voice-options';
-import { isStaging } from './deployment-environment';
+import { isStaging } from '../../../backend/worker/lib/deployment-environment';
 
 export const VOICE_MODELS = {
   stt: '@cf/deepgram/flux',

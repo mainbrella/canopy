@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { cookieSecurity, errors, jsonResponse, register, requestBody, type LegacyHandler, type OpenAPIApi } from './openapi-shared';
+import { cookieSecurity, errors, jsonResponse, register, requestBody, type LegacyHandler, type OpenAPIApi } from '../../../backend/worker/app/openapi-shared';
 import { voiceLanguage, voiceModel } from '../lib/voice-options';
 
 const voice = z.string().min(1).max(128).describe('Voice ID from speech.models[].languages[].voices in GET /voice/config; must match the selected model and language.');

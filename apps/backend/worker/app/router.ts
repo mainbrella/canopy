@@ -1,4 +1,4 @@
-import { handleVoiceRequest } from './voice';
+import { handleVoiceRequest } from '@canopy/voice/routes';
 import { handleStorageBillingRequest } from './storage-billing';
 import { handleDomainsRequest } from './domains';
 import { handleRepoLaunchRequest } from "./repo-launches";

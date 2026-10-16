@@ -1,5 +1,9 @@
 # Mainbrella API
 
+Voice source and product tests now live in [apps/voice](../voice). This workspace
+still composes its routes, OpenAPI schemas, billing reconciliation, and Durable
+Object export into the existing API deployment.
+
 The session-authenticated `/containers` API resolves paid access from Stripe and
 reserves starts in an account-owned `ContainerAccount` Durable Object. Each
 container runs in its own private `UserContainer` in `mainbrella-containers`.
@@ -355,7 +359,7 @@ relevant checks with:
 npm run type-check
 npm run test:openapi
 npm run docs:generate
-npx tsx --test worker/app/voice.test.ts worker/app/voice-billing.test.ts worker/durable-objects/receptionist-call.test.ts
+npm run test:worker -w @canopy/voice
 ```
 
 ## Verification

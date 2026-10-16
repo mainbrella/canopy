@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare, Response as MiniflareResponse, convertV4MiniflareOptions } from 'miniflare';
-import { handleRequest } from './router';
-import { paidContainerFixture, SESSION_ONE, SESSION_TWO, USER_ONE, USER_TWO } from './paid-container-test-helpers';
+import { handleRequest } from '../../../backend/worker/app/router';
+import { paidContainerFixture, SESSION_ONE, SESSION_TWO, USER_ONE, USER_TWO } from '../../../backend/worker/app/paid-container-test-helpers';
 import { matchesNumberPattern, numberSearchDigits } from './voice-number-search';
 
 const endpoint = 'https://api.mainbrella.com/voice/numbers/search';

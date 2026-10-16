@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { getExpectedTwilioSignature } from 'twilio/lib/webhooks/webhooks.js';
-import { handleRequest } from './router';
-import { paidContainerFixture, SESSION_ONE, SESSION_TWO, USER_ONE, USER_TWO } from './paid-container-test-helpers';
+import { handleRequest } from '../../../backend/worker/app/router';
+import { paidContainerFixture, SESSION_ONE, SESSION_TWO, USER_ONE, USER_TWO } from '../../../backend/worker/app/paid-container-test-helpers';
 import { voiceBillingFixture } from './voice-billing-test-helpers';
 import { hangupTwilioCall, pcmToTwilio, twilioToPCM } from '../lib/voice-telephony';
 import { publicCall, twilioSipUri, type VoiceCallRow } from '../lib/voice';
@@ -28,11 +28,11 @@ function upgradeResponse(): Response {
 async function fixture(t: TestContext) {
   const f = await paidContainerFixture(t);
   t.after(() => f.close());
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/043_voice_receptionist.sql', import.meta.url)), 'utf8'));
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/045_voice_sip.sql', import.meta.url)), 'utf8'));
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/046_voice_telnyx.sql', import.meta.url)), 'utf8'));
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/047_voice_logic.sql', import.meta.url)), 'utf8'));
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/048_voice_languages.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/043_voice_receptionist.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/045_voice_sip.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/046_voice_telnyx.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/047_voice_logic.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/048_voice_languages.sql', import.meta.url)), 'utf8'));
   const billing=await voiceBillingFixture(f.env,f.sqlite,USER_ONE);
   f.env.VOICE_PHONE_MICRO_USD_PER_MINUTE='12500';
   f.env.AI = {} as Ai;
@@ -132,14 +132,14 @@ test('voice logic migration defaults existing agent rows', async t => {
   const f = await paidContainerFixture(t);
   t.after(() => f.close());
   for (const migration of ['043_voice_receptionist', '045_voice_sip', '046_voice_telnyx']) {
-    f.sqlite.exec(readFileSync(fileURLToPath(new URL(`../../migrations/${migration}.sql`, import.meta.url)), 'utf8'));
+    f.sqlite.exec(readFileSync(fileURLToPath(new URL(`../../../backend/migrations/${migration}.sql`, import.meta.url)), 'utf8'));
   }
   f.sqlite.prepare(`INSERT INTO voice_agents(id,user_id,name,business_name,greeting,instructions,voice,updated_at)
     VALUES(?,?,?,?,?,?,?,?)`).run(crypto.randomUUID(), USER_ONE, 'Legacy', 'Business', 'Hello', 'Instructions', 'asteria', new Date().toISOString());
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/047_voice_logic.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/047_voice_logic.sql', import.meta.url)), 'utf8'));
   const existing = f.sqlite.prepare('SELECT voice_logic FROM voice_agents WHERE user_id=?').get(USER_ONE) as { voice_logic: string };
   assert.equal(existing.voice_logic, 'original_no_reply');
-  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../migrations/048_voice_languages.sql', import.meta.url)), 'utf8'));
+  f.sqlite.exec(readFileSync(fileURLToPath(new URL('../../../backend/migrations/048_voice_languages.sql', import.meta.url)), 'utf8'));
   const speech=f.sqlite.prepare('SELECT model,language,voice FROM voice_agents WHERE user_id=?').get(USER_ONE);
   assert.deepEqual({...speech as any},{model:'aura-1',language:'en',voice:'asteria'});
 });

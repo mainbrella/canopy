@@ -21,6 +21,17 @@ test('shared backend changes select public consumers and SDK checks', () => {
   for (const key of ['backend_full', 'sdk', 'site', 'builder', 'raindrop_ui']) assert.equal(result[key], true);
 });
 
+test('Voice browser changes select the site and worker changes select their API host', () => {
+  const browser = affectedTargets(['apps/voice/web/voice-api.ts']);
+  assert.equal(browser.site, true);
+  assert.equal(browser.builder, false);
+  assert.equal(browser.backend_full, false);
+  for (const path of ['apps/voice/worker/app/voice.ts', 'apps/voice/package.json', 'apps/voice/tsconfig.web.json']) {
+    const worker = affectedTargets([path]);
+    for (const key of ['backend_full', 'sdk', 'site', 'builder', 'docs']) assert.equal(worker[key], true, path);
+  }
+});
+
 test('web builder and Raindrop operations stay independently selected', () => {
   const result = affectedTargets(['apps/web/build/index.html', 'apps/raindrop/scripts/google.py']);
   assert.equal(result.builder, true);

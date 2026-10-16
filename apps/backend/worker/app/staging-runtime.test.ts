@@ -8,7 +8,7 @@ import { stripeKeyAllowed, stripeRequest, type BillingEnv } from '../lib/stripe'
 import { handleImageBuildRequest } from './images';
 import { handleSSHRequest } from './ssh';
 import { registrarConfigured } from '../lib/namecom';
-import { voiceEnabled } from '../lib/voice';
+import { voiceEnabled } from '../../../voice/worker/lib/voice';
 
 test('staging URLs use stage hosts while production and local callbacks keep their origins', () => {
   const staging = { DEPLOYMENT_ENVIRONMENT: 'staging' } as Env;

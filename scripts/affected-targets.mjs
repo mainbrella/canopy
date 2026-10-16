@@ -28,6 +28,15 @@ export function affectedTargets(paths) {
         // A shared backend change can affect both public clients and Raindrop auth.
         selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
       } else service.services.forEach(name => services.add(name));
+    } else if (path.startsWith('apps/voice/')) {
+      const local = path.slice('apps/voice/'.length);
+      if (local === 'README.md') selected.docs = true;
+      else if (local.startsWith('web/')) selected.site = true;
+      else {
+        // Voice still runs in the API Worker. Backend checks include its worker
+        // tests, and the site checks include its browser tests.
+        selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
+      }
     } else if (path.startsWith('apps/web/')) {
       const local = path.slice('apps/web/'.length);
       if (!local) return allTargets();

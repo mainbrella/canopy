@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
-import { ContainerAccountController } from '../../containers/container-account-core.js';
-import { appendAccountingEvent } from '../lib/accounting-ledger';
+import { ContainerAccountController } from '../../../backend/containers/container-account-core.js';
+import { appendAccountingEvent } from '../../../backend/worker/lib/accounting-ledger';
 
 export async function voiceBillingFixture(env: Env, sqlite: DatabaseSync, userId: string) {
   for (const name of ['020_accounting_ledger','026_build_ai_billing','044_voice_billing'])
-    sqlite.exec(readFileSync(new URL(`../../migrations/${name}.sql`,import.meta.url),'utf8'));
+    sqlite.exec(readFileSync(new URL(`../../../backend/migrations/${name}.sql`,import.meta.url),'utf8'));
   const stored=new Map<string,unknown>();
   const ctx={storage:{
     async get(key:string) {return structuredClone(stored.get(key));},

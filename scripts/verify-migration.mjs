@@ -18,7 +18,14 @@ assert.ok(args.length === 0 || args.length === 1 && args[0] === '--baseline', 'U
 const baseline = args[0] === '--baseline';
 
 assert.equal(workspace.private, true);
-assert.deepEqual(workspace.workspaces, manifest.imports.map(app => app.path));
+// The import manifest is historical evidence, not a limit on future workspaces.
+assert.equal(new Set(workspace.workspaces).size, workspace.workspaces.length);
+for (const app of manifest.imports) assert.ok(workspace.workspaces.includes(app.path), `${app.path}: imported workspace missing`);
+for (const path of workspace.workspaces) {
+  const name = json(`${path}/package.json`).name;
+  assert.equal(lock.packages[path]?.name, name, `${path}: workspace missing from root lockfile`);
+  assert.equal(lock.packages[`node_modules/${name}`]?.resolved, path, `${path}: workspace link missing`);
+}
 git(['merge-base', '--is-ancestor', manifest.canopy.commit, 'HEAD']);
 for (const app of manifest.imports) {
   git(['merge-base', '--is-ancestor', app.commit, 'HEAD']);

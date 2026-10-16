@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { numberSearchInput, numberSearchResponse } from './voice-number-search';
-import { cookieSecurity, errors, jsonResponse, register, type LegacyHandler, type OpenAPIApi } from './openapi-shared';
+import { cookieSecurity, errors, jsonResponse, register, type LegacyHandler, type OpenAPIApi } from '../../../backend/worker/app/openapi-shared';
 
 export function registerVoiceNumberSearchRoutes(api: OpenAPIApi, handler: LegacyHandler): void {
   register(api, 'get', '/voice/numbers/search', {

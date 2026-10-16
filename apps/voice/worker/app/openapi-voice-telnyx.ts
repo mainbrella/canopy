@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { errors, register, type LegacyHandler, type OpenAPIApi } from './openapi-shared';
+import { errors, register, type LegacyHandler, type OpenAPIApi } from '../../../backend/worker/app/openapi-shared';
 
 const signatureHeaders = {
   'telnyx-signature-ed25519': z.string().describe('Base64 Ed25519 signature.'),

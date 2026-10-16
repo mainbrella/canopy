@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { boundedPrivateBody } from '../../containers/private-services-contract.js';
-import { authCorsHeaders, authJson, currentUser } from './auth-core';
+import { boundedPrivateBody } from '../../../backend/containers/private-services-contract.js';
+import { authCorsHeaders, authJson, currentUser } from '../../../backend/worker/app/auth-core';
 
 export const numberSearchInput = z.object({
   country: z.enum(['US', 'CA']).default('US'),
