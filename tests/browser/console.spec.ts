@@ -20,8 +20,8 @@ test("home lists uninstalled products and checks the instance Voice installation
   for (const name of ["Compute", "Builder", "Voice"]) {
     await page.locator("#product-list").getByRole("link", { name: new RegExp(name) }).click();
     await expect(page.getByRole("heading", { name, exact: true })).toBeFocused();
-    await expect(page.locator("#product-notice")).toHaveText(`${name} isn’t available in this deployment yet.`);
-    await expect(page.getByRole("button", { name: /install|enable/i })).toHaveCount(0);
+    await expect(page.locator("#product-notice")).toHaveText(name === "Voice" ? "Voice isn’t installed in this deployment." : `${name} isn’t available in this deployment yet.`);
+    await expect(page.getByRole("button", { name: /install|enable/i })).toBeHidden();
     await page.reload();
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Back to products" }).click();

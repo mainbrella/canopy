@@ -16,6 +16,10 @@
     "ai-receptionist": {
       "url": "https://github.com/mainbrella/ai-receptionist",
       "commit": "7d3e023318f36f7a45e5d155c46d96e3896f9502"
+    },
+    "appflare": {
+      "url": "https://github.com/appflare/appflare",
+      "commit": "ccafe08b4958d8e2f80299ee310b99a7f5d00eca"
     }
   },
   "files": [
@@ -467,7 +471,7 @@
       "source": "worker/app/voice-telnyx.ts",
       "destination": "products/voice/worker/app/voice-telnyx.ts",
       "sha256": "d007dc95e416f6704b847026100a960a9942d862adbfb7ffea394a0eeb79ded0",
-      "change": "Add an explicit product Env type import; behavior unchanged."
+      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain."
     },
     {
       "repository": "ai-receptionist",
@@ -475,7 +479,7 @@
       "source": "worker/app/voice-twilio.ts",
       "destination": "products/voice/worker/app/voice-twilio.ts",
       "sha256": "4e850b95b6018ebeedfb0daa608f553185e48e7302cb6f388409204b96028065",
-      "change": "Add an explicit product Env type import; behavior unchanged."
+      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain."
     },
     {
       "repository": "ai-receptionist",
@@ -547,7 +551,7 @@
       "source": "worker/lib/voice-telnyx.ts",
       "destination": "products/voice/worker/lib/voice-telnyx.ts",
       "sha256": "8f1fbbec9706fb3717a9094b4664939324a4ebfbd7596203ce1174a7bb8fd1be",
-      "change": "Add an explicit product Env type import; behavior unchanged."
+      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain."
     },
     {
       "repository": "ai-receptionist",
@@ -555,7 +559,7 @@
       "source": "worker/lib/voice.ts",
       "destination": "products/voice/worker/lib/voice.ts",
       "sha256": "8da2ee8a158dc769726c163f21dffbb3a56891b4f90f37a23437b81efb701213",
-      "change": "Add an explicit product Env type import; behavior unchanged."
+      "change": "Add an explicit product Env type import; behavior unchanged. Connected mode additionally requires explicit carrier user/agent ownership and owner-funded core usage authorization, with atomic instance-wide call limits; standalone routing/signatures/replay protections remain."
     },
     {
       "repository": "ai-receptionist",
@@ -698,5 +702,28 @@
       "guide": "https://appflare.dev/catalog/submit/",
       "result": "Single-Worker Voice bindings fit the documented artifact path. New Canopy source pin, pack and real install remain pending."
     }
-  }
+  },
+  "integrationReferences": [
+    {
+      "repository": "appflare",
+      "source": "apps/manager/src/db/schema.ts",
+      "sha256": "eea7c25ad18ded8c8a9316800c9f8011a193941c835600558e9e493718293187",
+      "destination": "scripts/register-appflare.mjs",
+      "change": "Protocol reference for read-only installed artifact/resource queries. Adapter is new Canopy code; no Appflare lifecycle or auth code copied."
+    },
+    {
+      "repository": "appflare",
+      "source": "apps/docs/content/docs/guides/install-links.md",
+      "sha256": "cd1ac7b33994b447b5a4d9e1b128cb7fae3ab9009970230d5736ec193a9d86a7",
+      "destination": "platform/accounts/src/products.ts",
+      "change": "Supported /install/cut admin review link. Canopy records a request and navigates; it does not call an internal server function or claim automatic provisioning."
+    },
+    {
+      "repository": "appflare",
+      "source": "packages/pack/src/cli-main.ts",
+      "sha256": "8b49ef82bdb0174dd5d5f184804135157375ea9a54f25d7c6f0e5fa59547de58",
+      "destination": "products/voice/docs/appflare.md",
+      "change": "Supported local pack/verify invocation. Toolchain is archived and built under ignored Canopy .cache; sibling stays read-only."
+    }
+  ]
 }

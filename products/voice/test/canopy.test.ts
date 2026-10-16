@@ -70,3 +70,69 @@ test("Canopy users have distinct workspaces and cannot use the standalone owner 
   assert.equal((await handleCanopy(new Request(`${origin}/_canopy/ready`),f.env)).status,401);
   assert.equal((await handleCanopy(new Request(`${origin}/_canopy/ready`,{headers:{authorization:`Bearer ${secret}`}}),f.env)).status,200);
 });
+
+test('instance call limits are atomic across workspaces and usage authorization fails closed',async t=>{
+  const f=await fixture(t);
+  const {createCall}=await import('../worker/lib/voice');
+  const config={id:crypto.randomUUID(),name:'Maya',businessName:'Workshop',greeting:'Hello',instructions:'Take a message',voice:'asteria',voiceLogic:'original_no_reply',model:'aura-1',language:'en',transferNumber:null,updatedAt:new Date().toISOString()} as const;
+  let allowed=true;
+  t.mock.method(globalThis,'fetch',async()=>Response.json({allowed,billingMode:'owner_funded'}));
+  f.env.VOICE_INSTANCE_CONCURRENT_CALL_LIMIT='2';f.env.VOICE_INSTANCE_DAILY_CALL_LIMIT='3';
+  const configs=new Map<string,typeof config>();
+  for(const user of ['one','two','three','four','five']) {
+    const entry={...config,id:crypto.randomUUID()};configs.set(user,entry);
+    await f.db.prepare(`INSERT INTO voice_agents(id,user_id,name,business_name,greeting,instructions,voice,updated_at) VALUES(?,?,?,?,?,?,?,?)`)
+      .bind(entry.id,user,'Maya','Workshop','Hello','Take messages','asteria',new Date().toISOString()).run();
+  }
+  const calls=await Promise.all(['one','two','three','four'].map(user=>createCall(f.env,user,configs.get(user)!,'text')));
+  assert.equal(calls.filter(Boolean).length,2);
+  await f.db.prepare("UPDATE voice_calls SET status='completed',ended_at=?").bind(new Date().toISOString()).run();
+  assert.ok(await createCall(f.env,'three',configs.get('three')!,'text'));
+  await f.db.prepare("UPDATE voice_calls SET status='completed'").run();
+  assert.equal(await createCall(f.env,'four',configs.get('four')!,'text'),null);
+  f.env.VOICE_INSTANCE_DAILY_CALL_LIMIT='20';allowed=false;
+  assert.equal(await createCall(f.env,'five',configs.get('five')!,'text'),null);
+  t.mock.method(globalThis,'fetch',async()=>{throw new Error('billing offline');});
+  assert.equal(await createCall(f.env,'five',configs.get('five')!,'text'),null);
+  t.mock.method(globalThis,'fetch',async()=>Response.json({allowed:true,billingMode:'managed'}));
+  assert.equal(await createCall(f.env,'five',configs.get('five')!,'text'),null);
+});
+
+test('signed Canopy carriers route only to the assigned workspace and retain replay protection',async t=>{
+  const f=await fixture(t);
+  const {handleTwilioRequest}=await import('../worker/app/voice-twilio');
+  const {handleTelnyxRequest}=await import('../worker/app/voice-telnyx');
+  const {getExpectedTwilioSignature}=await import('twilio/lib/webhooks/webhooks.js');
+  const id=crypto.randomUUID(),other=crypto.randomUUID();
+  await f.db.prepare(`INSERT INTO voice_agents(id,user_id,name,business_name,greeting,instructions,voice,updated_at) VALUES(?,?,?,?,?,?,?,?)`)
+    .bind(id,'user-one','Maya','Workshop','Hello','Take messages','asteria',new Date().toISOString()).run();
+  Object.assign(f.env,{VOICE_PUBLIC_ORIGIN:origin,VOICE_CARRIER_AGENT_ID:id,VOICE_CARRIER_USER_ID:'user-one',
+    TWILIO_AUTH_TOKEN:'test-token',TWILIO_ACCOUNT_SID:`AC${'a'.repeat(32)}`,TWILIO_PHONE_NUMBER:'+15551234567',
+    RECEPTIONIST_CALL:{idFromName:(value:string)=>value,get:()=>({fetch:async()=>new Response('ok')})}});
+  t.mock.method(globalThis,'fetch',async()=>Response.json({allowed:true,billingMode:'owner_funded'}));
+  const twilio=async(agentId:string,sid:string)=>{
+    const fields={AccountSid:f.env.TWILIO_ACCOUNT_SID!,To:f.env.TWILIO_PHONE_NUMBER!,CallSid:sid};
+    const url=`${origin}/voice/twilio/incoming/${agentId}`;
+    return handleTwilioRequest(new Request(url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','x-twilio-signature':getExpectedTwilioSignature('test-token',url,fields)},body:new URLSearchParams(fields)}),f.env);
+  };
+  const sid=`CA${'b'.repeat(32)}`;
+  assert.equal((await twilio(other,sid)).status,403);
+  const incoming=await twilio(id,sid);assert.match(await incoming.text(),/<Stream/);
+  assert.doesNotMatch(await(await twilio(id,sid)).text(),/<Stream/);
+  f.env.VOICE_CARRIER_USER_ID='user-two';
+  assert.doesNotMatch(await(await twilio(id,`CA${'c'.repeat(32)}`)).text(),/<Stream/);
+  f.env.VOICE_CARRIER_USER_ID='user-one';
+  const keys=await crypto.subtle.generateKey('Ed25519',true,['sign','verify']);
+  const encode=(bytes:ArrayBuffer)=>Buffer.from(bytes).toString('base64');
+  Object.assign(f.env,{TELNYX_PUBLIC_KEY:encode(await crypto.subtle.exportKey('raw',keys.publicKey)),TELNYX_API_KEY:'test-key',TELNYX_ACCOUNT_SID:crypto.randomUUID(),TELNYX_CONNECTION_ID:'1234',TELNYX_PHONE_NUMBER:'+15557654321'});
+  const telnyx=async(agentId:string,callId:string)=>{
+    const body=new URLSearchParams({AccountSid:f.env.TELNYX_ACCOUNT_SID!,To:f.env.TELNYX_PHONE_NUMBER!,ConnectionId:'1234',CallSid:callId}).toString();
+    const timestamp=String(Math.floor(Date.now()/1000));
+    const signature=encode(await crypto.subtle.sign('Ed25519',keys.privateKey,new TextEncoder().encode(`${timestamp}|${body}`)));
+    return handleTelnyxRequest(new Request(`${origin}/voice/telnyx/incoming/${agentId}`,{method:'POST',body,headers:{'content-type':'application/x-www-form-urlencoded','telnyx-timestamp':timestamp,'telnyx-signature-ed25519':signature}}),f.env);
+  };
+  const telnyxId=crypto.randomUUID();
+  assert.equal((await telnyx(other,telnyxId)).status,403);
+  assert.match(await(await telnyx(id,telnyxId)).text(),/<Stream/);
+  assert.doesNotMatch(await(await telnyx(id,telnyxId)).text(),/<Stream/);
+});

@@ -19,7 +19,10 @@ test("installation discovery is instance-wide and ordinary accounts cannot provi
   assert.equal(anonymous.state,"ready");
   for (const email of ["one@example.com","two@example.com"]) {
     const cookie = (await f.login(email)).headers.get("set-cookie")!.split(";")[0];
-    assert.deepEqual(await (await f.request("/products/voice",{headers:{cookie}})).json(),anonymous);
+    const status=await (await f.request("/products/voice",{headers:{cookie}})).json();
+    assert.equal(status.state,anonymous.state);
+    assert.equal(status.access,"denied");
+    assert.equal(status.canInstall,false);
     assert.equal((await f.request("/products/voice",{method:"POST",headers:{cookie,origin}})).status,405);
   }
   assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM product_installations").get()!.count,1);
@@ -29,6 +32,7 @@ test("installation discovery is instance-wide and ordinary accounts cannot provi
 test("opening Voice uses the authenticated identity and a bounded private server handoff",async t=>{
   const f=fixture(t); installed(f);
   const login=await f.login(); const {user}=await login.clone().json();
+  f.env.OPERATOR_USER_ID=user.id; f.env.VOICE_BILLING_MODE="owner_funded";
   const cookie=login.headers.get("set-cookie")!.split(";")[0];
   const calls:Array<{url:string;body?:Record<string,unknown>}>=[];
   t.mock.method(globalThis,"fetch",async (url:string,init:RequestInit)=>{
@@ -65,6 +69,7 @@ test("pending, failed, unreachable and mismatched installations never report rea
 test("private session checks require the operator secret and reflect logout immediately",async t=>{
   const f=fixture(t); installed(f);
   const login=await f.login(); const {user}=await login.clone().json();
+  f.env.OPERATOR_USER_ID=user.id; f.env.VOICE_BILLING_MODE="owner_funded";
   const cookie=login.headers.get("set-cookie")!.split(";")[0];
   const sessionHash=f.sqlite.prepare("SELECT token_hash FROM sessions").get()!.token_hash;
   const call=(authorization:string)=>f.request("/internal/voice/session",{method:"POST",headers:{authorization,"content-type":"application/json"},body:JSON.stringify({sessionHash})});
@@ -72,4 +77,46 @@ test("private session checks require the operator secret and reflect logout imme
   assert.deepEqual(await (await call(`Bearer ${secret}`)).json(),{user:{id:user.id}});
   await f.request("/auth/logout",{method:"POST",headers:{cookie,origin}});
   assert.deepEqual(await (await call(`Bearer ${secret}`)).json(),{user:null});
+});
+
+test("public signup confers neither provisioning nor paid access; grants and revocations apply immediately",async t=>{
+  const f=fixture(t); installed(f);
+  const login=await f.login('operator@example.com');const {user:operator}=await login.clone().json();
+  const ownerCookie=login.headers.get('set-cookie')!.split(';')[0];
+  const signup=await f.login('public@example.com');const {user}=await signup.clone().json();
+  const cookie=signup.headers.get('set-cookie')!.split(';')[0];
+  f.env.OPERATOR_USER_ID=operator.id;f.env.VOICE_BILLING_MODE='owner_funded';f.env.VOICE_INSTALL_ENABLED='true';
+  const post=(path:string,session:string,body?:unknown)=>f.request(path,{method:'POST',headers:{cookie:session,origin,'content-type':'application/json'},body:body?JSON.stringify(body):undefined});
+  let fetches=0;
+  t.mock.method(globalThis,'fetch',async()=>{fetches++;return Response.json({ready:true,installationId:'instance-install',version:'test-version'});});
+  assert.equal((await post('/products/voice/open',cookie)).status,403);assert.equal(fetches,0);
+  assert.equal((await post('/products/voice/install',cookie)).status,403);
+  assert.equal((await post('/products/voice/access',cookie,{userId:user.id,allowed:true})).status,403);
+  assert.equal((await post('/products/voice/access',ownerCookie,{userId:user.id,allowed:true})).status,200);
+  const sessionHash=f.sqlite.prepare('SELECT token_hash FROM sessions WHERE user_id=?').get(user.id)!.token_hash;
+  const check=()=>f.request('/internal/voice/session',{method:'POST',headers:{authorization:`Bearer ${secret}`,'content-type':'application/json'},body:JSON.stringify({sessionHash})});
+  assert.deepEqual(await(await check()).json(),{user:{id:user.id}});
+  const authorize=()=>f.request('/internal/voice/authorize',{method:'POST',headers:{authorization:`Bearer ${secret}`,'content-type':'application/json'},body:JSON.stringify({userId:user.id})});
+  assert.equal((await authorize()).status,200);
+  f.env.VOICE_BILLING_MODE='managed';
+  assert.equal((await authorize()).status,403);assert.deepEqual(await(await check()).json(),{user:null});
+  f.env.VOICE_BILLING_MODE='owner_funded';
+  assert.equal((await post('/products/voice/access',ownerCookie,{userId:user.id,allowed:false})).status,200);
+  assert.deepEqual(await(await check()).json(),{user:null});
+});
+
+test("operator installation requests persist, deduplicate, and retry without client credentials",async t=>{
+  const f=fixture(t); const login=await f.login();const {user}=await login.clone().json();
+  f.env.OPERATOR_USER_ID=user.id;f.env.VOICE_BILLING_MODE='owner_funded';f.env.VOICE_INSTALL_ENABLED='true';
+  const cookie=login.headers.get('set-cookie')!.split(';')[0];
+  const install=()=>f.request('/products/voice/install',{method:'POST',headers:{cookie,origin}});
+  const replies=await Promise.all([install(),install()]);
+  assert.deepEqual(replies.map(response=>response.status),[202,202]);
+  const [a,b]=await Promise.all(replies.map(response=>response.json()));
+  assert.equal(a.request_id,b.request_id);
+  assert.equal((await(await f.request('/products/voice',{headers:{cookie}})).json()).state,'pending');
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM product_install_requests').get()!.n,1);
+  f.sqlite.exec("UPDATE product_install_requests SET state='failed'");
+  assert.equal((await(await install()).json()).request_id,a.request_id);
+  assert.equal((await f.request('/products/voice/install',{method:'POST',headers:{cookie}})).status,403);
 });

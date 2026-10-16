@@ -13,7 +13,7 @@ function element<T extends HTMLElement>(id: string): T {
   return value as T;
 }
 
-element("environment").textContent = import.meta.env.MODE === "staging" ? "Staging" : "Local development";
+element("environment").textContent = import.meta.env.MODE === "staging" ? "Staging" : import.meta.env.MODE === "operator" ? "" : "Local development";
 const heading = element("heading");
 const status = element("status");
 const error = element("error");
@@ -51,7 +51,7 @@ for (const product of products) {
   element("product-list").append(row);
 }
 element("products-empty").hidden = products.length > 0;
-const voiceProduct = products.some(product => product.id === "voice") ? createVoiceProduct(() => currentUser) : null;
+const voiceProduct = products.some(product => ["voice", "cut"].includes(product.id)) ? createVoiceProduct(() => currentUser) : null;
 
 function renderView(focus = false) {
   const route = location.hash || "#/";
@@ -83,6 +83,7 @@ function renderView(focus = false) {
 window.addEventListener("hashchange", () => {
   accountMenu.close();
   renderView(true);
+  void voiceProduct?.refresh();
 });
 document.querySelector<HTMLAnchorElement>(".skip-link")!.addEventListener("click", event => {
   event.preventDefault();
@@ -120,6 +121,7 @@ function showUser(user: User | null, focus = false) {
   const date = user ? new Date(user.created_at) : null;
   element("created").textContent = date && Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { dateStyle: "medium" }) : "—";
   renderView(focus);
+  void voiceProduct?.refresh();
 }
 
 async function checkSession() {
@@ -176,4 +178,3 @@ signOut.addEventListener("click", async () => {
 retry.addEventListener("click", () => { void checkSession(); });
 renderView();
 void checkSession();
-void voiceProduct?.refresh();

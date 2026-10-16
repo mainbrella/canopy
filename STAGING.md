@@ -1,3 +1,13 @@
+# Current product installation status — 2026-10-16
+
+The records below describe historical core staging deployments. Read-only recheck of `https://api-stg.mainbrella.com/products/voice` returned `not_installed`; no new product deployment was performed in this milestone work.
+
+The repository now implements portable core setup, operator-only installation requests, product grants, owner-funded Voice limits, atomic installer leases, carrier workspace routing and Appflare/Cut inventory reconciliation. These changes are local until deliberately deployed. `deploy:staging` still deploys **accounts and console only**; `deploy:staging:site` deploys **console only**. The separate Voice installer requires an existing pinned operator user and explicit owner-funded configuration. Catalog discovery is not product readiness.
+
+See [operator installation](docs/operator-installation.md) for commands and recovery, and [the exact proposed resource/secret/retention plan](docs/milestone-deployment.md) for a fresh `canopy-m2` core, Voice, Appflare and Cut. **New-resource authorization and actual live verification remain pending.** Do not replace historical IDs below with build or fixture IDs.
+
+---
+
 # Canopy staging
 
 The dark product home and account dropdown are deployed and verified on staging

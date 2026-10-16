@@ -1,0 +1,17 @@
+{
+  "name": "Canopy milestone",
+  "accountId": "2b7a9be82bb64187230703b024e25157",
+  "prefix": "canopy-m2",
+  "accountsOrigin": "https://api-m2-stg.mainbrella.com",
+  "consoleOrigin": "https://m2-stg.mainbrella.com",
+  "voiceOrigin": "https://voice-m2-stg.mainbrella.com",
+  "operatorUserId": "",
+  "products": [
+    "voice",
+    "cut"
+  ],
+  "emailRateNamespace": "3101",
+  "googleRateNamespace": "3102",
+  "appflareOrigin": "https://canopy-m2-appflare.crimson-dust-553b.workers.dev",
+  "allowVoiceInstallation": true
+}

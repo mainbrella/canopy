@@ -34,6 +34,9 @@ p { margin: 0 0 24px; max-width: 60ch; }
 #voice-actions:not([hidden]) { margin-bottom: 24px; }
 #voice-actions a { display: inline-flex; align-items: center; min-height: 44px; }
 #voice-error { color: #ffaaa3; margin: 8px 0 0; }
+#product-access { margin: 24px 0 16px; max-width: 440px; }
+#product-access input { width: 100%; margin: 8px 0; }
+#product-access-status { display: block; margin-top: 8px; }
 #status:empty { display: none; }
 #status { color: #a9b8af; margin-bottom: 16px; }
 #error { color: #ffaaa3; margin-bottom: 16px; }

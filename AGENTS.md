@@ -1,9 +1,6 @@
 # Canopy working notes
 
-Handoff updated **2026-10-16**, after reviewing commits `038501a` through
-`604eb12` (`installed`). This is the current implementation handoff; older
-milestone prose in README, STAGING, and Voice installation docs has not yet been
-reconciled with `604eb12`. Follow actual code and the distinctions below.
+Handoff updated **2026-10-16**, following `52d5794` and the local portable-installation implementation. The new code is not deployed. The real installation milestone remains open until the authorized live plan is executed; local fixtures and packaging do not complete it.
 
 ## Scope and working rules
 
@@ -65,164 +62,39 @@ Preserve the product separation already established:
 
 ## Current implementation
 
-| Area | Implemented state at `604eb12` |
+| Area | Implemented locally |
 | --- | --- |
-| Core | Email/password accounts, optional Google browser sign-in, sessions/logout, dark console, account menu and configurable catalog. `npm run dev` starts accounts and console only: zero-product runtime works locally. |
-| Voice extraction | Committed in `038501a`, with test/export fixes in `cfb462a` and `33ee0c1`. Product-local Worker/UI, D1, Durable Objects, owner authentication, browser/text calls, standalone telephony, history and independent source export. |
-| Voice connection | `604eb12` adds installation inventory, CLI provisioning, status/readiness, console Open, one-time login handoff, per-user workspaces, and platform session revocation checks. These are implemented and locally tested, not a completed live installation milestone. |
-| Missing installation flow | No console Install action or server-side installation-start API. The provisioner is a separate operator CLI. General product registration and Appflare integration are absent. |
-| Other products | Compute and Builder are catalog placeholders. Running all Mainbrella apps is a goal, not current capability. |
-| Shared services | Identity integration exists for Voice. Product entitlements and billing integration do not. |
+| Core | Existing email/password, optional Google, sessions and console. `npm run dev` starts core only, with zero product runtimes. Own-account config generation/provisioning is `scripts/setup-core.mjs`; product discovery may be empty. |
+| Access | Cloudflare operator pins an existing `OPERATOR_USER_ID`; public signup never becomes operator. Explicit `product_access` grants, immediate session/revocation checks, and an owner-funded usage-authorization interface consumed by Voice. `managed` and missing policy fail closed; no managed billing adapter or wallet integration. |
+| Voice | Same extracted standalone product plus explicit Canopy adapter, one-time handoffs, per-user workspaces and platform logout validation. Instance-wide atomic defaults: 20 starts/rolling day, 2 concurrent calls; standalone remains 100/3 with 15-minute/60-turn limits. |
+| Installation | Operator-only `POST /products/voice/install` records a durable request. A credentialed CLI provisions it; `operator:run -- --config TARGET --watch` processes queued console requests and retries. No hosted provisioner is deployed. Atomic identity/version/lease claim, lease renewal, private retry state, exact runtime readiness, target-specific console build. |
+| Registry | Additive migration `014` retains all `013` records and allows additional products, provenance, resource references, owner/provisioner and explicit integration capabilities. Discovery, installation readiness and user permission remain distinct. |
+| Carriers | Connected mode requires exact configured carrier agent and user IDs; signed requests route only to that workspace. Standalone fixed-owner routing, signatures, destination/account/application checks and replay protections remain. Mapping/secret changes after install require intentional Worker reconfiguration, not an automatic upgrade. |
+| Appflare | One explicit supported adapter: Cut catalog install through Appflare admin review, followed by credentialed read-only Cloudflare/Appflare inventory reconciliation. It records actual source/deployed version/resource evidence. Cut opens with its own authentication, with no shared identity/billing claim. No real Cut install has been performed. |
+| Other products | Compute/Builder remain placeholders. More extraction, general installer frameworks, automatic upgrades, production migration and destructive uninstall remain deferred. |
 
-Key entry points:
+Key files and operational constraints:
 
-- `platform/accounts/src/products.ts`: `GET /products/voice`,
-  `POST /products/voice/open`, and secret-authenticated
-  `POST /internal/voice/session`.
-- `platform/accounts/migrations/013_product_installations.sql`: persisted
-  installation/version/resource inventory and lease fields. It currently enforces
-  `CHECK (product = 'voice')`; it is not a general product registry.
-- `platform/console/src/voice-product.ts`: real status, retry/check, and Open UI.
-  `console-config.ts` controls discovery only; Appflare is still an external link.
-- `scripts/install-voice.mjs`: direct Cloudflare/Wrangler installer; private retry
-  state and inventory live under ignored `.cache/voice-installs/`. Preserve that
-  state; an existing installation cannot currently be resumed from a fresh clone
-  without its private operator state.
-- `products/voice/worker/app/canopy.ts` and `auth-core.ts`: explicit
-  `VOICE_AUTH_MODE=canopy`, hashed single-use handoffs, product-local sessions,
-  and platform session validation. Standalone owner/password mode remains available.
+- `platform/accounts/src/products.ts`: `GET /products/{voice,cut}`, `POST .../install`, `POST .../access`, `POST .../open`, private `/internal/voice/{session,authorize}`. Product descriptions/status are public; provisioning and grants require the pinned operator. Opening requires a valid product grant and runtime evidence. Never restore automatic paid access to public signup.
+- `platform/accounts/migrations/014_product_access.sql`: migration from Voice-only inventory, retained IDs/resources, explicit access and durable installation requests. Original migrations remain unchanged. `OPERATOR_USER_ID` comes from operator-controlled Worker configuration, never signup/email inference.
+- `scripts/setup-core.mjs`: `--plan` is read-only; default generates ignored local configs/state; `--deploy` creates/deploys dedicated core only. Operator builds require explicit HTTPS accounts origin and selected catalog products. Dedicated staging builds keep their hardcoded origin and Google-disabled guards. Core bootstrap is operator-run, not an unattended lifecycle service.
+- `scripts/install-voice.mjs`: explicit target/owner policy and existing owner account required. Same installation/version can resume with preserved private state; a losing checkout cannot acquire another identity. Heartbeat/guard failures stop child deployment commands. Existing installed versions are verified without redeployment; no automatic update or carrier reconfiguration occurs.
+- Preserve `.cache/core-installs/`, `.cache/voice-installs/`, `.cache/appflare-installs/` and local D1. These contain private recovery state and inventory, not disposable caches. Back them up privately for a fresh clone. A matching D1 name without a recorded UUID is refused even after creation intent. After reviewing actual creation evidence, the operator may explicitly use `--recover-database UUID`; do not silently adopt unknown resources.
+- Core setup verifies a `CANOPY_INSTANCE_ID` marker in both core Workers against preserved private state. It can recover a lost deployment response when that marker matches; an unrelated same-name Worker is refused. A source/version mismatch in Voice requires an explicit reviewed recovery/release decision.
+- `scripts/register-appflare.mjs`: one Cut catalog-artifact adapter, not a general marketplace. Reads the manager D1 binding/install/resources, checks source SHA/artifact digest/current 100% Worker version and serving hostname, then writes Canopy inventory only. Reconciliation of the same install is idempotent; replacing another identity is rejected. `/admin` probes indicate reachability, not shared authentication or a deep health contract. Protected/unsupported origin flows are not certified by this adapter.
+- `platform/console/src/voice-product.ts`: compact state/open/request/access controls shared by Voice/Cut; permissions refresh on navigation, login/logout and explicit Check again. `console-config.ts`/`VITE_PRODUCT_SELECTION` affect discovery only.
+- `products/voice/worker/lib/voice.ts`: calls check core usage authorization in Canopy mode; atomic global quotas count failed/redacted calls. Invalid limit config denies starts. Revocation prevents new requests/calls; an already-running call can finish within existing duration/turn limits. There is no currency-denominated spend guarantee or active-call kill service.
+- `products/voice/worker/app/voice-{twilio,telnyx}.ts`: `VOICE_CARRIER_AGENT_ID` plus `VOICE_CARRIER_USER_ID` assign all configured destinations to a single connected workspace. Preserve signature/account/application/destination/media-token/replay checks. Do not simply remove identity checks to enable another agent.
 
-### Why staging still says Voice is unavailable
+## Verification and outstanding live milestone
 
-Read-only review on **2026-10-16** found the latest console assets deployed at
-`https://stg.mainbrella.com/`. The API at
-`https://api-stg.mainbrella.com/products/voice` returned:
+Current local verification: **109 unit/runtime tests**, **34 browser tests**, type checks, target-specific builds and Worker dry runs pass. Independent Voice export install/type checks/68 tests/build and supported Appflare pack/hash/upload checks pass. Exact snapshot/artifact hashes, logs and limitations are in [milestone verification](docs/milestone-verification.md). Installation browsers simulate the credentialed runner, Appflare/Cut and AI; they do not provision resources. The dedicated carrier tests generate actual signatures against local fixtures. The full standalone suite remains separate. See [operator installation](docs/operator-installation.md), [Voice distribution](products/voice/docs/appflare.md) and the retained logs under ignored `.cache/` for limitations.
 
-```json
-{"product":"voice","state":"not_installed","version":null,"origin":null}
-```
+Read-only Cloudflare review on 2026-10-16 found account subdomain `crimson-dust-553b`, no proposed `canopy-m2` Workers/D1s/custom-domain attachments, and the existing staging API still returning `not_installed` for Voice. That does not prove no unrelated/orphan resources exist. No new Cloudflare resource, paid inference, phone call, deployment or catalog publication occurred.
 
-This means the API has no registered Voice installation. It was not a stale
-frontend or proof of a failing installed runtime. Do not infer the absence of
-all orphaned Cloudflare resources from this status alone.
+The concrete [live verification plan](docs/milestone-deployment.md) proposes fresh `canopy-m2` core, Voice, an independent Appflare manager and Cut in account `2b7a9be82bb64187230703b024e25157`. It names resource/origin/secret requirements, recovery, retention and cleanup. Existing authorization covers established core staging only. **Obtain any still-needed new-resource/paid-inference authorization after completing local work; this handoff adds none.**
 
-`npm run deploy:staging` deploys **accounts and console only**.
-`npm run deploy:staging:site` deploys **console only**. Neither installs Voice.
-`604eb12` adds the separate `npm run install:voice:staging` command. Its checked-in
-`config/voice.staging.json` proposes Worker/database `canopy-voice-stg` and
-`https://voice-stg.mainbrella.com`. That configuration is neither deployment
-proof nor authorization to create those resources. No real Voice install was
-performed or verified during the review. Recheck live state before implementation.
-
-## Review findings to address before extending installation
-
-1. **P1 — Installing Voice grants public signups operator-funded inference.**
-   `platform/accounts/src/products.ts` checks only for a valid user before issuing
-   a Voice handoff. `scripts/install-voice.mjs` sets `VOICE_ENABLED=true` globally.
-   Once installed with calling enabled, any new email/password account can use
-   the operator's AI resources; limits in `products/voice/worker/lib/voice.ts`
-   are per user, not per instance.
-   Add explicit owner/invite/product-access policy and appropriate usage limits
-   before enabling this path publicly. Public Mainbrella will additionally need
-   managed billing authorization; a private hobby install must not require it.
-2. **P2 — Custom targets receive a console pointing at Mainbrella staging.**
-   The installer accepts another `accountsOrigin` but always invokes
-   `build:staging`, whose `platform/console/vite.config.ts` hardcodes
-   `https://api-stg.mainbrella.com`. Build the console for the actual target and
-   provide a reproducible own-account core setup. Preserve dedicated staging
-   guards rather than weakening them to accept arbitrary targets.
-3. **P2 — Canopy workspaces cannot use the preserved phone integration.**
-   `products/voice/worker/app/voice.ts` creates random agent IDs in Canopy mode.
-   Twilio/Telnyx configuration, webhook, and media checks in `worker/lib/voice.ts`,
-   `worker/lib/voice-telnyx.ts`, and the carrier handlers still require the fixed
-   standalone `AGENT_ID`. Locally reproduced: valid provider configuration returns
-   true for the standalone ID and false for a Canopy agent. Define carrier/number
-   ownership and route to the authorized workspace; do not simply remove identity
-   checks. Preserve standalone calls, signature verification, and replay protection.
-4. **P2 — Concurrent installers can deploy the wrong installation identity.**
-   In `scripts/install-voice.mjs`, two checkouts can both read no installation;
-   A wins `INSERT OR IGNORE`, then B acquires the lease without an
-   `installation_id` condition or checking the returned identity. B deploys its
-   own identity while the registry retains A's; readiness never matches. This was
-   reproduced with the exact migration/SQL in memory. Make ownership/lease claims
-   atomic, verify identity, and handle expiry/interruption without duplicate or
-   conflicting resources. A host-local lock alone is insufficient.
-
-The installer unit tests currently cover target validation and database creation
-retry, not the full provisioning state machine. Installation browser tests in
-`scripts/test-voice-installation.mjs` seed an already-installed row and use
-simulated AI. Their passing result does not resolve these findings or prove a
-real install. README, STAGING, and Voice docs also retain obsolete statements
-that no inventory or account handoff exists; reconcile them with the next change.
-
-## Next milestone — portable installation and Appflare registration
-
-Prove this complete path: **fresh operator-owned core with zero products → select
-and install Voice → reload and see verified status → open and perform a useful
-action**, then **install/register one suitable non-Voice Appflare app alongside
-Voice**. This is the next architectural proof, before extracting more first-party
-products. Continue from the existing Voice code; do not repeat extraction.
-
-Work in independently verifiable slices:
-
-1. **Define and fix the access boundary.** Record operator authority, allowed
-   product users, instance ownership, usage policy, and required credentials.
-   Self-service signup must not confer provisioning authority or automatic paid
-   product access. Implement the minimal access/usage interface with Voice as a
-   real consumer. Owner-funded mode is sufficient for the first install; preserve
-   a clear managed-billing seam without migrating the authoritative wallet or
-   claiming a managed service works before its adapter exists.
-2. **Make core and Voice portable.** Provide explicit own-account configuration
-   for core origins, resource names/bindings, and product selection. Fix the
-   staging-origin leak and installer race, preserve retry state/resource ownership,
-   and resolve Canopy carrier ownership/routing. Verify both zero-product startup
-   and standalone Voice without core. Preserve existing staging resource isolation.
-3. **Add a small installation registry and operator flow.** Evolve the Voice-only
-   schema with a new migration, retaining existing records. Store product/source
-   identity, version, provisioner/ownership, resource references, origin, lifecycle
-   state, and supported health/open/integration capabilities. Add a compact,
-   server-authorized console installation flow with pending/failure/retry feedback.
-   Keep credentials out of browser code. Readiness must come from supported
-   runtime evidence. Voice and other apps advertising platform identity require
-   an explicit cross-host auth handoff; other apps retain their own authentication.
-4. **Connect one supported Appflare path.** Reinspect `../appflare` source/docs
-   read-only before choosing the adapter. The inspected manager install entry is
-   an admin-authenticated server function, not an established external provisioning
-   API; documented install links require operator review. Use a supported installer
-   flow and register/reconcile its actual result in Canopy. A catalog link alone
-   is insufficient. Select one suitable non-Voice app, record its source/version,
-   ownership and capabilities, and prove it appears and opens after reload.
-5. **Verify distribution and the live path.** Generate an immutable Voice catalog
-   manifest, validate/pack it through the supported toolchain inside Canopy, and
-   retain the independent source-export path. Prepare exact dedicated test targets,
-   resource inventory, secrets requirements, retention and cleanup before seeking
-   any still-needed deployment authorization. Existing staging authorization covers
-   core only; this handoff adds no live-resource authorization. Complete authorized
-   local work first and present a concrete deployment plan if approval is needed.
-
-Acceptance evidence must include:
-
-- Core with zero installed products; Voice alone/standalone; connected Voice plus
-  an Appflare app; each using the configured operator account and API origin.
-- Unauthorized provisioning and product access rejected; duplicate/concurrent
-  requests and interrupted installs recover without adopting unrelated resources.
-- Persisted status after reload; readiness mismatch/unavailability; useful retry;
-  explicit login handoff, user isolation, and logout/revocation.
-- A useful Voice action through the real deployed runtime, plus carrier routing
-  tests for Canopy and standalone modes. Record real AI/phone verification only
-  for explicitly configured and authorized providers; distinguish fixtures.
-- Keyboard behavior and the four target viewports. Third-party apps must not
-  claim shared identity/billing unless implemented and tested.
-- A real authorized install record separate from local tests/dry runs: source and
-  deployed versions, account, Workers, D1/DO resources, origins, verification,
-  partial-install recovery, retention, and cleanup. Never delete core/shared data
-  implicitly when removing a product.
-- Updated AGENTS, README, STAGING/deployment record, and Voice installation/Appflare
-  docs explaining exactly which commands deploy core versus install products.
-
-Defer more first-party extractions, a general installer framework, automatic
-upgrades, production data/wallet migration, and destructive uninstall UI. Do not
-mark this milestone complete based only on a build, seeded registry, or CLI script.
+Remaining acceptance requires actual fresh core with zero installed products, pinned operator and configured API origin; unauthorized signup/provision/open denial; real request/runner install and interruption recovery; persisted verified readiness; one useful real authorized Voice action; logout/revocation/user isolation; supported Appflare admin installation followed by registration/reload/open and a useful Cut action; and keyboard/four-viewport verification on deployed hosts. Record exact source/deployed versions, resource IDs and private recovery inventory separately from fixtures. Real carrier/provider checks are required only for explicitly configured and authorized providers. Never mark this milestone complete from a seeded row, local pack or build.
 
 ## Boundaries to preserve
 
@@ -254,8 +126,8 @@ mark this milestone complete based only on a build, seeded registry, or CLI scri
   existing code until an intentional release transition.
 - Voice export preserves its dependency closure/root lock resolutions without
   platform workspace dependencies. The Appflare template still has a sentinel
-  zero SHA; the manifest generator requires a clean committed pin. The new
-  monorepo pin has not been packed or installed remotely. Appflare source reviewed
+  zero SHA; the manifest generator requires a clean committed pin. Local packing is verified separately; no new
+  monorepo pin has been published or installed remotely. Appflare source reviewed
   at `ccafe08b4958d8e2f80299ee310b99a7f5d00eca` supports Voice's D1, same-app DO,
   AI, and assets; do not assume Container or external Worker bindings are supported
   for future Compute/Builder packages. Recheck compatibility when implementing.
@@ -304,7 +176,7 @@ Core browser tests create local test accounts; installation fixtures use in-memo
 D1 and simulated AI. Exports require a clean commit, or `-- --allow-dirty` for a
 clearly marked non-release verification export in `products/voice/dist/source`.
 
-Review verification at `604eb12` on **2026-10-16**: type checks, `npm test`
+Historical review verification at `604eb12` on **2026-10-16**: type checks, `npm test`
 (**98 tests: 29 accounts/client, 3 installer helpers, 66 Voice**), staging builds
 and Worker dry runs, and **6 installation browser tests** passed. The carrier-ID
 mismatch and installer race were reproduced separately. Earlier extraction

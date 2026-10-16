@@ -1,0 +1,6 @@
+{
+  "coreTarget": ".cache/core-installs/ACCOUNT-PREFIX/voice.json",
+  "managerWorker": "my-appflare",
+  "managerDatabaseId": "00000000-0000-0000-0000-000000000000",
+  "installId": "REPLACE_WITH_APPFLARE_CUT_INSTALL_ID"
+}

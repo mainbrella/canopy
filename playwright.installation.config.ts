@@ -8,6 +8,6 @@ export default defineConfig({
     url:"http://127.0.0.1:8793/products/voice",reuseExistingServer:false,timeout:60000,gracefulShutdown:{signal:"SIGTERM",timeout:5000},
   },{
     command:"npm run dev --workspace @canopy/console",url:"http://127.0.0.1:5175",reuseExistingServer:false,timeout:60000,
-    env:{VITE_AUTH_BASE_URL:"http://127.0.0.1:8793",VITE_GOOGLE_CLIENT_ID:""},gracefulShutdown:{signal:"SIGTERM",timeout:5000},
+    env:{VITE_AUTH_BASE_URL:"http://127.0.0.1:8793",VITE_GOOGLE_CLIENT_ID:"",VITE_PRODUCT_SELECTION:"voice,cut"},gracefulShutdown:{signal:"SIGTERM",timeout:5000},
   }],
 });

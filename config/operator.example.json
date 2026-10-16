@@ -1,0 +1,17 @@
+{
+  "name": "My Canopy",
+  "accountId": "00000000000000000000000000000000",
+  "prefix": "my-canopy",
+  "accountsOrigin": "https://accounts.example.com",
+  "consoleOrigin": "https://canopy.example.com",
+  "voiceOrigin": "https://voice.example.com",
+  "operatorUserId": "",
+  "products": [
+    "voice",
+    "cut"
+  ],
+  "emailRateNamespace": "3001",
+  "googleRateNamespace": "3002",
+  "appflareOrigin": "https://appflare.example.com",
+  "allowVoiceInstallation": true
+}

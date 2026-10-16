@@ -10,4 +10,8 @@ export interface Env {
   LOCAL_DEVELOPMENT?: string;
   SESSION_COOKIE_NAME?: string;
   VOICE_AUTH_SECRET?: string;
+  OPERATOR_USER_ID?: string;
+  VOICE_BILLING_MODE?: "owner_funded" | "managed";
+  VOICE_INSTALL_ENABLED?: string;
+  APPFLARE_ORIGIN?: string;
 }

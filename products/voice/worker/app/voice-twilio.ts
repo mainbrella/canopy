@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { AGENT_ID, callStub, createCall, hashMediaToken, initializeCall, MAX_CALL_MS, publicAgent, publicVoiceOrigin, readCall, telephonyConfigured, twilioSipUri, type VoiceAgentRow } from '../lib/voice';
+import { carrierAgentId, carrierWorkspaceAllowed, usageAllowed, callStub, createCall, hashMediaToken, initializeCall, MAX_CALL_MS, publicAgent, publicVoiceOrigin, readCall, telephonyConfigured, twilioSipUri, type VoiceAgentRow } from '../lib/voice';
 import { pcmToTwilio, streamTwiml, twilioToPCM, validTwilioSignature } from '../lib/voice-telephony';
 
 const xml = (body: string,status=200) => new Response(body,{status,headers:{'content-type':'application/xml; charset=utf-8','cache-control':'no-store'}});
@@ -7,7 +7,7 @@ const unavailable = () => xml('<Response><Say>Sorry, our receptionist is unavail
 export async function handleTwilioRequest(request: Request,env: Env,ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const origin = publicVoiceOrigin(env);
-  if (!origin || !env.TWILIO_AUTH_TOKEN || !telephonyConfigured(env,AGENT_ID)) return new Response(null,{status:503});
+  if (!origin || !env.TWILIO_AUTH_TOKEN || !telephonyConfigured(env,carrierAgentId(env))) return new Response(null,{status:503});
   const incoming = url.pathname.match(/^\/voice\/twilio\/incoming\/([a-f0-9-]{36})$/i);
   const media = url.pathname.match(/^\/voice\/twilio\/media\/([a-f0-9-]{36})$/i);
   if (url.search || (!incoming && !media)) return new Response(null,{status:404});
@@ -25,10 +25,10 @@ export async function handleTwilioRequest(request: Request,env: Env,ctx?: Execut
       const transport=to?.toLowerCase().startsWith('sip:') ? 'sip' : 'pstn';
       const sipTo=twilioSipUri(to);
       const destinationMatches=transport === 'sip' ? Boolean(sipTo && sipTo===twilioSipUri(env.TWILIO_SIP_URI)) : to===env.TWILIO_PHONE_NUMBER;
-      if (fields.get('AccountSid')!==env.TWILIO_ACCOUNT_SID || !destinationMatches || incoming[1]!==AGENT_ID || !/^CA[a-f0-9]{32}$/i.test(callSid || '')) return new Response(null,{status:403});
+      if (fields.get('AccountSid')!==env.TWILIO_ACCOUNT_SID || !destinationMatches || incoming[1]!==carrierAgentId(env) || !/^CA[a-f0-9]{32}$/i.test(callSid || '')) return new Response(null,{status:403});
       if (!telephonyConfigured(env,incoming[1],transport)) return new Response(null,{status:503});
       const agent=await env.DB.prepare('SELECT * FROM voice_agents WHERE id=?').bind(incoming[1]).first<VoiceAgentRow>();
-      if (!agent) return unavailable();
+      if (!agent || !carrierWorkspaceAllowed(env, agent.id, agent.user_id)) return unavailable();
       const existing=await env.DB.prepare('SELECT id FROM voice_calls WHERE provider_call_id=?').bind(callSid).first();
       // A signed webhook replay cannot allocate another model session.
       if (existing) return xml('<Response><Hangup /></Response>');
@@ -51,7 +51,8 @@ export async function handleTwilioRequest(request: Request,env: Env,ctx?: Execut
     if (![expectedUrl,expectedUrl+'/',expectedUrl.replace('https:','wss:'),expectedUrl.replace('https:','wss:')+'/']
       .some(value=>validTwilioSignature(env.TWILIO_AUTH_TOKEN!,signature,value))) return new Response(null,{status:403});
     const call=await readCall(env,media![1]);
-    if (!call || call.channel!=='phone' || (call.phone_provider && call.phone_provider!=='twilio') || call.status!=='active' || call.connected_at || !call.media_token_hash || call.agent_id!==AGENT_ID) return new Response(null,{status:404});
+    if (!call || call.channel!=='phone' || (call.phone_provider && call.phone_provider!=='twilio') || call.status!=='active' || call.connected_at || !call.media_token_hash || !carrierWorkspaceAllowed(env, call.agent_id, call.user_id)) return new Response(null,{status:404});
+    if (!await usageAllowed(env, call.user_id)) return new Response(null,{status:403});
     return bridgeTwilio(env,call.id,call.provider_call_id!,ctx);
   } catch {
     console.error('voice_telephony_unavailable');

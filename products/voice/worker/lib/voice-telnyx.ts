@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { AGENT_ID, publicVoiceOrigin, voiceEnabled, type VoicePhoneTransport } from './voice';
+import { carrierAgentId, publicVoiceOrigin, voiceEnabled, type VoicePhoneTransport } from './voice';
 import { pcmToTwilio, xmlEscape } from './voice-telephony';
 
 /** Telnyx application subdomains accept SIP over UDP/TCP, not TLS. */
@@ -21,7 +21,7 @@ export function telnyxConfigured(env: Env, agentId: string | null, transport?: V
   if (!voiceEnabled(env) || !publicVoiceOrigin(env) || !env.TELNYX_API_KEY ||
     !/^[a-z0-9+/]{43}=$/i.test(env.TELNYX_PUBLIC_KEY || '') ||
     !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(env.TELNYX_ACCOUNT_SID || '') ||
-    !/^\d{1,30}$/.test(env.TELNYX_CONNECTION_ID || '') || agentId !== AGENT_ID) return false;
+    !/^\d{1,30}$/.test(env.TELNYX_CONNECTION_ID || '') || !agentId || agentId !== carrierAgentId(env)) return false;
   return (transport ? [transport] : ['pstn','sip'] as const).some(kind=>{
     return kind === 'sip' ? Boolean(telnyxSipUri(env.TELNYX_SIP_URI)) : /^\+[1-9]\d{7,14}$/.test(env.TELNYX_PHONE_NUMBER || '');
   });

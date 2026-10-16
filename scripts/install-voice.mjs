@@ -1,42 +1,26 @@
-import { spawn } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { readFile, readdir, mkdir, writeFile, open, unlink } from "node:fs/promises";
 import { resolve, relative, dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { root, cache, cli, run as command, repositoryPath, cloudflare, d1Query, listDatabases, buildConsole, privateJSON } from "./operator.mjs";
 
-const root = fileURLToPath(new URL("../", import.meta.url));
 const product = join(root, "products/voice");
-const cache = join(root, ".cache");
-const cli = join(root, "node_modules/wrangler/bin/wrangler.js");
-const environment = { ...process.env, WRANGLER_SEND_METRICS: "false", WRANGLER_LOG_PATH: join(cache, "wrangler/logs"),
-  XDG_CONFIG_HOME: join(cache, "config"), XDG_CACHE_HOME: cache, TMPDIR: join(cache, "tmp") };
-
-function run(command, args, cwd = root, capture = false) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env: environment, stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit" });
-    let output = "";
-    if (capture) child.stdout.on("data", chunk => { output += chunk; });
-    // Captured auth output (including errors) must never print a token.
-    if (capture) child.stderr.on("data", () => {});
-    child.once("error", reject);
-    child.once("exit", code => code === 0 ? resolve(output.trim()) : reject(new Error(`${command === process.execPath ? "Wrangler" : command} failed (${code}).${capture ? " Check repository-local Cloudflare authentication." : ""}`)));
-  });
-}
-function repositoryPath(value) {
-  const path = resolve(root, value);
-  if (relative(root, path).startsWith("..") || path === root) throw new Error("Install configuration paths must stay inside Canopy.");
-  return path;
-}
-function origin(value) { const url = new URL(value); return url.protocol === "https:" && url.origin === value; }
+let activeSignal;
+const run = (cmd, args, cwd = root, capture = false) => command(cmd, args, { cwd, capture, signal: activeSignal });
+function origin(value) { try { const url = new URL(value); return url.protocol === "https:" && url.origin === value; } catch { return false; } }
 export function validateTarget(target, accounts, consoleConfig) {
   if (!/^[a-f0-9]{32}$/.test(target.accountId) || !/^[a-z][a-z0-9-]{2,62}$/.test(target.workerName)
     || !/^[a-z][a-z0-9-]{2,62}$/.test(target.databaseName) || !origin(target.origin)
-    || !origin(target.accountsOrigin) || !origin(target.consoleOrigin)) throw new Error("Invalid Voice install target.");
+    || !origin(target.accountsOrigin) || !origin(target.consoleOrigin)
+    || [target.origin,target.accountsOrigin,target.consoleOrigin].some(value=>['mainbrella.com','www.mainbrella.com','api.mainbrella.com'].includes(new URL(value).hostname))
+    || new Set([target.origin,target.accountsOrigin,target.consoleOrigin]).size !== 3
+    || [target.workerName,target.databaseName].some(name=>["mainbrella-web","mainbrella-api","delta"].includes(name))) throw new Error("Invalid Voice install target.");
   const db = accounts.d1_databases?.find(db => db.binding === "DB");
   if (accounts.account_id !== target.accountId || consoleConfig.account_id !== target.accountId
     || accounts.routes?.[0]?.pattern !== new URL(target.accountsOrigin).hostname
     || consoleConfig.routes?.[0]?.pattern !== new URL(target.consoleOrigin).hostname
-    || !db?.database_id || db.database_name === target.databaseName || accounts.name === target.workerName
+    || !db?.database_id || db.database_id === "41be6d7b-26fb-4701-a3fb-fdf3454e14f9" || db.database_name === target.databaseName || accounts.name === target.workerName
     || ["mainbrella-web", "mainbrella-api"].includes(accounts.name)
     || ["mainbrella-web", "mainbrella-api"].includes(consoleConfig.name) || db.database_name === "delta") {
     throw new Error("Install target does not match a dedicated Canopy instance.");
@@ -44,16 +28,16 @@ export function validateTarget(target, accounts, consoleConfig) {
   return db.database_id;
 }
 
-// Creation intent survives an interrupted response. A retry can reuse only the
-// dedicated name whose absence was checked before the intent was persisted.
-export async function ensureDatabase({ target, state, list, create, persist }) {
+// Persist creation intent, but reuse only a recorded UUID or explicitly
+// reviewed recovery. A matching name alone cannot prove resource ownership.
+export async function ensureDatabase({ target, state, list, create, persist, recoverDatabaseId }) {
   const databases = await list();
   const found = databases.find(db => db.name === target.databaseName);
   if (state.databaseId) {
     if (!found || found.uuid !== state.databaseId) throw new Error("Recorded Voice database does not match the target account.");
     return found.uuid;
   }
-  if (found && !state.creatingDatabase) throw new Error("A database already uses the dedicated Voice name. Refusing to adopt it.");
+  if (found && (!state.creatingDatabase || recoverDatabaseId !== found.uuid)) throw new Error("A database already uses the dedicated name without a recorded UUID. Refusing to adopt it. Review Cloudflare creation evidence, then explicitly pass --recover-database UUID with the original private state.");
   if (!found) { state.creatingDatabase = true; await persist(); }
   const database = found ?? await create();
   state.databaseId = database.uuid;
@@ -73,24 +57,49 @@ async function sourceIdentity() {
   files.push("index.html", "login.html", "handoff.html", "package.json", "vite.config.ts", "wrangler.jsonc");
   const hashes = {};
   for (const file of files.sort()) hashes[file] = createHash("sha256").update(await readFile(join(product,file))).digest("hex");
+  hashes["workspace-lock"] = createHash("sha256").update(await readFile(join(root,"package-lock.json"))).digest("hex");
   const fingerprint = createHash("sha256").update(JSON.stringify(hashes)).digest("hex");
   const revision = await run("git", ["rev-parse", "HEAD"], root, true);
   const dirty = Boolean(await run("git", ["status", "--porcelain", "--untracked-files=all"], root, true));
   return { version: `0.1.0+${fingerprint.slice(0,16)}`, revision, dirty, fingerprint, hashes };
 }
 
-export async function main(args = process.argv.slice(2)) {
-  if (args[0] !== "--config" || !args[1] || args.slice(2).some(arg => arg !== "--plan")) throw new Error("Use --config config/voice.staging.json [--plan].");
-  const target = JSON.parse(await readFile(repositoryPath(args[1]), "utf8"));
+export async function claimInstallation(query, { target, state, source, lease, now = Date.now() }) {
+  // One statement owns both the initial identity and the lease. A losing checkout
+  // cannot lease the winner's row, even after a timeout or stale initial read.
+  const rows = await query(`INSERT INTO product_installations
+    (product,installation_id,account_id,worker_name,origin,version,source_revision,state,lease_token,lease_expires,updated_at,owner_user_id,source_repository)
+    VALUES('voice',?,?,?,?,?,?,'installing',?,?,?,?, 'mainbrella/canopy')
+    ON CONFLICT(product) DO UPDATE SET lease_token=excluded.lease_token,lease_expires=excluded.lease_expires
+    WHERE product_installations.installation_id=excluded.installation_id
+      AND product_installations.account_id=excluded.account_id AND product_installations.worker_name=excluded.worker_name
+      AND product_installations.origin=excluded.origin AND product_installations.version=excluded.version
+      AND (product_installations.lease_expires IS NULL OR product_installations.lease_expires<=?)
+    RETURNING installation_id,state`, [state.installationId,target.accountId,target.workerName,target.origin,source.version,
+      `${source.revision}${source.dirty ? `+dirty.${source.fingerprint}` : ''}`,lease,now+120_000,new Date(now).toISOString(),target.operatorUserId ?? null,now]);
+  if (rows.length !== 1 || rows[0].installation_id !== state.installationId) throw new Error('Installation identity/version is owned by another operator or an active lease. Restore the matching private state; retry after expiry.');
+  return rows[0];
+}
+
+export async function main(args = process.argv.slice(2), dependencies = {}) {
+  // Injection is for the local provisioning-state tests; CLI always uses the
+  // credentialed transports. No runtime imports or state live in siblings.
+  const run = dependencies.run ?? ((cmd,args,cwd=root,capture=false) => command(cmd,args,{cwd,capture,signal:activeSignal}));
+  const productDirectory = dependencies.productDirectory ?? product;
+  const fetcher = dependencies.fetcher ?? fetch;
+  const { values } = parseArgs({ args, options:{config:{type:"string"},plan:{type:"boolean"},"recover-database":{type:"string"}} });
+  if (!values.config || values["recover-database"] && !/^[a-f0-9-]{36}$/.test(values["recover-database"])) throw new Error("Use --config config/voice.json [--plan] [--recover-database UUID].");
+  const target = JSON.parse(await readFile(repositoryPath(values.config), "utf8"));
   const accountsPath = repositoryPath(target.accountsConfig);
   const consolePath = repositoryPath(target.consoleConfig);
   const accounts = JSON.parse(await readFile(accountsPath, "utf8"));
   const consoleConfig = JSON.parse(await readFile(consolePath, "utf8"));
   const accountsDb = validateTarget(target, accounts, consoleConfig);
-  const source = await sourceIdentity();
+  const source = dependencies.source ?? await sourceIdentity();
   console.log(JSON.stringify({ target, source: { version: source.version, revision: source.revision, dirty: source.dirty } },null,2));
-  if (args.includes("--plan")) return;
-  const directory = join(cache,"voice-installs",createHash("sha256").update(`${target.accountId}:${target.origin}`).digest("hex").slice(0,16));
+  if (values.plan) return;
+  if (!target.operatorUserId || accounts.vars?.OPERATOR_USER_ID !== target.operatorUserId || accounts.vars?.VOICE_BILLING_MODE !== "owner_funded") throw new Error("Pin the existing operator user ID and owner_funded policy in both target and accounts config before installation.");
+  const directory = dependencies.privateDirectory ?? join(cache,"voice-installs",createHash("sha256").update(`${target.accountId}:${target.origin}`).digest("hex").slice(0,16));
   await mkdir(join(cache,"tmp"),{recursive:true});
   await mkdir(directory,{recursive:true,mode:0o700});
   const lockPath = join(directory,"lock");
@@ -101,83 +110,121 @@ export async function main(args = process.argv.slice(2)) {
     if (error.code !== "EEXIST") throw error;
     const pid = Number(await readFile(lockPath,"utf8"));
     try { process.kill(pid,0); } catch (error) {
-      if (error.code === "ESRCH") { await unlink(lockPath); return main(args); }
+      if (error.code === "ESRCH") { await unlink(lockPath); return main(args, dependencies); }
       throw error;
     }
     throw new Error("This installation is already running. No resources were changed.");
   }
-  let api, query, state, lease;
+  let api, query, state, lease, heartbeat;
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  process.once("SIGINT", stop); process.once("SIGTERM", stop);
+  activeSignal = controller.signal;
   const stateFile = join(directory,"private.json");
-  const persist = () => writeFile(stateFile,`${JSON.stringify(state,null,2)}\n`,{mode:0o600});
+  const persist = () => privateJSON(stateFile,state);
   try {
-    const credentials = JSON.parse(await run(process.execPath,[cli,"auth","token","--json"],root,true));
-    if (!["oauth","api_token"].includes(credentials.type) || !credentials.token) throw new Error("An OAuth login or scoped API token is required.");
-    api = async (path, method = "GET", body) => {
-      const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, { method, redirect:"error", signal:AbortSignal.timeout(30000),
-        headers:{authorization:`Bearer ${credentials.token}`,"content-type":"application/json"}, body:body?JSON.stringify(body):undefined });
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(`Cloudflare ${method} ${path} failed (HTTP ${response.status}; codes ${(result.errors??[]).map(error=>error.code).join(",")}).`);
-      return result.result;
-    };
+    api = dependencies.api ?? await cloudflare();
     const accountPath = `/accounts/${target.accountId}`;
     await api(accountPath);
+    const coreDatabase = await api(`${accountPath}/d1/database/${accountsDb}`);
+    if (coreDatabase.name !== accounts.d1_databases.find(binding=>binding.binding==='DB').database_name) throw new Error('Core database identity does not match its dedicated configuration.');
     await run(process.execPath,[cli,"d1","migrations","apply","DB","--remote","--config",accountsPath],dirname(accountsPath));
-    query = async (sql, params = []) => (await api(`${accountPath}/d1/database/${accountsDb}/query`,"POST",{sql,params}))[0].results;
+    query = dependencies.query ?? d1Query(api, target.accountId, accountsDb);
+    if (!(await query("SELECT id FROM users WHERE id=?", [target.operatorUserId])).length) throw new Error("The pinned operator account does not exist.");
     const existing = (await query("SELECT * FROM product_installations WHERE product='voice'"))[0];
     try { state = JSON.parse(await readFile(stateFile,"utf8")); }
     catch(error) { if(error.code!=="ENOENT")throw error; }
     if (existing && !state) throw new Error("An installation already exists. Restore its private operator state before retrying; do not recreate resources.");
     state ??= { installationId:randomUUID(),secret:randomBytes(32).toString("hex"),target,creatingDatabase:false };
     if (JSON.stringify(state.target)!==JSON.stringify(target) || existing && existing.installation_id!==state.installationId) throw new Error("Installation ownership does not match this target.");
-    if (existing?.state === "installed" && existing.version !== source.version) throw new Error("Voice is already installed at a different version. Automatic upgrades are outside this installer.");
+    if (existing && existing.version !== source.version) throw new Error("Voice is already installed at a different version. Automatic upgrades are outside this installer.");
     await persist();
+    lease = randomUUID();
+    let claimed;
+    try { claimed = await claimInstallation(query, { target, state, source, lease }); }
+    catch (error) { lease = null; throw error; }
+    const guard = async () => {
+      if (controller.signal.aborted) throw new Error('Installation lease was lost.');
+      const renewed = await query("UPDATE product_installations SET lease_expires=? WHERE product='voice' AND installation_id=? AND lease_token=? AND lease_expires>? RETURNING installation_id", [Date.now()+120_000,state.installationId,lease,Date.now()]);
+      if (renewed.length !== 1) { controller.abort(); throw new Error('Installation lease was lost.'); }
+    };
+    let renewing = false;
+    heartbeat = setInterval(async () => {
+      if (renewing) return; renewing = true;
+      try { await guard(); } catch { controller.abort(); } finally { renewing = false; }
+    }, 20_000);
+    heartbeat.unref();
+    if (claimed.state === "installed") {
+      const response = await fetcher(`${target.origin}/_canopy/ready`, { headers:{authorization:`Bearer ${state.secret}`}, redirect:'error', signal:AbortSignal.timeout(15000) });
+      const ready = await response.json();
+      if (!response.ok || !ready.ready || ready.installationId !== state.installationId || ready.version !== source.version) throw new Error('Recorded installation is unavailable; no resources were changed.');
+      await query("UPDATE product_install_requests SET state='complete',updated_at=? WHERE product='voice'", [new Date().toISOString()]);
+      console.log("Voice is already installed and verified; no deployments were created."); return;
+    }
     const workers = await api(`${accountPath}/workers/scripts`);
     const domains = await api(`${accountPath}/workers/domains`);
     if (domains.some(domain=>domain.hostname===new URL(target.origin).hostname && domain.service!==target.workerName)) throw new Error("The Voice hostname is already owned by another Worker.");
-    if (!existing && workers.some(worker=>worker.id===target.workerName)) throw new Error("A Worker already uses the Voice name. Refusing to overwrite it.");
-    lease = randomUUID();
-    await query(`INSERT OR IGNORE INTO product_installations(product,installation_id,account_id,worker_name,origin,version,source_revision,state,updated_at)
-      VALUES('voice',?,?,?,?,?,?,'installing',?)`,[state.installationId,target.accountId,target.workerName,target.origin,source.version,`${source.revision}${source.dirty?`+dirty.${source.fingerprint}`:""}`,new Date().toISOString()]);
-    const claimed = await query("UPDATE product_installations SET lease_token=?,lease_expires=? WHERE product='voice' AND (lease_expires IS NULL OR lease_expires<=?) RETURNING installation_id",[lease,Date.now()+15*60_000,Date.now()]);
-    if (!claimed.length) { lease=null; throw new Error("Another operator holds this installation lease. Retry when it finishes or its 15-minute lease expires."); }
-    if (existing?.state === "installed") {
-      console.log("Voice is already installed; no resources or deployments were created.");
-      return;
+    if (workers.some(worker=>worker.id===target.workerName)) {
+      const settings = await api(`${accountPath}/workers/scripts/${target.workerName}/settings`);
+      if (!settings.bindings.some(binding=>binding.name==='CANOPY_INSTALLATION_ID' && binding.text===state.installationId)) throw new Error('The existing Worker is not owned by this installation.');
     }
-    await query("UPDATE product_installations SET state='installing',version=?,source_revision=?,updated_at=? WHERE product='voice' AND lease_token=?",[source.version,`${source.revision}${source.dirty?`+dirty.${source.fingerprint}`:""}`,new Date().toISOString(),lease]);
-    const databaseId = await ensureDatabase({target,state,persist,list:()=>api(`${accountPath}/d1/database?per_page=100`),create:()=>api(`${accountPath}/d1/database`,"POST",{name:target.databaseName})});
+    await guard();
+    await query("UPDATE product_installations SET state='installing',updated_at=? WHERE product='voice' AND installation_id=? AND lease_token=?", [new Date().toISOString(),state.installationId,lease]);
+    await query("UPDATE product_install_requests SET state='running',updated_at=? WHERE product='voice'", [new Date().toISOString()]);
+    const databaseId = await ensureDatabase({target,state,persist,recoverDatabaseId:values["recover-database"],list:()=>listDatabases(api,target.accountId),create:async()=>{await guard();return api(`${accountPath}/d1/database`,"POST",{name:target.databaseName});}});
     await query("UPDATE product_installations SET database_id=? WHERE product='voice' AND lease_token=?",[databaseId,lease]);
-    const voiceConfig = JSON.parse(await readFile(join(product,"wrangler.jsonc"),"utf8"));
+    const voiceConfig = JSON.parse(await readFile(join(productDirectory,"wrangler.jsonc"),"utf8"));
     Object.assign(voiceConfig,{name:target.workerName,account_id:target.accountId,workers_dev:false,routes:[{pattern:new URL(target.origin).hostname,custom_domain:true}],secrets:{required:["CANOPY_AUTH_SECRET"]}});
     voiceConfig.d1_databases[0].database_name=target.databaseName;
     voiceConfig.d1_databases[0].database_id=databaseId;
     Object.assign(voiceConfig.vars,{VOICE_ENABLED:"true",VOICE_PUBLIC_ORIGIN:target.origin,VOICE_AUTH_MODE:"canopy",CANOPY_ACCOUNTS_ORIGIN:target.accountsOrigin,
-      CANOPY_CONSOLE_ORIGIN:target.consoleOrigin,CANOPY_INSTALLATION_ID:state.installationId,CANOPY_SOURCE_VERSION:source.version});
-    const voicePath = join(product,"wrangler.install.jsonc");
+      CANOPY_CONSOLE_ORIGIN:target.consoleOrigin,CANOPY_INSTALLATION_ID:state.installationId,CANOPY_SOURCE_VERSION:source.version,
+      VOICE_INSTANCE_DAILY_CALL_LIMIT:String(target.dailyCallLimit ?? 20),VOICE_INSTANCE_CONCURRENT_CALL_LIMIT:String(target.concurrentCallLimit ?? 2),
+      ...(target.carrierAgentId && target.carrierUserId ? {VOICE_CARRIER_AGENT_ID:target.carrierAgentId,VOICE_CARRIER_USER_ID:target.carrierUserId} : {})});
+    const voicePath = join(productDirectory,"wrangler.install.jsonc");
     await writeFile(voicePath,`${JSON.stringify(voiceConfig,null,2)}\n`);
     const voiceSecrets=join(directory,"voice-secrets.json"), accountSecrets=join(directory,"accounts-secrets.json");
     await writeFile(voiceSecrets,JSON.stringify({CANOPY_AUTH_SECRET:state.secret}),{mode:0o600});
     await writeFile(accountSecrets,JSON.stringify({VOICE_AUTH_SECRET:state.secret}),{mode:0o600});
     await run("npm",["run","build:client","--workspace","@canopy/voice"]);
-    await run(process.execPath,[cli,"d1","migrations","apply","DB","--remote","--config",voicePath],product);
-    await run(process.execPath,[cli,"deploy","--config",voicePath,"--secrets-file",voiceSecrets],product);
-    const readiness=await fetch(`${target.origin}/_canopy/ready`,{headers:{authorization:`Bearer ${state.secret}`},redirect:"error",signal:AbortSignal.timeout(15000)});
+    await guard();
+    await run(process.execPath,[cli,"d1","migrations","apply","DB","--remote","--config",voicePath],productDirectory);
+    await guard();
+    await run(process.execPath,[cli,"deploy","--config",voicePath,"--secrets-file",voiceSecrets],productDirectory);
+    const readiness=await fetcher(`${target.origin}/_canopy/ready`,{headers:{authorization:`Bearer ${state.secret}`},redirect:"error",signal:AbortSignal.timeout(15000)});
     const ready=await readiness.json();
     if(!readiness.ok||!ready.ready||ready.installationId!==state.installationId||ready.version!==source.version)throw new Error("Voice runtime readiness did not match the installation.");
+    await guard();
     await run(process.execPath,[cli,"deploy","--config",accountsPath,"--secrets-file",accountSecrets],dirname(accountsPath));
     const settings=await api(`${accountPath}/workers/scripts/${target.workerName}/settings`);
     const namespaceId=settings.bindings.find(binding=>binding.name==="RECEPTIONIST_CALL")?.namespace_id;
     if(!namespaceId)throw new Error("The deployed Voice namespace was not found.");
-    await query("UPDATE product_installations SET state='installed',namespace_id=?,updated_at=? WHERE product='voice' AND lease_token=?",[namespaceId,new Date().toISOString(),lease]);
-    await run("npm",["run","build:staging","--workspace","@canopy/console"]);
+    await (dependencies.buildConsole ?? buildConsole)(target, controller.signal);
+    await guard();
     await run(process.execPath,[cli,"deploy","--config",consolePath],dirname(consolePath));
-    const inventory={time:new Date().toISOString(),target,installationId:state.installationId,databaseId,namespaceId,source};
-    await writeFile(join(directory,"inventory.json"),`${JSON.stringify(inventory,null,2)}\n`);
+    const deployedVersions = {};
+    for (const worker of [target.workerName,accounts.name,consoleConfig.name]) {
+      const deployments = await api(`${accountPath}/workers/scripts/${worker}/deployments`);
+      const versions = deployments.deployments?.[0]?.versions;
+      if (!versions?.length) throw new Error(`No deployed version evidence for ${worker}.`);
+      deployedVersions[worker] = versions;
+    }
+    const resources=[{kind:'worker',name:target.workerName},{kind:'d1',id:databaseId},{kind:'durable_object',id:namespaceId,className:'ReceptionistCall'}];
+    const inventory={time:new Date().toISOString(),target,installationId:state.installationId,databaseId,namespaceId,source,deployedVersions,resources};
+    await privateJSON(join(directory,"inventory.json"),inventory);
+    await guard();
+    await query("UPDATE product_installations SET state='installed',namespace_id=?,resources_json=?,verification_json=?,updated_at=? WHERE product='voice' AND installation_id=? AND lease_token=?",[namespaceId,JSON.stringify(resources),JSON.stringify({ready,deployedVersions,verifiedAt:new Date().toISOString()}),new Date().toISOString(),state.installationId,lease]);
+    await query("UPDATE product_install_requests SET state='complete',updated_at=? WHERE product='voice'",[new Date().toISOString()]);
     console.log(`Voice installed for this Canopy instance: ${target.consoleOrigin}/#/products/voice\nInventory: ${relative(root,join(directory,"inventory.json"))}`);
   } catch(error) {
-    if (query && lease) await query("UPDATE product_installations SET state='failed',updated_at=? WHERE product='voice' AND lease_token=?",[new Date().toISOString(),lease]).catch(()=>{});
+    if (query && lease) {
+      const failed = await query("UPDATE product_installations SET state='failed',updated_at=? WHERE product='voice' AND lease_token=? AND state!='installed' RETURNING product",[new Date().toISOString(),lease]).catch(()=>[]);
+      if (failed.length) await query("UPDATE product_install_requests SET state='failed',updated_at=? WHERE product='voice'",[new Date().toISOString()]).catch(()=>{});
+    }
     throw error;
   } finally {
+    process.removeListener("SIGINT", stop); process.removeListener("SIGTERM", stop);
+    clearInterval(heartbeat); activeSignal = undefined;
     if (query && lease) await query("UPDATE product_installations SET lease_token=NULL,lease_expires=NULL WHERE product='voice' AND lease_token=?",[lease]).catch(()=>{});
     await unlink(lockPath).catch(()=>{});
   }

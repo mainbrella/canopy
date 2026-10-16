@@ -10,7 +10,7 @@ export function fixture(t: test.TestContext) {
   const sqlite = new DatabaseSync(":memory:");
   t.after(() => sqlite.close());
   sqlite.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["001_initial.sql", "002_auth_sessions.sql", "012_email_password.sql", "013_product_installations.sql"]) {
+  for (const file of ["001_initial.sql", "002_auth_sessions.sql", "012_email_password.sql", "013_product_installations.sql", "014_product_access.sql"]) {
     sqlite.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), "utf8"));
   }
   let limited = false;
@@ -27,6 +27,7 @@ export function fixture(t: test.TestContext) {
         bind(...args: SQLInputValue[]) { values = args; return this; },
         async first() { return sqlite.prepare(sql).get(...values) ?? null; },
         async run() { return sqlite.prepare(sql).run(...values); },
+        async all() { return { results: sqlite.prepare(sql).all(...values) }; },
       };
     } },
   } as unknown as Env;

@@ -7,6 +7,10 @@
   "workspaces": ["platform/*", "packages/*", "products/*"],
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "setup:core": "node scripts/setup-core.mjs",
+    "install:voice": "node scripts/install-voice.mjs",
+    "operator:run": "node scripts/run-operator.mjs",
+    "register:appflare": "node scripts/register-appflare.mjs",
     "db:migrate:local": "npm run db:migrate:local --workspace @canopy/accounts",
     "type-check": "tsc -p tsconfig.json && npm run type-check --workspaces --if-present",
     "test": "tsx --test platform/accounts/test/*.test.ts packages/platform-client/test/*.test.ts && node --test scripts/test/*.test.mjs && npm run test:voice",

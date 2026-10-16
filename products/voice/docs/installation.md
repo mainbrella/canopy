@@ -1,6 +1,6 @@
 # Voice installation boundary
 
-The selected first product is Voice, using the existing single-owner standalone adapter. This extraction packages that product; it does not yet connect a console install/status API or provision a test deployment.
+Voice supports standalone owner-password mode and an optional Canopy mode with per-user workspaces. Console status/open, one-time account handoffs, explicit access grants and installation requests are implemented locally. The credentialed operator runner remains necessary. See the [portable operator workflow](../../../docs/operator-installation.md) and [pending live plan](../../../docs/milestone-deployment.md). No remote product installation is claimed.
 
 ## Source and release identity
 
@@ -22,7 +22,7 @@ No target account, resource IDs, domain, or provisioning credentials are selecte
 | Twilio/Telnyx | Optional operator-owned credentials, phone numbers, and carrier charges |
 | AI Gateway/Deepgram/Cartesia | Optional operator-owned speech providers; not provisioned by this product |
 
-`ADMIN_PASSWORD` (at least 16 characters) protects a single owner workspace. Sessions last eight hours, store hashed tokens, and are invalidated by password rotation. HTTPS uses the host-only Secure/HttpOnly/SameSite=Strict `__Host-canopy_voice_session` cookie. The local cookie is separate from Canopy accounts. There is no cross-host cookie assumption or shared-account login handoff.
+`ADMIN_PASSWORD` (at least 16 characters) protects a single owner workspace. Sessions last eight hours, store hashed tokens, and are invalidated by password rotation. HTTPS uses the host-only Secure/HttpOnly/SameSite=Strict `__Host-canopy_voice_session` cookie. The local cookie is separate from Canopy accounts. In Canopy mode there is no owner-password fallback: a hashed single-use code is exchanged on Voice’s own origin for a product-local session, linked to the platform session and checked for logout/access revocation. Cookies do not cross hosts.
 
 ## Direct Wrangler installation
 
@@ -53,7 +53,7 @@ For an existing standalone installation, preserve its Worker name, D1 ID, Durabl
 
 ## Retention and partial installation cleanup
 
-Before creating resources, record their intended names and ownership. If installation stops partway through, inspect and reuse only those dedicated resources; do not blindly create another database or overwrite an existing Worker. A provisioning adapter will need a persisted install identity and idempotent retries before console installation is exposed.
+Before creating resources, record their intended names and ownership. If installation stops partway through, inspect and reuse only those dedicated resources; do not blindly create another database or overwrite an existing Worker. The connected installer now retains private recovery state and uses an atomic identity/lease claim with heartbeat renewal. A different checkout cannot lease another installation ID. An unknown database with the right name is refused; a lost creation response requires reviewed evidence and the explicit `--recover-database UUID` flag with the original state.
 
 For an abandoned test install, first stop incoming carrier traffic and disable calling, allow active calls/hangup retries to finish, and export any required Voice data. Delete only the recorded installation's Worker/namespace and D1 after explicit cleanup authorization. Never delete platform identity, shared accounts, other products, or unrelated carrier numbers. Keeping the D1 retains transcripts and provider tombstones; deleting it is irreversible. No uninstall control is exposed by this extraction.
 

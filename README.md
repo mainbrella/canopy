@@ -2,7 +2,7 @@
 
 Canopy is the source monorepo being built for Mainbrella's hosted platform and its independently installable products. It should also serve as an example of running Mainbrella in your own Cloudflare account, choosing which products to run, and using Appflare for other apps. The goal is to share code where it has real consumers while keeping each product buildable, releasable, and usable on its own.
 
-The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. [Voice](products/voice/README.md) now has its own runtime, UI, owner authentication, migrations, tests, and standalone source export under `products/voice`. Console installation and account handoff remain unfinished. Isolated hosted staging is available at **https://stg.mainbrella.com**, with its API at **https://api-stg.mainbrella.com**; staging currently uses email/password only. See [STAGING.md](STAGING.md) for resources, deployment, verification, and teardown. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their production services.
+The working account slice supports local email/password and optional Google browser sign-in: an accounts Worker, a small console, and shared auth contracts/client in npm workspaces. [Voice](products/voice/README.md) now has its own runtime, UI, owner authentication, migrations, tests, and standalone source export under `products/voice`. Voice has persistent installation/readiness, a one-time account handoff, operator-only installation requests, explicit product grants and owner-funded usage limits. A portable core setup and a supported Appflare/Cut registration adapter are implemented locally; real product installation remains pending authorization. Isolated hosted staging is available at **https://stg.mainbrella.com**, with its API at **https://api-stg.mainbrella.com**; staging currently uses email/password only. See [STAGING.md](STAGING.md) for resources, deployment, verification, and teardown. The broader product layout and releases described later are still a migration plan. Sibling repositories remain read-only references and continue to own their production services.
 
 Canopy is one repository for these products; it is not every repository in the Mainbrella organization. A normal user installing Voice, Compute, or Builder should only need that product's supported build and runtime requirements, not a clone of the whole repository or every service in it.
 
@@ -17,7 +17,7 @@ npm run dev
 
 Open **http://127.0.0.1:5175** for the product home, then choose **Sign in** to create a local account. Continue with an email and password, inspect account details, reload to check the session, and sign out through the upper-right **Account** menu. An existing email signs in instead of creating a second account. New passwords need 8–128 characters, matching the current backend. These are new local accounts; existing Mainbrella accounts and customer data have not been imported.
 
-`npm run dev` checks that ports 5175 and 8789 are free, applies the three local identity migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. Email sign-in needs no Cloudflare login, sibling checkout, Docker, secrets, or external service. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
+`npm run dev` checks that ports 5175 and 8789 are free, applies local identity and product inventory/access migrations, and starts Vite plus the accounts Worker. The console proxies `/auth/*` to `127.0.0.1:8789`. Ctrl-C stops both. Local D1 data persists in `platform/accounts/.wrangler/`; caches and Wrangler logs stay in `.cache/`. Email sign-in needs no Cloudflare login, sibling checkout, Docker, secrets, or external service. This uses Wrangler's [local resource simulation](https://developers.cloudflare.com/workers/local-development/local-data/).
 
 ```sh
 npm run check          # TypeScript, account/Voice regressions, Worker dry runs and UI builds
@@ -32,17 +32,17 @@ The local build produces `platform/accounts/dist/` and `platform/console/dist/`.
 
 For fast frontend-only updates, run `npm run deploy:staging:site`. It builds the staging console once and deploys only `stg.mainbrella.com`, skipping checks, tests, API deployment, and database migrations. Use the full deployment command for changes that also need backend updates.
 
-The dark product home and account dropdown were deployed to staging on **2026-10-16** and passed the hosted email/session smoke test across all four target viewport sizes. The latest Worker versions and verification evidence are recorded in [STAGING.md](STAGING.md#shell-deployment-record). Voice remains a catalog placeholder there; Google remains disabled.
+The dark product home and account dropdown were deployed to staging on **2026-10-16** and passed the hosted email/session smoke test across all four target viewport sizes. Historical Worker versions and verification evidence are recorded in [STAGING.md](STAGING.md#shell-deployment-record). A read-only recheck still finds no registered Voice installation there; Google remains disabled. The new operator/product changes described below have not been deployed.
 
 ### Console configuration
 
-The dark console has a product home, shared header/footer, and an account dropdown. Compute, Builder, and Voice each have a **Not installed** placeholder page. Voice's independent runtime is packaged, but the console has no installation API, account handoff, or provisioning flow yet. The Appflare link opens its external catalog; Canopy does not read or manage Appflare installs.
+The dark console has a product home, account dropdown and real Voice status/open flow. Compute and Builder remain placeholders. The pinned operator can request Voice installation and grant/revoke product users. A credentialed CLI performs provisioning; the browser holds no Cloudflare credentials. Cut opens Appflare’s supported admin install review and can be registered from verified Appflare/Cloudflare inventory. See [operator installation](docs/operator-installation.md).
 
 Edit [console-config.ts](platform/console/src/console-config.ts) to rename your instance, reorder products, or set an entry's `visible` to `false`. The home list and detail routes use the same configuration; an unlisted product has no detail page. An empty catalog is supported. Vite reloads the configuration during development; rebuild before deploying changes.
 
-This configuration is public and controls console discovery only. It does not grant permissions, enable a runtime, stop a Worker, or uninstall resources. Keep secrets out of it. Product availability must come from verified deployment state when runtimes are added. Real product enable/disable operations, dependencies, authorization, and Appflare integration remain future slices.
+This configuration is public and controls console discovery only. It does not grant permissions, enable a runtime, stop a Worker, or uninstall resources. Keep secrets out of it. Product availability must come from verified deployment state when runtimes are added. Product access and operator installation authority are checked by the server independently of visibility. Automatic upgrades, managed billing and destructive uninstall remain deferred.
 
-Views use fragment URLs (`/#/`, `/#/account`, `/#/products/compute`), so bookmarks and reloads work with the existing static Worker configuration. Account remains the only authenticated feature; product descriptions are public. Billing, API keys, and production account links are omitted.
+Views use fragment URLs (`/#/`, `/#/account`, `/#/products/compute`), so bookmarks and reloads work with the existing static Worker configuration. Product descriptions/status are public; product opening, grants and installation requests enforce their own authenticated permissions. Billing, API keys, and production account links are omitted.
 
 The shell adapts the brand and disclosure behavior from `../web` without importing its marketing page, billing requests, analytics, or session redirects. The source revisions and hashes are recorded in [migration-sources.json](migration-sources.json). Appflare's local catalog documentation was inspected at `ccafe08b4958d8e2f80299ee310b99a7f5d00eca`; no Appflare runtime or manifest was copied.
 
@@ -97,7 +97,7 @@ Intentional adaptations include explicit environment bindings, a configurable or
 
 `user` contains only `id`, `email`, `name`, `dob`, and `created_at`. JSON responses are not cached. Error bodies use `{ error }`: invalid input/weak new passwords (400), invalid email or Google credentials (401), rejected origins (403), missing routes (404), wrong methods (405), identity conflicts (409), rate limiting (429 with `Retry-After: 60`), or unavailable infrastructure/provider (503). Google errors use `invalid_google_credential`, `identity_conflict`, and `google_unavailable`; infrastructure failures use `auth_unavailable`. The email endpoint retains its 20-attempts/minute/IP limiter; Google has a separate limiter with the same limit. Allowed browser origins can preflight with `OPTIONS`. This is the browser auth subset of the existing API, not its native/OpenAPI surface.
 
-Native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, Compute, and Builder have not moved. Voice uses a separate single-owner adapter; shared Canopy account handoff and hosted billing remain deferred. No production data, wallet, Worker, or public URL has changed.
+Native sign-in, password recovery, welcome email, analytics/consent integrations, profile editing, API keys, billing, projects, Raindrop screens, Compute, and Builder have not moved. Voice supports both standalone owner authentication and an explicit Canopy identity adapter. Hosted/managed billing remains deferred and fails closed. No production data, wallet, Worker, or public URL has changed.
 
 ## Run Voice independently
 
@@ -114,7 +114,23 @@ Open **http://127.0.0.1:8791**. Local development supports owner login and persi
 
 `npm run test:voice`, `npm run build:voice`, and `npm run test:browser:voice` verify the product. `npm run export:voice` produces a product-only source tree and lockfile under `products/voice/dist/source` from a clean commit; `-- --allow-dirty` permits a clearly marked local verification export. That output supports its own `npm ci`, type checks, tests, build, and local development without Canopy platform services or sibling imports.
 
-The [installation boundary](products/voice/docs/installation.md) records resources, secrets, authorization, retention, and cleanup. [Appflare packaging](products/voice/docs/appflare.md) targets the monorepo at a future immutable source pin. No Voice deployment, catalog update, or console installation is claimed by this extraction. The original three standalone SQL migrations are preserved byte-for-byte and belong only to Voice's own database.
+The [installation boundary](products/voice/docs/installation.md) records resources, secrets, authorization, retention, and cleanup. [Appflare packaging](products/voice/docs/appflare.md) targets immutable monorepo source pins. Local packaging and installation fixtures are separate from live evidence; no new product deployment or catalog publication is claimed. The original Voice SQL migrations remain byte-for-byte intact; `0004` adds Canopy workspaces/sessions. All belong only to Voice D1.
+
+
+## Run core in your own account
+
+Follow [operator installation](docs/operator-installation.md). Setup uses an explicit account, origins, resource prefix, product selection and pinned operator account ID. It supports an empty catalog and deploys core only.
+
+```sh
+cp config/operator.example.json config/operator.json
+# Edit the target before generating configs or provisioning.
+npm run setup:core -- --config config/operator.json --plan
+npm run setup:core -- --config config/operator.json
+```
+
+`--deploy` is the explicit live-provisioning action; local generation does not deploy. Then use **Install Voice** plus `npm run install:voice -- --config TARGET`, or **Continue in Appflare** plus `npm run register:appflare -- --config CONFIG`. The credentialed runner/reconciler is required. `npm run operator:run -- --config TARGET --watch` processes the operator’s console Voice requests while running; no hosted provisioning service is included. Signup grants neither operator authority nor automatic paid-product access. Connected Voice requires explicit `owner_funded` policy; unsupported managed billing denies use.
+
+`deploy:staging` deploys accounts and console only. `deploy:staging:site` deploys console only. `install:voice:staging` separately installs Voice and requires a pinned operator/access policy first. None of these commands installs Appflare or Cut. The [concrete live plan](docs/milestone-deployment.md) is pending approval.
 
 ## Source inventory — 2026-10-16
 
@@ -128,7 +144,7 @@ The [installation boundary](products/voice/docs/installation.md) records resourc
 
 The inspected `web` and `raindrop` worktrees were clean. `backend` had an untracked `docs/source-ownership.md`; it describes a broader source reorganization that is absent from the actual tree (implementation is still in `worker/app`, `worker/lib`, and `web/src`). It was left untouched and is not treated as evidence that those moves occurred. Existing source, Wrangler configs, package scripts, and tracked migration files determined this inventory.
 
-The next product checkpoint is an authorized install/status/open flow for Voice in the console, including persistent installation identity and explicit authentication handoff, followed by a recorded real installation into dedicated test resources. Product packaging is complete; provisioning and live-provider verification are not. Real Google verification is separately pending and does not block this work. Existing staging authorization does not authorize a new Voice deployment.
+The next checkpoint is the [authorized live verification plan](docs/milestone-deployment.md): fresh operator-owned core with zero products, connected Voice with a useful real action, and a real Appflare Cut install reconciled alongside it. Local implementation/tests do not complete that milestone. Real Google verification remains a separate optional checkpoint. Existing core staging authorization does not cover new product resources.
 
 ## Repository shape
 
@@ -173,7 +189,7 @@ The product boundary should support these planned installation shapes:
 | Builder + Compute | Builder, required Compute, source storage, and configured models | Voice or unrelated hosted admin and billing services |
 | Hosted Mainbrella | The products and shared account, wallet, permissions, and audit services that the hosted edition uses | — |
 
-These are product goals, not working installers today. Bundle composition should not accidentally install a second Compute runtime or copy Compute internals into Builder. Builder should call a supported Compute API or client. Sharing and upgrading components independently requires explicit ownership and compatible APIs.
+Voice and the Cut adapter now have explicit installation paths; the remaining bundles below are product goals. Bundle composition should not accidentally install a second Compute runtime or copy Compute internals into Builder. Builder should call a supported Compute API or client. Sharing and upgrading components independently requires explicit ownership and compatible APIs.
 
 ## Product and package boundaries
 

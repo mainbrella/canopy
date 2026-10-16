@@ -12,9 +12,9 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   const cors = authCorsHeaders(request, env);
   if (!cors) return authJson({ error: "origin_not_allowed" }, 403);
   const path = new URL(request.url).pathname;
-  if (path.startsWith("/products/") || path === "/internal/voice/session") {
+  if (path.startsWith("/products/") || path.startsWith("/internal/voice/")) {
     try { return await handleProducts(request, env, cors); }
-    catch { return authJson({ error: "voice_unavailable" }, 503, cors); }
+    catch { return authJson({ error: "product_unavailable" }, 503, cors); }
   }
   if (!["/auth/email", "/auth/google", "/auth/me", "/auth/logout"].includes(path)) return authJson({ error: "not_found" }, 404, cors);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });

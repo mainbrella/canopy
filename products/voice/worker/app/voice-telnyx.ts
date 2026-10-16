@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { AGENT_ID, callStub, createCall, hashMediaToken, initializeCall, MAX_CALL_MS, publicAgent, publicVoiceOrigin, readCall, type VoiceAgentRow } from '../lib/voice';
+import { carrierAgentId, carrierWorkspaceAllowed, usageAllowed, callStub, createCall, hashMediaToken, initializeCall, MAX_CALL_MS, publicAgent, publicVoiceOrigin, readCall, type VoiceAgentRow } from '../lib/voice';
 import { twilioToPCM } from '../lib/voice-telephony';
 
 import { pcmToTelnyx, telnyxCallIdMatches, telnyxConfigured, telnyxSipUri, validTelnyxCallId, validTelnyxSignature, streamTexml } from '../lib/voice-telnyx';
@@ -37,7 +37,7 @@ export async function handleTelnyxRequest(request: Request,env: Env,ctx?: Execut
       const transport=sipTo || to?.toLowerCase().startsWith('sip:') ? 'sip' : 'pstn';
       const destinationMatches=transport === 'sip' ? Boolean(sipTo && sipTo===telnyxSipUri(env.TELNYX_SIP_URI)) : to===env.TELNYX_PHONE_NUMBER;
       if (fields.get('ConnectionId')!==env.TELNYX_CONNECTION_ID ||
-        !destinationMatches || incoming[1]!==AGENT_ID || !validTelnyxCallId(callSid)) {
+        !destinationMatches || incoming[1]!==carrierAgentId(env) || !validTelnyxCallId(callSid)) {
         console.warn('voice_telnyx_webhook_identity_mismatch');
         return new Response(null,{status:403});
       }
@@ -58,7 +58,7 @@ export async function handleTelnyxRequest(request: Request,env: Env,ctx?: Execut
         return new Response(null,{status:503});
       }
       const agent=await env.DB.prepare('SELECT * FROM voice_agents WHERE id=?').bind(incoming[1]).first<VoiceAgentRow>();
-      if (!agent) return unavailable();
+      if (!agent || !carrierWorkspaceAllowed(env, agent.id, agent.user_id)) return unavailable();
       const existing=await env.DB.prepare('SELECT id FROM voice_calls WHERE provider_call_id=?').bind(callSid).first();
       // A signed webhook replay cannot allocate another model session.
       if (existing) return xml('<Response><Hangup /></Response>');
@@ -72,12 +72,13 @@ export async function handleTelnyxRequest(request: Request,env: Env,ctx?: Execut
       }
       return xml(streamTexml(`${origin.replace('https:','wss:')}/voice/telnyx/media/${call.id}`,token));
     }
-    if (!telnyxConfigured(env,AGENT_ID)) return new Response(null,{status:503});
+    if (!telnyxConfigured(env,carrierAgentId(env))) return new Response(null,{status:503});
     if (request.method !== 'GET') return new Response(null,{status:405});
     if (request.headers.get('Upgrade')?.toLowerCase()!=='websocket') return new Response(null,{status:426});
     if (!await validTelnyxSignature(env.TELNYX_PUBLIC_KEY,request.headers,expectedUrl.replace('https:','wss:'))) return new Response(null,{status:403});
     const call=await readCall(env,media![1]);
-    if (!call || call.channel!=='phone' || call.phone_provider!=='telnyx' || call.status!=='active' || call.connected_at || !call.media_token_hash || call.agent_id!==AGENT_ID) return new Response(null,{status:404});
+    if (!call || call.channel!=='phone' || call.phone_provider!=='telnyx' || call.status!=='active' || call.connected_at || !call.media_token_hash || !carrierWorkspaceAllowed(env, call.agent_id, call.user_id)) return new Response(null,{status:404});
+    if (!await usageAllowed(env, call.user_id)) return new Response(null,{status:403});
     return bridgeTelnyx(env,call.id,call.provider_call_id!,ctx);
   } catch {
     console.error('voice_telephony_unavailable');

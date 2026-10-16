@@ -4,6 +4,30 @@ import { speechModelAvailable, validSpeechSelection, voiceLanguage, voiceModel, 
 
 export const AGENT_ID = '00000000-0000-4000-8000-000000000001';
 
+// The operator assigns all configured numbers/SIP destinations to one workspace.
+// Both identities must be pinned; arbitrary Canopy agents never inherit a number.
+export function carrierAgentId(env: Env): string | null {
+  if (env.VOICE_AUTH_MODE !== 'canopy') return AGENT_ID;
+  return env.VOICE_CARRIER_USER_ID && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(env.VOICE_CARRIER_AGENT_ID || '')
+    ? env.VOICE_CARRIER_AGENT_ID! : null;
+}
+export const carrierWorkspaceAllowed = (env: Env, agentId: string, userId: string) =>
+  agentId === carrierAgentId(env) && userId === (env.VOICE_AUTH_MODE === 'canopy' ? env.VOICE_CARRIER_USER_ID : 'owner');
+
+export async function usageAllowed(env: Env, userId: string): Promise<boolean> {
+  if (env.VOICE_AUTH_MODE !== 'canopy') return true;
+  if (!env.CANOPY_AUTH_SECRET || !env.CANOPY_ACCOUNTS_ORIGIN) return false;
+  try {
+    const response = await fetch(`${env.CANOPY_ACCOUNTS_ORIGIN}/internal/voice/authorize`, {
+      method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(5000),
+      headers: { authorization: `Bearer ${env.CANOPY_AUTH_SECRET}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    const result = await response.json() as { allowed?: unknown; billingMode?: unknown };
+    return response.ok && result.allowed === true && result.billingMode === 'owner_funded';
+  } catch { return false; }
+}
+
 export const VOICE_MODELS = {
   stt: '@cf/deepgram/flux',
   llm: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
@@ -71,7 +95,7 @@ export function twilioSipUri(value: string | null | undefined): string | null {
 }
 export function telephonyConfigured(env: Env, agentId: string | null, transport?: VoicePhoneTransport): boolean {
   if (!voiceEnabled(env) || !publicVoiceOrigin(env) || !env.TWILIO_AUTH_TOKEN ||
-    !/^AC[a-f0-9]{32}$/i.test(env.TWILIO_ACCOUNT_SID || '') || agentId !== AGENT_ID) return false;
+    !/^AC[a-f0-9]{32}$/i.test(env.TWILIO_ACCOUNT_SID || '') || !agentId || agentId !== carrierAgentId(env)) return false;
   return (transport ? [transport] : ['pstn','sip'] as const).some(kind => {
     return kind === 'sip' ? Boolean(twilioSipUri(env.TWILIO_SIP_URI)) : /^\+[1-9]\d{7,14}$/.test(env.TWILIO_PHONE_NUMBER || '');
   });
@@ -93,6 +117,11 @@ export async function expireCalls(env: Env, userId: string) {
 export async function createCall(env: Env, userId: string, agent: VoiceAgentConfig, channel: VoiceCallRow['channel'],
   providerCallId: string | null = null, mediaTokenHash: string | null = null, phoneTransport: VoicePhoneTransport = 'pstn', phoneProvider: VoicePhoneProvider = 'twilio'): Promise<VoiceCallRow | null> {
   if (!speechModelAvailable(env, agent.model ?? 'aura-1')) throw new Error('voice_model_unavailable');
+  if (!await usageAllowed(env, userId)) return null;
+  const limit = (value: string | undefined, fallback: number) => value === undefined ? fallback
+    : /^[1-9]\d{0,5}$/.test(value) ? Number(value) : 0;
+  const dailyLimit = limit(env.VOICE_INSTANCE_DAILY_CALL_LIMIT, env.VOICE_AUTH_MODE === 'canopy' ? 20 : 100);
+  const concurrentLimit = limit(env.VOICE_INSTANCE_CONCURRENT_CALL_LIMIT, env.VOICE_AUTH_MODE === 'canopy' ? 2 : 3);
   await expireCalls(env, userId);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -100,10 +129,13 @@ export async function createCall(env: Env, userId: string, agent: VoiceAgentConf
     (id,user_id,agent_id,channel,status,started_at,transcript_json,config_json,provider_call_id,media_token_hash,media_token_expires_at,phone_transport,phone_provider)
     SELECT ?,?,?,?,'active',?,'[]',?,?,?,?,?,? WHERE
     (SELECT COUNT(*) FROM voice_calls WHERE user_id=? AND status='active') < 3 AND
-    (SELECT COUNT(*) FROM voice_calls WHERE user_id=? AND started_at>=?) < 100`)
+    (SELECT COUNT(*) FROM voice_calls WHERE user_id=? AND started_at>=?) < 100 AND
+    (SELECT COUNT(*) FROM voice_calls WHERE status='active') < ? AND
+    (SELECT COUNT(*) FROM voice_calls WHERE started_at>=?) < ?`)
     .bind(id,userId,agent.id,channel,now,JSON.stringify(agent),providerCallId,mediaTokenHash,
       mediaTokenHash ? new Date(Date.now()+60_000).toISOString() : null,channel === 'phone' ? phoneTransport : null,channel === 'phone' ? phoneProvider : null,userId,userId,
-      new Date(Date.now()-86_400_000).toISOString()).run();
+      new Date(Date.now()-86_400_000).toISOString(), concurrentLimit,
+      new Date(Date.now()-86_400_000).toISOString(), dailyLimit).run();
   return result.meta.changes ? readCall(env,id) : null;
 }
 export async function initializeCall(env: Env, call: VoiceCallRow): Promise<void> {

@@ -1,12 +1,19 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, request as apiRequest, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+async function operator(){
+  const api=await apiRequest.newContext({baseURL:'http://127.0.0.1:8793',extraHTTPHeaders:{origin:'http://127.0.0.1:5175'}});
+  const response=await api.post('/auth/email',{data:{email:'operator@installation.test',password:'private fixture operator password'}});
+  expect(response.ok()).toBe(true);return api;
+}
 async function openVoice(page:Page){
   await page.goto("/#/account");
   await page.getByLabel("Email",{exact:true}).fill(`voice-${randomUUID()}@example.com`);
   await page.getByLabel("Password",{exact:true}).fill("a private test password");
   await page.getByRole("button",{name:"Continue with email"}).click();
   await expect(page.locator("#account-email")).toContainText("@example.com");
+  const user=(await(await page.request.get('http://127.0.0.1:8793/auth/me')).json()).user;
+  const api=await operator();expect((await api.post('/products/voice/access',{data:{userId:user.id,allowed:true}})).ok()).toBe(true);await api.dispose();
   await page.goto("/#/products/voice");
   await expect(page.locator("#product-availability")).toHaveText("Installed");
   await page.getByRole("button",{name:"Open Voice",exact:true}).focus();
@@ -73,3 +80,43 @@ for(const viewport of[{width:390,height:844},{width:768,height:1024},{width:1280
     await page.screenshot({path:testInfo.outputPath("installed-voice.png")});
   });
 }
+
+test('operator requests persist from zero products and connected Voice coexists with registered Cut',async({page},testInfo)=>{
+  const api=await operator();
+  try{
+    expect((await api.post('/__test/reset')).ok()).toBe(true);
+    await page.goto('/#/account');
+    await page.getByLabel('Email',{exact:true}).fill('operator@installation.test');
+    await page.getByLabel('Password',{exact:true}).fill('private fixture operator password');
+    await page.getByRole('button',{name:'Continue with email'}).click();
+    await expect(page.locator('#account-email')).toHaveText('operator@installation.test');
+    await page.goto('/#/products/voice');
+    await expect(page.locator('#product-availability')).toHaveText('Not installed');
+    for(const viewport of [{width:390,height:844},{width:768,height:1024},{width:1280,height:800},{width:1440,height:900}]){
+      await page.setViewportSize(viewport);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:testInfo.outputPath(`operator-${viewport.width}.png`)});
+    }
+    await page.getByRole('button',{name:'Install Voice',exact:true}).focus();await page.keyboard.press('Enter');
+    await expect(page.locator('#product-availability')).toHaveText('Installation requested');
+    await page.reload();await expect(page.locator('#product-availability')).toHaveText('Installation requested');
+    // The credentialed runner is simulated here; unit tests exercise its SQL and evidence validation.
+    expect((await api.post('/__test/voice')).ok()).toBe(true);
+    await page.getByRole('button',{name:'Check again'}).click();
+    await expect(page.getByRole('button',{name:'Open Voice',exact:true})).toBeVisible();
+    await page.goto('/#/products/cut');
+    await expect(page.getByRole('button',{name:'Continue in Appflare'})).toBeVisible();
+    await page.route('https://appflare.example/install/cut',route=>route.fulfill({body:'Appflare admin review fixture'}));
+    await page.getByRole('button',{name:'Continue in Appflare'}).click();
+    await expect(page).toHaveURL('https://appflare.example/install/cut');
+    expect((await api.post('/__test/cut')).ok()).toBe(true);
+    await page.goto('http://127.0.0.1:5175/#/');await page.reload();
+    await expect(page.locator('[data-product="voice"]')).toContainText('Installed');
+    await expect(page.locator('[data-product="cut"]')).toContainText('Registered');
+    await page.getByRole('link',{name:/Cut A link shortener/}).click();
+    await expect(page.locator('#product-notice')).toContainText('does not share Canopy sign-in or billing');
+    await page.getByRole('button',{name:'Open Cut',exact:true}).click();
+    await expect(page).toHaveURL('http://127.0.0.1:8795/admin');
+    await expect(page.getByLabel('Admin password')).toBeVisible();
+  }finally{await api.post('/__test/voice');await api.dispose();}
+});
