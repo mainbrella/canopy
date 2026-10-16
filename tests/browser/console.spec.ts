@@ -5,7 +5,7 @@ const user = {
   name: "Console User", dob: null, created_at: "2026-10-16T00:00:00.000Z",
 };
 
-test("home lists honest product stubs, with working navigation and no product API requests", async ({ page }) => {
+test("home lists uninstalled products and checks the instance Voice installation", async ({ page }) => {
   const requests: string[] = [];
   const errors: string[] = [];
   page.on("request", request => {
@@ -32,7 +32,7 @@ test("home lists honest product stubs, with working navigation and no product AP
   await expect(page.locator("#products")).toBeVisible();
   await page.goBack();
   await expect(page.locator("#sign-in")).toBeVisible();
-  expect(requests.every(path => path === "/auth/me")).toBe(true);
+  expect(requests.every(path => ["/auth/me", "/products/voice"].includes(path))).toBe(true);
   expect(errors).toEqual([]);
 });
 

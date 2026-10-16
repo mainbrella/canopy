@@ -36,18 +36,50 @@ function tokenFrom(request: Request): string | null {
   return value && /^[a-f0-9]{64}$/.test(value) ? value : null;
 }
 
-function cookie(request: Request, value: string, maxAge: number): string {
+export function cookie(request: Request, value: string, maxAge: number): string {
   const secure = new URL(request.url).protocol === "https:";
   return `${secure ? "__Host-" : ""}${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
 export async function currentUser(env: Env, request: Request): Promise<{ id: string } | null> {
   const token = tokenFrom(request);
+  if (env.VOICE_AUTH_MODE === "canopy") {
+    if (!token || !canopyConfigured(env)) return null;
+    const session = await env.DB.prepare("SELECT user_id,platform_session_hash FROM sessions WHERE token_hash=? AND password_hash=? AND expires_at>?")
+      .bind(await hashToken(token), await hashToken(env.CANOPY_AUTH_SECRET!), Date.now())
+      .first<{ user_id: string; platform_session_hash: string }>();
+    if (!session?.platform_session_hash) return null;
+    return await validPlatformSession(env, session.platform_session_hash, session.user_id) ? { id: session.user_id } : null;
+  }
   if (!token || !env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 16) return null;
   const session = await env.DB.prepare(
     "SELECT token_hash FROM sessions WHERE token_hash=? AND password_hash=? AND expires_at>?",
   ).bind(await hashToken(token), await hashToken(env.ADMIN_PASSWORD), Date.now()).first();
   return session ? { id: OWNER_ID } : null;
+}
+
+export function canopyConfigured(env: Env): boolean {
+  const origin = (value: string | undefined) => {
+    try {
+      const url = new URL(value || "");
+      return url.origin === value && (url.protocol === "https:" || url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname));
+    } catch { return false; }
+  };
+  return env.VOICE_AUTH_MODE === "canopy" && Boolean(env.CANOPY_AUTH_SECRET && env.CANOPY_AUTH_SECRET.length >= 64
+    && env.CANOPY_INSTALLATION_ID && env.CANOPY_SOURCE_VERSION && origin(env.CANOPY_ACCOUNTS_ORIGIN) && origin(env.CANOPY_CONSOLE_ORIGIN));
+}
+
+export async function validPlatformSession(env: Env, sessionHash: string, userId: string): Promise<boolean> {
+  if (!canopyConfigured(env)) return false;
+  try {
+    const response = await fetch(`${env.CANOPY_ACCOUNTS_ORIGIN}/internal/voice/session`, {
+      method: "POST", redirect: "manual", signal: AbortSignal.timeout(5000),
+      headers: { authorization: `Bearer ${env.CANOPY_AUTH_SECRET}`, "content-type": "application/json" },
+      body: JSON.stringify({ sessionHash }),
+    });
+    const body = await response.json() as { user?: { id?: unknown } | null };
+    return response.ok && body.user?.id === userId;
+  } catch { return false; }
 }
 
 /** Bound streamed input too: Content-Length alone is not a body size limit. */
@@ -86,6 +118,7 @@ export async function handleAuth(request: Request, env: Env): Promise<Response> 
     return new Response(null, { status: 204, headers: { "set-cookie": cookie(request, "", 0), "cache-control": "no-store" } });
   }
   if (url.pathname !== "/auth/login") return authJson({ error: "not_found" }, 404);
+  if (env.VOICE_AUTH_MODE === "canopy") return authJson({ error: "login_unavailable" }, 503);
   if (!env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 16) return authJson({ error: "login_unavailable" }, 503);
   const now = Date.now();
   const ip = await hashToken(request.headers.get("CF-Connecting-IP") || "local");

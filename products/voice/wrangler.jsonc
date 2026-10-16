@@ -16,6 +16,9 @@
       "/auth/*",
       "/voice/*",
       "/health",
+      "/_canopy/*",
+      "/login",
+      "/login.html",
       "/agents/*",
       "/__*"
     ]

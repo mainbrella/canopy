@@ -9,7 +9,7 @@
     "dev": "node scripts/dev.mjs",
     "db:migrate:local": "npm run db:migrate:local --workspace @canopy/accounts",
     "type-check": "tsc -p tsconfig.json && npm run type-check --workspaces --if-present",
-    "test": "tsx --test platform/accounts/test/*.test.ts packages/platform-client/test/*.test.ts && npm run test:voice",
+    "test": "tsx --test platform/accounts/test/*.test.ts packages/platform-client/test/*.test.ts && node --test scripts/test/*.test.mjs && npm run test:voice",
     "build": "npm run build --workspaces --if-present",
     "check": "npm run type-check && npm test && npm run build",
     "build:staging": "npm run build:staging --workspace @canopy/console && node scripts/wrangler.mjs staging build:api && node scripts/wrangler.mjs staging build:console",
@@ -23,7 +23,9 @@
     "test:voice": "npm test --workspace @canopy/voice",
     "build:voice": "npm run build --workspace @canopy/voice",
     "export:voice": "node products/voice/scripts/export.mjs",
-    "test:browser:voice": "playwright test --config playwright.voice.config.ts"
+    "install:voice:staging": "npm run check && npm run build:staging && node scripts/install-voice.mjs --config config/voice.staging.json",
+    "test:browser:voice": "playwright test --config playwright.voice.config.ts",
+    "test:browser:installation": "playwright test --config playwright.installation.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",

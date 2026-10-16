@@ -41,8 +41,14 @@
       </section>
       <section id="product-detail" aria-labelledby="heading" hidden>
         <p id="product-description"></p>
-        <p class="product-availability">Not installed</p>
+        <p id="product-availability" class="product-availability">Not installed</p>
         <p id="product-notice" class="muted"></p>
+        <div id="voice-actions" hidden>
+          <button id="voice-open" type="button" hidden>Open Voice</button>
+          <a id="voice-sign-in" href="#/account" hidden>Sign in to open Voice</a>
+          <button id="voice-retry" class="secondary" type="button" hidden>Check again</button>
+          <p id="voice-error" role="alert" hidden></p>
+        </div>
         <a href="#/">Back to products</a>
       </section>
       <form id="sign-in" hidden>

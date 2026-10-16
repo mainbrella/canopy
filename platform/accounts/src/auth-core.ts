@@ -92,6 +92,11 @@ function readToken(env: Env, request: Request): string | null {
   return cookie ? cookie.slice(prefix.length) : null;
 }
 
+export async function sessionTokenHash(env: Env, request: Request): Promise<string | null> {
+  const token = readToken(env, request);
+  return token ? hashToken(token) : null;
+}
+
 function sessionCookie(env: Env, request: Request, token: string, maxAge: number): string {
   const attributes = isLocalRequest(env, request) ? "SameSite=Lax" : "SameSite=None; Secure";
   return `${cookieName(env, request)}=${token}; Max-Age=${maxAge}; Path=/; HttpOnly; ${attributes}`;

@@ -52,7 +52,7 @@ for (const path of [".dev.vars", "wrangler.install.jsonc", ".wrangler/state"]) {
 await rm(output, { recursive: true, force: true });
 const target = `${output}/products/voice`;
 await mkdir(`${target}/scripts`, { recursive: true });
-for (const path of ["worker", "src", "test", "public", "migrations", "index.html", "login.html", "vite.config.ts",
+for (const path of ["worker", "src", "test", "public", "migrations", "index.html", "login.html", "handoff.html", "vite.config.ts",
   "tsconfig.worker.json", "tsconfig.client.json", "wrangler.jsonc", ".dev.vars.example", "README.md", "NOTICE.md", "LICENSE"]) {
   await cp(`${product}${path}`, `${target}/${path}`, { recursive: true });
 }

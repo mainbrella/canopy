@@ -6,6 +6,12 @@ export interface Env {
   ASSETS: Fetcher;
   RECEPTIONIST_CALL: DurableObjectNamespace<import("./durable-objects/receptionist-call").ReceptionistCall>;
   ADMIN_PASSWORD: string;
+  VOICE_AUTH_MODE?: string;
+  CANOPY_AUTH_SECRET?: string;
+  CANOPY_ACCOUNTS_ORIGIN?: string;
+  CANOPY_CONSOLE_ORIGIN?: string;
+  CANOPY_INSTALLATION_ID?: string;
+  CANOPY_SOURCE_VERSION?: string;
   VOICE_ENABLED?: string;
   VOICE_PUBLIC_ORIGIN?: string;
   TRANSCRIPT_RETENTION_DAYS?: string;

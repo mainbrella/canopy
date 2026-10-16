@@ -62,7 +62,7 @@ export async function handleVoiceRequest(request: Request, env: Env, ctx: Execut
       VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,business_name=excluded.business_name,
       greeting=excluded.greeting,instructions=excluded.instructions,voice=excluded.voice,voice_logic=excluded.voice_logic,
       model=excluded.model,language=excluded.language,updated_at=excluded.updated_at`)
-      .bind(AGENT_ID, user.id, input.name, input.businessName, input.greeting, input.instructions, input.voice,
+      .bind(env.VOICE_AUTH_MODE === "canopy" ? crypto.randomUUID() : AGENT_ID, user.id, input.name, input.businessName, input.greeting, input.instructions, input.voice,
         input.voiceLogic, input.model, input.language, new Date().toISOString()).run();
     return authJson({ agent: publicAgent((await readAgent(env, user.id))!) });
   }

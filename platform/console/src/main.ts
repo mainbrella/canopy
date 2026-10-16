@@ -3,6 +3,7 @@ import type { SignInResult, User } from "@canopy/contracts/auth";
 import { createGoogleSignIn } from "./google-sign-in.ts";
 import { createAccountMenu } from "./account-menu.ts";
 import { consoleConfig } from "./console-config.ts";
+import { createVoiceProduct } from "./voice-product.ts";
 import "./style.css";
 
 const auth = createAuthClient({ baseUrl: import.meta.env.VITE_AUTH_BASE_URL });
@@ -40,6 +41,7 @@ element("instance-name").textContent = consoleConfig.name;
 element("instance-name").parentElement!.setAttribute("aria-label", `${consoleConfig.name} home`);
 for (const product of products) {
   const row = document.createElement("li");
+  row.dataset.product = product.id;
   const link = document.createElement("a");
   link.href = `#/products/${product.id}`;
   link.innerHTML = '<div><h2></h2><p class="muted"></p></div><span class="product-availability">Not installed</span><span class="product-arrow" aria-hidden="true">→</span>';
@@ -49,6 +51,7 @@ for (const product of products) {
   element("product-list").append(row);
 }
 element("products-empty").hidden = products.length > 0;
+const voiceProduct = products.some(product => product.id === "voice") ? createVoiceProduct(() => currentUser) : null;
 
 function renderView(focus = false) {
   const route = location.hash || "#/";
@@ -67,9 +70,12 @@ function renderView(focus = false) {
   if (isHome || product) element("products-link").setAttribute("aria-current", "page");
   if (isAccount) element("account-link").setAttribute("aria-current", "page");
   if (product) {
+    element("product-availability").textContent = "Not installed";
+    element("product-notice").hidden = false;
     element("product-description").textContent = product.description;
     element("product-notice").textContent = `${product.name} isn’t available in this deployment yet.`;
   }
+  voiceProduct?.render();
   if (focus) heading.focus();
   if (!form.hidden) void google?.load();
 }
@@ -170,3 +176,4 @@ signOut.addEventListener("click", async () => {
 retry.addEventListener("click", () => { void checkSession(); });
 renderView();
 void checkSession();
+void voiceProduct?.refresh();

@@ -1,0 +1,10 @@
+{
+  "accountId": "2b7a9be82bb64187230703b024e25157",
+  "accountsConfig": "platform/accounts/wrangler.staging.jsonc",
+  "consoleConfig": "platform/console/wrangler.staging.jsonc",
+  "accountsOrigin": "https://api-stg.mainbrella.com",
+  "consoleOrigin": "https://stg.mainbrella.com",
+  "workerName": "canopy-voice-stg",
+  "databaseName": "canopy-voice-stg",
+  "origin": "https://voice-stg.mainbrella.com"
+}

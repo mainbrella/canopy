@@ -9,4 +9,5 @@ export interface Env {
   AUTH_ORIGINS: string;
   LOCAL_DEVELOPMENT?: string;
   SESSION_COOKIE_NAME?: string;
+  VOICE_AUTH_SECRET?: string;
 }

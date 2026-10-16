@@ -12,6 +12,6 @@ export default defineConfig(({ mode }) => ({
     strictPort: true,
     // Google's localhost popup flow needs the origin even on HTTP development pages.
     headers: { "Referrer-Policy": "no-referrer-when-downgrade" },
-    proxy: { "/auth": { target: "http://127.0.0.1:8789" } },
+    proxy: { "/auth": { target: "http://127.0.0.1:8789" }, "/products": { target: "http://127.0.0.1:8789" } },
   },
 }));

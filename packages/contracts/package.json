@@ -3,6 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { "./auth": "./src/auth.ts" },
+  "exports": { "./auth": "./src/auth.ts", "./products": "./src/products.ts" },
   "scripts": { "type-check": "tsc -p tsconfig.json" }
 }

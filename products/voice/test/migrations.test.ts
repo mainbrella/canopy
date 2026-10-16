@@ -87,7 +87,7 @@ test("fresh installation supports new speech settings and retains owner and call
   assert.deepEqual(await db.prepare("SELECT model,language,voice FROM voice_agents").first(), {
     model: "aura-2", language: "es", voice: "celeste",
   });
-  await assert.rejects(db.prepare("UPDATE voice_agents SET user_id='another-user'").run(), /CHECK constraint failed/);
+  await assert.rejects(db.prepare("UPDATE voice_calls SET user_id='another-user'").run(), /FOREIGN KEY constraint failed/);
   await assert.rejects(db.prepare("UPDATE voice_calls SET agent_id='missing-agent'").run(), /FOREIGN KEY constraint failed/);
   await assert.rejects(db.prepare("DELETE FROM voice_agents WHERE id=?").bind(AGENT_ID).run(), /FOREIGN KEY constraint failed/);
   assert.deepEqual((await db.prepare("PRAGMA foreign_key_check").all()).results, []);

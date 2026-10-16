@@ -4,6 +4,6 @@ import { defineConfig } from "vite";
 export default defineConfig({
   build: {
     outDir: "dist/client",
-    rollupOptions: { input: { app: resolve("index.html"), login: resolve("login.html") } },
+    rollupOptions: { input: { app: resolve("index.html"), login: resolve("login.html"), handoff: resolve("handoff.html") } },
   },
 });

@@ -5,12 +5,17 @@ import {
 import { signInOrCreateEmailUser } from "./auth-email.ts";
 import { findOrCreateGoogleUser, verifyGoogleIdToken } from "./auth-google.ts";
 import type { Env } from "./env.ts";
+import { handleProducts } from "./products.ts";
 
 // Browser auth only; native tokens and product side effects remain outside Canopy.
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const cors = authCorsHeaders(request, env);
   if (!cors) return authJson({ error: "origin_not_allowed" }, 403);
   const path = new URL(request.url).pathname;
+  if (path.startsWith("/products/") || path === "/internal/voice/session") {
+    try { return await handleProducts(request, env, cors); }
+    catch { return authJson({ error: "voice_unavailable" }, 503, cors); }
+  }
   if (!["/auth/email", "/auth/google", "/auth/me", "/auth/logout"].includes(path)) return authJson({ error: "not_found" }, 404, cors);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   const method = path === "/auth/me" ? "GET" : "POST";

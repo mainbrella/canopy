@@ -26,6 +26,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run test:browser:voice
+      - run: npm run test:browser:installation
       - run: npm run export:voice
       - run: npm ci --ignore-scripts
         working-directory: products/voice/dist/source
