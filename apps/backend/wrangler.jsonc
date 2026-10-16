@@ -1,0 +1,146 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "mainbrella-api",
+	"account_id": "2b7a9be82bb64187230703b024e25157",
+	"main": "worker/index.ts",
+	"compatibility_date": "2026-09-18",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "romeo"
+    }
+  ],
+	"cache": {
+		"enabled": true
+	},
+	"ai": { "binding": "AI" },
+	"version_metadata": { "binding": "VERSION_METADATA" },
+	"workflows": [{ "binding": "BUILD_WORKFLOW", "name": "mainbrella-build", "class_name": "BuildWorkflow" }],
+	"triggers": {
+		"crons": [
+			"*/5 * * * *"
+		]
+	},
+	"vars": {
+		"NAMECOM_ENABLED": "true",
+		"VOICE_ENABLED": "true",
+		"VOICE_PUBLIC_ORIGIN": "https://api.mainbrella.com",
+		"NAME_DOT_COM_USERNAME": "mainbrella",
+		"NAMECOM_MARKUP_BPS": "0",
+		"BUILD_ENABLED": "true",
+    "TELNYX_PUBLIC_KEY": "+F7vV3P3hKlXlrF0R1e1dujiKRYdsywqvj31XnZYPII=",
+    "TELNYX_ACCOUNT_SID": "f33a3f99-aacc-4848-9e50-a3faf96460cc",
+    "TELNYX_CONNECTION_ID": "3071274715852047597",
+    "TELNYX_AGENT_ID": "2e5af885-2f30-4a8b-9040-c25ee4c01112",
+    "TELNYX_PHONE_NUMBER": "+19362461010",
+    "TELNYX_PHONE_MICRO_USD_PER_MINUTE": "20000",
+    "VOICE_AI_GATEWAY_ACCOUNT_ID": "2b7a9be82bb64187230703b024e25157",
+    "VOICE_AI_GATEWAY_ID": "voice",
+    "CARTESIA_TTS_MICRO_USD_PER_CHARACTER": "65",
+		"R2_BILLING_MODE": "charge",
+		"R2_CHARGE_FROM": "2026-10-11T00:00:00Z",
+		"R2_PLATFORM_MAX_BYTES": "1000000000000",
+		"R2_WRITES_PAUSED": "false",
+		"R2_MARKUP_BPS": "2000",
+		"R2_ACCOUNT_MAX_BYTES": "10000000000",
+		"BUILD_MODEL": "@cf/zai-org/glm-5.3",
+		"STRIPE_PREPAID_PRICE_ID": "price_1UOno4GSUs8K8zgHhtAJjabl",
+		"ACTIVITY_WEBSOCKET_ENABLED": "true",
+		"PREVIEWS_ENABLED": "true",
+		"PROJECT_HOSTING_ENABLED": "true",
+		"PROJECT_DOMAIN_PROVIDER": "cloudflare",
+		"PROJECT_CLOUDFLARE_ZONE_ID": "e6597a41a75e1abb92f4bc5e5758c460",
+		"WORKSPACE_PERSISTENCE_ENABLED": "true",
+		"WORKSPACE_LIFECYCLE_ENABLED": "true",
+		"EGRESS_POLICIES_ENABLED": "false",
+		"SECRETS_VAULT_ENABLED": "false",
+		"SECURITY_FEATURE_ACCOUNTS": "",
+		"ACQUISITION_ENABLED": "true",
+		"PREVIEW_DOMAIN": "mainbrella.dev",
+		"GOOGLE_CLIENT_ID": "854186419005-l0u2olqlqe40qmgin0q8tjpvftooi6ac.apps.googleusercontent.com"
+	},
+	"send_email": [
+		{ "name": "WELCOME_EMAIL", "allowed_sender_addresses": ["andrew@mainbrella.com"] }
+	],
+	"services": [
+		{ "binding": "ADMIN_API", "service": "mainbrella-admin" },
+		{ "binding": "MARKETING_API", "service": "mainbrella-marketing" }
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "delta",
+			"database_id": "41be6d7b-26fb-4701-a3fb-fdf3454e14f9",
+			"migrations_dir": "migrations",
+			"migrations_table": "schema_migrations"
+		},
+		{
+			"binding": "PREVIEW_ROUTES",
+			"database_name": "mainbrella-preview-routes",
+			"database_id": "d5f35d95-114c-4b71-9060-e99514136671",
+			"migrations_dir": "preview-migrations"
+		}
+	],
+	"ratelimits": [
+		{
+			"name": "VOICE_NUMBER_SEARCH_LIMIT",
+			"namespace_id": "1004",
+			"simple": { "limit": 20, "period": 60 }
+		},
+		{
+			"name": "EMAIL_AUTH_LIMIT",
+			"namespace_id": "1002",
+			"simple": { "limit": 20, "period": 60 }
+		},
+		{
+			"name": "ACQUISITION_SUBMISSION_LIMIT",
+			"namespace_id": "1003",
+			"simple": { "limit": 20, "period": 60 }
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{ "name": "RECEPTIONIST_CALL", "class_name": "ReceptionistCall" },
+			{
+				"name": "ACCOUNT_ACTIVITY",
+				"class_name": "AccountActivity"
+			},
+			{
+				"name": "CONTAINER_ACCOUNT",
+				"class_name": "ContainerAccount"
+			},
+			{
+				"name": "USER_CONTAINER",
+				"class_name": "UserContainer",
+				"script_name": "mainbrella-containers"
+			}
+		]
+	},
+	"exports": {
+		"ReceptionistCall": { "type": "durable-object", "storage": "sqlite" },
+		"AccountActivity": {
+			"type": "durable-object",
+			"storage": "sqlite"
+		},
+		"ContainerAccount": {
+			"type": "durable-object",
+			"storage": "sqlite"
+		}
+	},
+	"observability": {
+		"logs": {
+			"enabled": true,
+			"invocation_logs": false
+		}
+	},
+	"routes": [
+		{
+			"pattern": "api.mainbrella.com",
+			"custom_domain": true
+		}
+	]
+}

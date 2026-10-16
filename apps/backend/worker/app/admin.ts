@@ -1,0 +1,210 @@
+import { authCorsHeaders, authJson, currentUser, type AuthUser } from "./auth-core";
+import type { Plan } from "../lib/stripe";
+import { accountBillingRequest, type PrepaidHistory } from "../lib/prepaid-billing";
+import { ADMIN_EMAIL } from "../shared/admin";
+
+export { ADMIN_EMAIL } from "../shared/admin";
+const PAGE_SIZE = 25;
+
+type AdminUser = Pick<AuthUser, "id" | "email" | "name" | "dob" | "created_at"> & { plan: Plan | "none" };
+
+const adminUserQuery = `SELECT users.id, users.email, users.name, users.dob, users.created_at,
+  CASE
+    WHEN billing.subscription_status = 'active' AND billing.current_period_end > ?
+      THEN COALESCE(billing.plan, 'none')
+    WHEN billing.stripe_subscription_id IS NULL AND trial.expires_at > ?
+      THEN trial.plan
+    ELSE 'none'
+  END AS plan
+FROM users
+LEFT JOIN pro_billing AS billing ON billing.user_id = users.id
+LEFT JOIN trial_redemptions AS trial ON trial.user_id = users.id`;
+
+function adminUserArgs() {
+  return [Date.now() / 1000, Date.now()] as const;
+}
+
+async function readUserBalances(env: Env, users: { id: string }[]) {
+  const balances: { id: string; balanceCents: number | null }[] = new Array(users.length);
+  let next = 0;
+  // Keep reads bounded without waiting for a whole batch before starting another.
+  await Promise.all(Array.from({ length: Math.min(5, users.length) }, async () => {
+    while (next < users.length) {
+      const index = next++;
+      const { id } = users[index];
+      try {
+        const { balance } = await accountBillingRequest(env, id, "/billing/balance");
+        if (balance.currency !== "usd" || !Number.isSafeInteger(balance.balanceCents)) {
+          throw new Error("invalid_balance");
+        }
+        balances[index] = { id, balanceCents: balance.balanceCents };
+      } catch {
+        balances[index] = { id, balanceCents: null };
+      }
+    }
+  }));
+  return balances;
+}
+
+type TableDefinition = {
+  id: string;
+  label: string;
+  group: string;
+  table: string;
+  columns: string[];
+  search: string[];
+  order: string;
+};
+
+const TABLES: TableDefinition[] = [
+  { id: "users", label: "Users", group: "Community", table: "users", columns: ["id", "username", "human_name", "email", "is_active", "current_herd_id", "created_at"], search: ["id", "username", "human_name", "email"], order: "created_at DESC, id DESC" },
+  { id: "herds", label: "Herds", group: "Community", table: "herds", columns: ["id", "name", "city_id", "created_by", "media_enabled", "created_at", "updated_at"], search: ["id", "name", "city_id"], order: "created_at DESC, id DESC" },
+  { id: "memberships", label: "Memberships", group: "Community", table: "herd_memberships", columns: ["herd_id", "user_id", "username", "role", "push_notifications_enabled", "joined_at", "last_seen_at"], search: ["herd_id", "user_id", "username"], order: "joined_at DESC, herd_id, user_id" },
+  { id: "community-chat", label: "Community chat", group: "Community", table: "herd_chat_messages", columns: ["id", "herd_id", "user_id", "sent_at", "image_path"], search: ["herd_id", "user_id"], order: "sent_at DESC, id DESC" },
+  { id: "direct-chats", label: "Direct chats", group: "Community", table: "herd_direct_messages", columns: ["id", "herd_id", "sender_id", "recipient_id", "sent_at", "image_path"], search: ["herd_id", "sender_id", "recipient_id"], order: "sent_at DESC, id DESC" },
+  { id: "providers", label: "Providers", group: "Directory", table: "iop_providers", columns: ["id", "name", "website_url", "founded_year", "created_at", "updated_at"], search: ["id", "name", "website_url"], order: "created_at DESC, id DESC" },
+  { id: "locations", label: "Locations", group: "Directory", table: "iop_locations", columns: ["id", "provider_id", "display_name", "city", "state", "publication_status", "phone", "created_at", "updated_at"], search: ["id", "provider_id", "display_name", "city", "state"], order: "created_at DESC, id DESC" },
+  { id: "programs", label: "Programs", group: "Directory", table: "iop_programs", columns: ["id", "location_id", "name", "code", "publication_status", "created_at", "updated_at"], search: ["id", "location_id", "name", "code"], order: "created_at DESC, id DESC" },
+  { id: "staff", label: "Staff", group: "Directory", table: "iop_staff", columns: ["id", "provider_id", "name", "credentials", "specialty", "created_at"], search: ["id", "provider_id", "name"], order: "created_at DESC, id DESC" },
+  { id: "reviews", label: "Reviews", group: "Activity", table: "staff_reviews", columns: ["id", "user_id", "staff_id", "location_id", "unicorn_rating", "meeting_at", "created_at"], search: ["id", "user_id", "staff_id", "location_id"], order: "created_at DESC, id DESC" },
+  { id: "tours", label: "Tour requests", group: "Activity", table: "program_tour_requests", columns: ["id", "user_id", "location_id", "location_name", "status", "agreed_time", "created_at"], search: ["id", "user_id", "location_id", "location_name"], order: "created_at DESC, id DESC" },
+  { id: "tracked-programs", label: "Tracked programs", group: "Activity", table: "iop_program_tracks", columns: ["id", "user_id", "program_id", "status", "horn_rating", "created_at", "updated_at"], search: ["id", "user_id", "program_id"], order: "updated_at DESC, id DESC" },
+];
+
+export async function handleAdminRequest(request: Request, env: Env): Promise<Response> {
+  const corsHeaders = authCorsHeaders(request);
+  if (corsHeaders === null) return authJson({ error: "origin_not_allowed" }, 403, {});
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (request.method !== "GET") return authJson({ error: "method_not_allowed" }, 405, { ...corsHeaders, allow: "GET" });
+
+  try {
+    const user = await currentUser(env, request);
+    if (!user) return authJson({ error: "unauthorized" }, 401, corsHeaders);
+    if (user.email?.trim().toLowerCase() !== ADMIN_EMAIL) {
+      return authJson({ error: "forbidden" }, 403, corsHeaders);
+    }
+    if (!env.DB) return authJson({ error: "database_unavailable" }, 503, corsHeaders);
+
+    const url = new URL(request.url);
+    if (url.pathname === "/api/get-marketing-users") {
+      const offsetText = url.searchParams.get("offset") ?? "0";
+      const offset = Number(offsetText);
+      if (!/^\d+$/.test(offsetText) || !Number.isSafeInteger(offset) || offset > 1_000_000) {
+        return authJson({ error: "invalid_offset" }, 400, corsHeaders);
+      }
+      const limitText = url.searchParams.get("limit") ?? String(PAGE_SIZE);
+      const limit = Number(limitText);
+      if (!/^\d+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+        return authJson({ error: "invalid_limit" }, 400, corsHeaders);
+      }
+      // Match the sender's address-wide opt-outs, including other accounts with the same email.
+      const filter = `WHERE users.marketing_email_unsubscribed = 0
+        AND NOT EXISTS (
+          SELECT 1 FROM marketing_email_unsubscribes WHERE email = lower(trim(users.email))
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM users AS unsubscribed
+          WHERE lower(trim(unsubscribed.email)) = lower(trim(users.email))
+            AND unsubscribed.marketing_email_unsubscribed = 1
+        )`;
+      const count = await env.DB.prepare(`SELECT COUNT(*) AS total FROM users ${filter}`).first<{ total: number }>();
+      const rows = await env.DB.prepare(
+        `SELECT users.id, users.email, users.name, users.created_at FROM users ${filter}
+         ORDER BY users.created_at DESC, users.id DESC LIMIT ? OFFSET ?`,
+      ).bind(limit, offset).all<Pick<AuthUser, "id" | "email" | "name" | "created_at">>();
+      return authJson({ users: rows.results || [], total: count?.total || 0, offset, limit }, 200, corsHeaders);
+    }
+    if (url.pathname === "/admin/users") {
+      const includeBalances = url.searchParams.get("includeBalances") ?? "true";
+      if (includeBalances !== "true" && includeBalances !== "false") {
+        return authJson({ error: "invalid_request" }, 400, corsHeaders);
+      }
+      const rows = await env.DB.prepare(
+        `${adminUserQuery} ORDER BY users.created_at DESC, users.id DESC`,
+      ).bind(...adminUserArgs()).all<AdminUser>();
+      const users = rows.results || [];
+      if (includeBalances === "false") return authJson({ users }, 200, corsHeaders);
+      // Retain the previous response for older clients during deployment.
+      const balances = await readUserBalances(env, users);
+      return authJson({ users: users.map((user, index) => ({ ...user, balanceCents: balances[index].balanceCents })) }, 200, corsHeaders);
+    }
+    if (url.pathname === "/admin/user-balances") {
+      const ids = url.searchParams.getAll("id");
+      if ([...url.searchParams.keys()].some(key => key !== "id") || ids.length < 1 || ids.length > 30
+        || ids.some(id => !id || id.length > 200) || new Set(ids).size !== ids.length) {
+        return authJson({ error: "invalid_request" }, 400, corsHeaders);
+      }
+      // The primary-key lookup checks only the requested users, not the entire list.
+      const rows = await env.DB.prepare(`SELECT id FROM users WHERE id IN (${ids.map(() => "?").join(",")})`)
+        .bind(...ids).all<{ id: string }>();
+      const balances = await readUserBalances(env, rows.results || []);
+      return authJson({ balances }, 200, corsHeaders);
+    }
+    const detailMatch = /^\/admin\/users\/([^/]+)$/.exec(url.pathname);
+    if (detailMatch) {
+      let userId: string;
+      try { userId = decodeURIComponent(detailMatch[1]); }
+      catch { return authJson({ error: "invalid_user_id" }, 400, corsHeaders); }
+      if (!userId || userId.length > 200) return authJson({ error: "invalid_user_id" }, 400, corsHeaders);
+
+      const query = url.searchParams;
+      if ([...query.keys()].some(key => !["limit", "fundingCursor"].includes(key))
+        || query.getAll("limit").length > 1 || query.getAll("fundingCursor").length > 1) {
+        return authJson({ error: "invalid_request" }, 400, corsHeaders);
+      }
+      const limitText = query.get("limit") ?? "50";
+      const limit = Number(limitText);
+      if (!/^\d+$/.test(limitText) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+        return authJson({ error: "invalid_limit" }, 400, corsHeaders);
+      }
+      const fundingCursor = query.get("fundingCursor");
+      if (query.has("fundingCursor") && (!fundingCursor || fundingCursor.length > 200)) {
+        return authJson({ error: "invalid_request" }, 400, corsHeaders);
+      }
+
+      const row = await env.DB.prepare(`${adminUserQuery} WHERE users.id = ?`)
+        .bind(...adminUserArgs(), userId).first<AdminUser>();
+      if (!row) return authJson({ error: "not_found" }, 404, corsHeaders);
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (fundingCursor !== null) params.set("fundingCursor", fundingCursor);
+      const history = await accountBillingRequest<PrepaidHistory>(env, userId, `/billing/history?${params}`);
+      return authJson({
+        user: row,
+        asOf: history.asOf,
+        balance: history.balance,
+        fundings: history.fundings,
+        nextFundingCursor: history.nextFundingCursor,
+      }, 200, corsHeaders);
+    }
+    if (url.pathname === "/admin/tables") {
+      return authJson({ tables: TABLES.map(({ id, label, group, columns }) => ({ id, label, group, columns })) }, 200, corsHeaders);
+    }
+    const match = /^\/admin\/tables\/([a-z-]+)$/.exec(url.pathname);
+    const definition = TABLES.find((item) => item.id === match?.[1]);
+    if (!definition) return authJson({ error: "not_found" }, 404, corsHeaders);
+
+    const offsetText = url.searchParams.get("offset") || "0";
+    const offset = Number(offsetText);
+    if (!/^\d+$/.test(offsetText) || !Number.isSafeInteger(offset) || offset > 1_000_000) {
+      return authJson({ error: "invalid_offset" }, 400, corsHeaders);
+    }
+    const query = (url.searchParams.get("q") || "").trim();
+    if (query.length > 100) return authJson({ error: "invalid_query" }, 400, corsHeaders);
+    const filter = query ? ` WHERE (${definition.search.map((column) => `${column} LIKE ? ESCAPE '\\'`).join(" OR ")})` : "";
+    const term = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+    const filterArgs = query ? definition.search.map(() => term) : [];
+    const count = await env.DB.prepare(`SELECT COUNT(*) AS total FROM ${definition.table}${filter}`)
+      .bind(...filterArgs).first<{ total: number }>();
+    const rows = await env.DB.prepare(
+      `SELECT ${definition.columns.join(", ")} FROM ${definition.table}${filter}
+       ORDER BY ${definition.order} LIMIT ? OFFSET ?`,
+    ).bind(...filterArgs, PAGE_SIZE, offset).all<Record<string, unknown>>();
+    return authJson({ items: rows.results || [], total: count?.total || 0, offset, limit: PAGE_SIZE }, 200, corsHeaders);
+  } catch (error) {
+    if (error instanceof Error && error.message === "invalid_history_cursor") {
+      return authJson({ error: "invalid_history_cursor" }, 400, corsHeaders);
+    }
+    console.error("admin_read_error", error);
+    return authJson({ error: "admin_unavailable" }, 503, corsHeaders);
+  }
+}

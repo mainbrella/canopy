@@ -1,0 +1,174 @@
+name: Build custom image
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: Mainbrella build ID
+        required: false
+        type: string
+
+      operation:
+        description: Build an image or reconcile the deployed image map
+        required: false
+        default: build
+        type: choice
+        options: [build, reconcile, preflight]
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: read
+
+env:
+  BUILD_ID: ${{ inputs.build_id }}
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main' && github.event.repository.private == true && inputs.operation != 'reconcile' && inputs.operation != 'preflight' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Fetch source and pinned base image
+        env:
+          IMAGE_BUILD_SECRET: ${{ secrets.IMAGE_BUILD_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2b7a9be82bb64187230703b024e25157
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          npm run images:preflight
+          node scripts/prepare-image-build.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared
+          path: prepared/
+          retention-days: 1
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    # User code runs only inside Docker on this disposable runner. No publishing,
+    # API callback, or registry secrets are available in this job.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared
+          path: prepared/
+      - name: Build and check workspace compatibility
+        shell: bash
+        run: |
+          mkdir result
+          {
+            docker load -i prepared/base.tar
+            cache_args=()
+            if [ -f prepared/cache.tar ]; then
+              python3 scripts/prepare-image-cache.py prepared/cache.tar prepared/cache
+              cache_args=(--cache-from type=local,src=prepared/cache)
+            fi
+            python3 scripts/prepare-build-context.py prepared/source.json context
+            timeout --kill-after=10s 300s docker build --platform linux/amd64 --pull=false --provenance=false --progress=plain --build-arg BUILDKIT_INLINE_CACHE=1 "${cache_args[@]}" -t mainbrella-custom:build context
+            size=$(docker image inspect --format '{{.Size}}' mainbrella-custom:build)
+            test "$size" -le 536870912 || { echo 'Image exceeds the 512 MiB limit.'; exit 1; }
+            timeout --kill-after=5s 20s docker run --rm --network none --entrypoint /bin/sh mainbrella-custom:build -ec 'test "$(id -u)" = 0; command -v sleep; command -v setsid; timeout --version; stat --version; find --version; sed --version; tar --version; gzip --version; base64 --version; /bin/bash --version; tmux -V; mkdir -p /workspace; touch /workspace/.mainbrella-smoke; rm /workspace/.mainbrella-smoke; tmux new-session -d -s smoke; tmux has-session -t smoke'
+            docker save -o result/image.tar mainbrella-custom:build
+          } >result/build.log 2>&1
+      - name: Keep bounded build output
+        if: always()
+        run: |
+          mkdir -p result
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('result/build.log')
+          path.write_bytes(path.read_bytes()[-60000:] if path.exists() else b'Build runner unavailable.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result
+          path: result/
+          retention-days: 1
+
+  publish:
+    if: always() && github.ref == 'refs/heads/main' && github.event.repository.private == true && inputs.operation != 'reconcile' && inputs.operation != 'preflight' && github.event_name == 'workflow_dispatch'
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Publication admission is serialized by the API; GitHub concurrency groups
+    # cancel older pending jobs rather than providing a reliable build queue.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        if: needs.prepare.result == 'success'
+        continue-on-error: true
+        with:
+          name: result
+          path: result/
+      - name: Publish, register, and report result
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          IMAGE_BUILD_SECRET: ${{ secrets.IMAGE_BUILD_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2b7a9be82bb64187230703b024e25157
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-image-build.mjs
+
+  reconcile:
+    if: github.ref == 'refs/heads/main' && (inputs.operation == 'reconcile' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Deploy the authoritative image map
+        env:
+          IMAGE_BUILD_SECRET: ${{ secrets.IMAGE_BUILD_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2b7a9be82bb64187230703b024e25157
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          npm run images:preflight
+          npm run deploy:containers
+
+  preflight:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.operation == 'preflight'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Read existing runtime service metadata with the deployment token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 2b7a9be82bb64187230703b024e25157
+        run: npm run images:preflight

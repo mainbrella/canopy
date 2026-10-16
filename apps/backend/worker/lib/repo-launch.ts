@@ -1,0 +1,178 @@
+import { z } from 'zod';
+import { normalizeRestoreLaunch } from '../../containers/restore-launch.js';
+
+export const repoName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9_.-]{1,100}$/)
+  .refine(value => !['.', '..'].includes(value.split('/')[1]));
+export const repoRef = z.string().min(1).max(200).refine(value => !/[\x00-\x20\x7f]/.test(value));
+export const repoCwd = z.string().max(200).refine(value => value === '.' ||
+  /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(value) && value.split('/').every(part => part !== '.' && part !== '..'));
+const command = z.string().trim().min(1).max(4096).refine(value => !value.includes('\0'));
+export const launchOptionsSchema = z.object({
+  repo: repoName, ref: repoRef.optional(), catalogId: z.enum(['node', 'python', 'rust', 'go', 'devops']).optional(), imageId: z.string().uuid().optional(),
+  size: z.enum(['lite', 'small', 'medium', 'large', 'xl']).default('small'), cwd: repoCwd.default('.'),
+  setupCommand: command.optional(), startCommand: command.optional(), port: z.number().int().min(1024).max(65535).optional(),
+  readinessPath: z.string().min(1).max(1024).refine(path => Boolean(normalizeRestoreLaunch({ command: 'true', readiness: { port: 1024, path } }))).optional(),
+}).strict().refine(value => Boolean(value.startCommand) === (value.port !== undefined), { message: 'startCommand and port must be supplied together' })
+  .refine(value => value.readinessPath === undefined || Boolean(value.startCommand), { message: 'readinessPath requires startCommand and port' })
+  .refine(value => value.imageId === undefined || value.catalogId === undefined, { message: 'imageId and catalogId are mutually exclusive' });
+export type LaunchOptions = z.infer<typeof launchOptionsSchema>;
+export interface ResolvedRepo { repo: string; ref: string; commit: string; suggestedCatalogId: string; manifests: string[]; private?: boolean }
+interface GithubDiagnostic {
+  dependency: 'github'; operation: 'repository' | 'commit' | 'tree';
+  upstreamStatus?: number; upstreamRequestId?: string | null;
+  rateLimitRemaining?: string | null; rateLimitReset?: string | null; retryAfter?: string | null;
+  upstreamMessage?: string; reason?: string;
+}
+export class LaunchError extends Error {
+  constructor(message: string, public status = 503, options?: ErrorOptions & { diagnostics?: GithubDiagnostic }) {
+    super(message, options);
+    this.name = 'LaunchError';
+    this.diagnostics = options?.diagnostics;
+  }
+  readonly diagnostics?: GithubDiagnostic;
+}
+
+// Keep full diagnostics in Worker logs, never in the public error response.
+export function launchErrorDetails(error: unknown, redactions: string[] = [], depth = 0): Record<string, unknown> {
+  const scrub = (text: string) => {
+    for (const value of redactions) if (value) text = text.replaceAll(value, '[redacted]');
+    return text.replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [redacted]')
+      .replace(/\b(?:mb_[a-f0-9]{64}|sk_(?:live|test)_[A-Za-z0-9_]+)\b/gi, '[redacted]').slice(0, 4000);
+  };
+  if (!(error instanceof Error)) return { name: 'UnknownError', message: 'Non-Error exception' };
+  return { name: error.name, message: scrub(error.message), ...(error.stack ? { stack: scrub(error.stack) } : {}),
+    ...(error instanceof LaunchError && error.diagnostics ? { diagnostics: Object.fromEntries(Object.entries(error.diagnostics)
+      .map(([key, value]) => [key, typeof value === 'string' ? scrub(value) : value])) } : {}),
+    ...(error.cause !== undefined && depth < 3 ? { cause: launchErrorDetails(error.cause, redactions, depth + 1) } : {}) };
+}
+
+async function github(path: string, missing: string, token?: string): Promise<any> {
+  const diagnostics: GithubDiagnostic = { dependency: 'github',
+    operation: path.includes('/git/trees/') ? 'tree' : path.includes('/commits/') ? 'commit' : 'repository' };
+  let response;
+  try {
+    // Workers supports manual redirects; non-2xx responses below remain failures.
+    response = await fetch(`https://api.github.com${path}`, { redirect: 'manual', signal: AbortSignal.timeout(10_000),
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Mainbrella-repo-launch', 'X-GitHub-Api-Version': '2026-03-10',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  } catch (cause) { throw new LaunchError('github_unavailable', 503, { cause, diagnostics }); }
+  Object.assign(diagnostics, { upstreamStatus: response.status, upstreamRequestId: response.headers.get('x-github-request-id'),
+    rateLimitRemaining: response.headers.get('x-ratelimit-remaining'), rateLimitReset: response.headers.get('x-ratelimit-reset'),
+    retryAfter: response.headers.get('retry-after') });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { message?: unknown } | null;
+    if (typeof body?.message === 'string') diagnostics.upstreamMessage = body.message.slice(0, 1000);
+    const error = response.status === 401 && missing === 'github_repository_access_required' ? 'github_connection_required' : response.status === 404 || response.status === 409 || response.status === 422 ? missing
+      : response.status === 403 || response.status === 429 ? 'github_rate_limited' : 'github_unavailable';
+    throw new LaunchError(error, error === missing ? 400 : error === 'github_rate_limited' ? 429 : 503, { diagnostics });
+  }
+  try { return await response.json(); }
+  catch (cause) { throw new LaunchError('github_unavailable', 503, { cause, diagnostics: { ...diagnostics, reason: 'invalid_json' } }); }
+}
+
+export async function resolvePublicRepo(repo: string, ref?: string, cwd = '.', token?: string): Promise<ResolvedRepo> {
+  const metadata = await publicRepoMetadata(repo, token);
+  return resolveRepoMetadata(metadata, ref, cwd, token);
+}
+
+export async function resolveRepository(repo: string, ref: string | undefined, cwd: string, token: string, allowPrivate: boolean): Promise<ResolvedRepo> {
+  const metadata = await github(`/repos/${repo}`, 'github_repository_access_required', token);
+  if (typeof metadata.private !== 'boolean' || metadata.disabled || !repoName.safeParse(metadata.full_name).success || metadata.private && !allowPrivate) {
+    throw new LaunchError('github_repository_access_required', 400);
+  }
+  return resolveRepoMetadata(metadata, ref, cwd, token);
+}
+
+async function resolveRepoMetadata(metadata: any, ref?: string, cwd = '.', token?: string): Promise<ResolvedRepo> {
+  const canonical = metadata.full_name as string;
+  const resolvedRef = ref ?? metadata.default_branch;
+  if (!repoRef.safeParse(resolvedRef).success) throw new LaunchError('repo_ref_not_found', 400);
+  const commit = await github(`/repos/${canonical}/commits/${encodeURIComponent(resolvedRef)}?per_page=1`, 'repo_ref_not_found', token);
+  if (!/^[a-f0-9]{40}$/.test(commit.sha) || !/^[a-f0-9]{40}$/.test(commit.commit?.tree?.sha)) throw new LaunchError('github_unavailable');
+  let tree = await github(`/repos/${canonical}/git/trees/${commit.commit.tree.sha}`, 'repo_ref_not_found', token);
+  if (cwd !== '.') {
+    for (const part of cwd.split('/')) {
+      const directory = tree.tree?.find((entry: any) => entry.path === part && entry.type === 'tree');
+      if (!directory || !/^[a-f0-9]{40}$/.test(directory.sha)) throw new LaunchError('repo_directory_not_found', 400);
+      tree = await github(`/repos/${canonical}/git/trees/${directory.sha}`, 'repo_directory_not_found', token);
+    }
+  }
+  if (!Array.isArray(tree.tree)) throw new LaunchError('github_unavailable');
+  const files = new Set<string>(tree.tree.filter((entry: any) => entry.type === 'blob').map((entry: any) => entry.path));
+  const candidates = [ ['node', ['package.json']], ['python', ['pyproject.toml', 'requirements.txt', 'Pipfile']],
+    ['rust', ['Cargo.toml']], ['go', ['go.mod']], ['devops', ['main.tf', 'terraform.tf']] ] as const;
+  const matches = candidates.filter(([, manifests]) => manifests.some(file => files.has(file)));
+  return { repo: canonical, ref: resolvedRef, commit: commit.sha, suggestedCatalogId: matches.length === 1 ? matches[0][0] : 'node',
+    manifests: candidates.flatMap(([, manifests]) => [...manifests]).filter(file => files.has(file)), ...(metadata.private ? { private: true } : {}) };
+}
+
+export async function verifyPublicRepo(repo: string, token?: string): Promise<string> {
+  const metadata = await publicRepoMetadata(repo, token);
+  return metadata.full_name as string;
+}
+
+async function publicRepoMetadata(repo: string, token?: string): Promise<any> {
+  const metadata = await github(`/repos/${repo}`, 'public_repo_not_found', token);
+  if (metadata.private !== false || metadata.disabled || !repoName.safeParse(metadata.full_name).success) {
+    throw new LaunchError('public_repo_not_found', 400);
+  }
+  return metadata;
+}
+
+export const shellQuote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
+export function cloneCommand(repo: ResolvedRepo): string {
+  return `set -eu
+export GIT_TERMINAL_PROMPT=0
+mkdir -p /workspace/repo
+cd /workspace/repo
+git init -q
+git remote add origin ${shellQuote(`https://github.com/${repo.repo}.git`)}
+git -c credential.helper= fetch --depth=1 origin ${shellQuote(repo.commit)}
+git checkout -q --detach FETCH_HEAD
+tmux new-session -d -s main -c /workspace/repo /bin/bash
+printf 'Repository ready at %s\\n' ${shellQuote(repo.commit)}`;
+}
+
+export const importPartPath = (launchId: string, index: number) => `/workspace/.mainbrella-import-${launchId}-${String(index).padStart(3, '0')}`;
+export function privateCloneCommand(repo: ResolvedRepo, launchId: string, parts: number): string {
+  if (!/^[a-f0-9-]{36}$/.test(launchId) || !Number.isSafeInteger(parts) || parts < 1 || parts > 32 || !/^[a-f0-9]{40}$/.test(repo.commit) || !repoName.safeParse(repo.repo).success) throw new LaunchError('invalid_request', 400);
+  const paths = Array.from({ length: parts }, (_, index) => shellQuote(importPartPath(launchId, index))).join(' ');
+  return `set -eu
+export GIT_TERMINAL_PROMPT=0
+mkdir -p /workspace/repo
+cd /workspace/repo
+git init -q
+git remote add origin ${shellQuote(`https://github.com/${repo.repo}.git`)}
+trap ${shellQuote(`rm -f -- ${paths}`)} EXIT
+cat -- ${paths} | git index-pack --stdin
+printf '%s\\n' ${shellQuote(repo.commit)} > .git/shallow
+git checkout -q --detach ${shellQuote(repo.commit)}
+tmux new-session -d -s main -c /workspace/repo /bin/bash
+printf 'Repository ready at %s\\n' ${shellQuote(repo.commit)}`;
+}
+const directory = (options: LaunchOptions) => `/workspace/repo${options.cwd === '.' ? '' : '/' + options.cwd}`;
+export function repositoryRestoreLaunch(options: LaunchOptions) {
+  if (!options.startCommand || options.port === undefined) return null;
+  return normalizeRestoreLaunch({ command: `exec /bin/bash -lc ${shellQuote(options.startCommand)}`, cwd: directory(options),
+    readiness: { port: options.port, path: options.readinessPath ?? '/', timeoutMs: 60_000 } });
+}
+const inDirectory = (options: LaunchOptions) => `set -eu\ncd ${shellQuote(directory(options))}\ncase "$(pwd -P)" in /workspace/repo|/workspace/repo/*) ;; *) exit 1 ;; esac\n`;
+export function setupCommand(options: LaunchOptions): string {
+  return inDirectory(options) + `exec /bin/bash -lc ${shellQuote(options.setupCommand!)}`;
+}
+export function previewCommand(options: LaunchOptions): string {
+  const server = `/bin/bash -lc ${shellQuote(options.startCommand!)} >> /workspace/.mainbrella-preview.log 2>&1`;
+  return inDirectory(options) + `tmux new-session -d -s mainbrella-preview -c ${shellQuote(directory(options))} /bin/bash -lc ${shellQuote(server)}
+for attempt in $(seq 1 60); do
+  status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 2 ${shellQuote(`http://127.0.0.1:${options.port}${options.readinessPath ?? '/'}`)}) || status=000
+  if [ "$status" -ge 200 ] && [ "$status" -lt 300 ]; then
+    printf 'Preview ready on port ${options.port}\\n'
+    exit 0
+  fi
+  if ! tmux has-session -t mainbrella-preview 2>/dev/null; then break; fi
+  sleep 1
+done
+tail -c 16384 /workspace/.mainbrella-preview.log || true
+printf 'Preview did not become ready. Check /workspace/.mainbrella-preview.log\\n' >&2
+exit 1`;
+}

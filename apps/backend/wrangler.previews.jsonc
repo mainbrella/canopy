@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "mainbrella-previews",
+  "account_id": "2b7a9be82bb64187230703b024e25157",
+  "main": "worker/preview-gateway.ts",
+  "compatibility_date": "2026-09-18",
+  "compatibility_flags": ["enable_request_signal"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "ACQUISITION_ENABLED": "true",
+    "PREVIEWS_ENABLED": "true",
+    "PREVIEW_DOMAIN": "mainbrella.dev",
+    "PROJECT_HOSTING_ENABLED": "true",
+    "PROJECT_DOMAIN_PROVIDER": "cloudflare",
+    "PROJECT_CLOUDFLARE_ZONE_ID": "e6597a41a75e1abb92f4bc5e5758c460"
+  },
+  "d1_databases": [
+    {
+      "binding": "PREVIEW_ROUTES",
+      "database_name": "mainbrella-preview-routes",
+      "database_id": "d5f35d95-114c-4b71-9060-e99514136671",
+      "migrations_dir": "preview-migrations"
+    }
+  ],
+  "durable_objects": { "bindings": [
+    { "name": "USER_CONTAINER", "class_name": "UserContainer", "script_name": "mainbrella-containers" },
+    { "name": "CONTAINER_ACCOUNT", "class_name": "ContainerAccount", "script_name": "mainbrella-api" }
+  ] },
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "observability": { "enabled": false },
+  "routes": [
+    { "pattern": "mainbrella.dev", "custom_domain": true },
+    { "pattern": "https://*.mainbrella.dev/*", "zone_id": "e6597a41a75e1abb92f4bc5e5758c460" },
+    { "pattern": "*/*", "zone_id": "e6597a41a75e1abb92f4bc5e5758c460" }
+  ]
+}
