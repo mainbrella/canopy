@@ -73,12 +73,16 @@ button, input, select { font: inherit; }
 }
 .search-field input::placeholder { color: #687681; opacity: 1; }
 .search-field input:focus { border-color: #6aa4d3; background: #fff; box-shadow: 0 0 0 3px #d9ebf8; }
-.sort-control { display: grid; gap: 5px; }
+.sort-control, .user-control { display: grid; min-width: 0; gap: 5px; }
 .sort-control select {
-  min-height: 44px; max-width: 140px; padding: 0 26px 0 9px; border: 1px solid transparent;
+  width: 140px; min-height: 44px; max-width: 100%; min-width: 0; padding: 0 26px 0 9px; border: 1px solid transparent;
   border-radius: 5px; background: transparent; color: #435260; font-size: 12px; cursor: pointer;
 }
-.sort-control select:hover { background: #f6f7f5; }
+.user-control select {
+  width: 126px; min-width: 0; min-height: 44px; padding: 0 26px 0 9px; border: 1px solid transparent;
+  border-radius: 5px; background: transparent; color: #435260; font-size: 12px; cursor: pointer;
+}
+.sort-control select:hover, .user-control select:hover { background: #f6f7f5; }
 .refresh-button {
   display: inline-flex; min-width: 82px; min-height: 44px; align-items: center; justify-content: center; gap: 7px;
   border: 1px solid #d9dddf; border-radius: 5px; background: #fff; color: #344555;
@@ -102,6 +106,7 @@ button, input, select { font: inherit; }
 .message-content { min-width: 0; }
 .message-meta { display: flex; min-height: 22px; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
 .message-author { overflow-wrap: anywhere; color: #263745; font-size: 13px; font-weight: 620; }
+.message-you { color: var(--muted); font-size: 12px; font-weight: 400; }
 .message-time { color: var(--muted); font-size: 12px; }
 .message-body {
   margin: 6px 0 0; color: #354452; font-size: 14px; line-height: 1.65;
@@ -150,8 +155,8 @@ button, input, select { font: inherit; }
   .read-only { padding: 0; }
   .toolbar { flex-wrap: wrap; gap: 8px; padding: 10px; }
   .search-field { flex-basis: 100%; }
-  .sort-control { flex: 1; }
-  .sort-control select { max-width: none; }
+  .user-control, .sort-control { flex: 1; }
+  .user-control select, .sort-control select { width: 100%; max-width: none; }
   .refresh-button { min-width: 96px; }
   .message-list { padding-inline: 14px; }
   .message-row { grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding-block: 16px; }

@@ -5,13 +5,14 @@ type SortOrder = 'newest' | 'oldest';
 
 export function initializeDemo(): void {
   const search = document.querySelector<HTMLInputElement>('#message-search');
+  const demoUser = document.querySelector<HTMLSelectElement>('#demo-user');
   const sort = document.querySelector<HTMLSelectElement>('#message-sort');
   const refresh = document.querySelector<HTMLButtonElement>('#refresh');
   const status = document.querySelector<HTMLElement>('#board-status');
   const refreshError = document.querySelector<HTMLElement>('#refresh-error');
   const list = document.querySelector<HTMLElement>('#message-list');
   const state = document.querySelector<HTMLElement>('#board-state');
-  if (!search || !sort || !refresh || !status || !refreshError || !list || !state) return;
+  if (!search || !demoUser || !sort || !refresh || !status || !refreshError || !list || !state) return;
 
   let messages: Message[] = [];
   let hasLoaded = false;
@@ -111,6 +112,12 @@ export function initializeDemo(): void {
       const author = document.createElement('span');
       author.className = 'message-author';
       author.textContent = message.user_id;
+      if (demoUser!.value === message.user_id) {
+        const you = document.createElement('span');
+        you.className = 'message-you';
+        you.textContent = '(you)';
+        author.append(' ', you);
+      }
       const time = document.createElement('time');
       time.className = 'message-time';
       const date = new Date(message.created_at);
@@ -168,6 +175,7 @@ export function initializeDemo(): void {
   }
 
   search.addEventListener('input', () => { if (hasLoaded) drawMessages(); });
+  demoUser.addEventListener('change', () => { if (hasLoaded) drawMessages(); });
   sort.addEventListener('change', () => { if (hasLoaded) drawMessages(); });
   refresh.addEventListener('click', () => void loadMessages());
   void loadMessages();
