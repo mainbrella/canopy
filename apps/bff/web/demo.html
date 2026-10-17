@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#fbfaf7" />
-    <meta name="description" content="A live, read-only message board powered by BFF." />
+    <meta name="description" content="Explore a BFF message board with passwordless demo sessions." />
     <link rel="icon" href="/images/favicon.png" type="image/png" />
     <title>Message board · BFF</title>
   </head>
@@ -21,23 +21,33 @@
           <h1>Message board</h1>
           <p>Messages from a live BFF project.</p>
         </div>
-        <span class="read-only"><span aria-hidden="true"></span>Public demo · Read only</span>
+        <div id="session-controls" class="session-controls" hidden>
+          <span id="current-user" class="current-user"></span>
+          <button id="logout" class="secondary-button" type="button">Log out</button>
+        </div>
       </div>
 
-      <section class="board" aria-labelledby="board-title">
+      <section id="login-panel" class="login-panel" aria-label="Demo login">
+        <form id="login-form" class="login-form">
+          <label class="user-control" for="login-user">
+            <span class="toolbar-label">Demo user</span>
+            <select id="login-user" name="user" autocomplete="off">
+              <option value="alice" selected>Alice</option>
+              <option value="bob">Bob</option>
+            </select>
+          </label>
+          <button id="login-button" class="primary-button" type="submit">Log in</button>
+        </form>
+        <p id="login-feedback" class="login-feedback" role="alert" hidden></p>
+      </section>
+
+      <section id="board-panel" class="board" aria-labelledby="board-title" hidden>
         <h2 id="board-title" class="visually-hidden">Messages</h2>
         <div class="toolbar">
           <label class="search-field" for="message-search">
             <span class="toolbar-label">Search messages</span>
             <span class="search-icon" aria-hidden="true"></span>
             <input id="message-search" type="search" placeholder="Search messages" autocomplete="off" />
-          </label>
-          <label class="user-control" for="demo-user">
-            <span class="toolbar-label">Demo user</span>
-            <select id="demo-user">
-              <option value="alice" selected>Alice</option>
-              <option value="bob">Bob</option>
-            </select>
           </label>
           <label class="sort-control" for="message-sort">
             <span class="toolbar-label">Sort by</span>
@@ -52,7 +62,8 @@
           </button>
         </div>
         <p id="board-status" class="status-line" role="status" aria-live="polite">Loading messages…</p>
-        <p id="refresh-error" class="inline-error" role="status" hidden></p>
+        <p id="board-feedback" class="board-feedback" role="status" aria-live="polite"></p>
+        <p id="refresh-error" class="inline-error" role="alert" hidden></p>
         <div id="message-list" class="message-list" aria-busy="true"></div>
         <div id="board-state" class="board-state" hidden></div>
       </section>

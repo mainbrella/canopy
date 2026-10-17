@@ -15,9 +15,19 @@ editing or deleting another user's message affects zero rows. The demo uses a
 scoped browser key and a real user session on the Data API. End the demo to revoke
 both credentials; switching projects or signing out also attempts cleanup.
 
+The public example at `/bff/demo/` starts with an Alice/Bob dropdown and a **Log in**
+button. It issues a real one-hour project user session, keeps that credential in
+memory, and sends it with the scoped browser key on every table request. Every
+message has an Edit action, including other users' posts. Saves preserve the
+original author, so a non-owner edit displays the backend's `permission_denied`
+response and keeps the draft. **Log out** revokes the session and returns to the
+login form; reloading also starts at login.
+
 Management APIs accept the project owner's Mainbrella session or account API key
-from `/api-keys/`. Application user sessions are issued by the owner for testing;
-public signup and password login are not included. Storage, realtime, automations,
+from `/api-keys/`. General application user sessions are issued by the owner for testing;
+public signup and password login are not included. The public demo is an explicit
+exception restricted to the project, browser key, and two users in `demo-config.ts`.
+Storage, realtime, automations,
 notifications, search, payments, backup management, client SDKs, staging environments,
 and project deletion remain deferred. The landing page's SDK examples are illustrative.
 
@@ -25,7 +35,8 @@ and project deletion remain deferred. The landing page's SDK examples are illust
 
 1. Apply the backend’s pending migrations, including `050_bff.sql`,
    `051_bff_api_keys.sql`, `052_bff_shared_api_keys.sql`,
-   `053_bff_table_policies.sql`, and `054_bff_message_board.sql`, using the normal migration
+   `053_bff_table_policies.sql`, `054_bff_message_board.sql`, and
+   `055_bff_public_demo.sql`, using the normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
@@ -383,7 +394,14 @@ The token is returned once; only its SHA-256 hash is stored. `GET .../sessions`
 lists active session metadata; `DELETE .../sessions/{sessionId}` revokes a session.
 There are at most 100 active sessions per project. Listing and revocation work
 while paused or disabled. Deleting a project cascades its sessions. These are
-owner-issued demo identities, not a public login endpoint.
+owner-issued demo identities. The fixed public example separately exposes
+`POST /bff/demo/session` with its configured `apikey` and `{ "userId": "alice" }`
+or `{ "userId": "bob" }`. It returns the same session shape without an account
+credential. `DELETE /bff/demo/session` takes that key and the session's Bearer token
+to revoke it, including while paused or disabled. Neither route accepts another
+project or user. Migration 055 adds `messages: update` only to the example key;
+the table's existing own-row policies stay in force. Login does not modify grants
+or policies. Other projects continue to require owner-issued sessions.
 
 Create a scoped browser key granting `users: ['select']` and
 `messages: ['select', 'insert', 'update', 'delete']`, with your app's exact origin.

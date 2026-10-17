@@ -5,6 +5,7 @@ import { handleRequest } from "./router";
 import { serviceForPath } from "../shared/service-routing";
 
 const endpointMethods: Record<string, string[]> = {
+  '/bff/demo/session': ['post', 'delete'],
   '/bff/config': ['get'], '/bff/projects': ['get', 'post'], '/bff/projects/{projectId}': ['get', 'patch'],
   '/bff/projects/{projectId}/provision': ['post'], '/bff/projects/{projectId}/schema': ['get'],
   '/bff/projects/{projectId}/query': ['post'], '/bff/projects/{projectId}/migrations': ['get', 'post'],
@@ -133,6 +134,14 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   assert.equal(paths['/bff/projects'].post.requestBody.content['application/json'].schema.properties.template.default, 'message_board');
   assert.ok(paths['/bff/projects/{projectId}/sessions'].post.responses['201']);
   assert.ok(policy.delete.responses['200']);
+  const demo = paths['/bff/demo/session'];
+  assert.deepEqual(demo.post.security, [{ bffApiKey: [] }]);
+  assert.deepEqual(demo.delete.security, [{ bffApiKey: [], bffUserSession: [] }]);
+  assert.deepEqual(demo.post.requestBody.content['application/json'].schema.properties.userId.enum, ['alice', 'bob']);
+  assert.equal(demo.post.requestBody.content['application/json'].schema.additionalProperties, false);
+  assert.match(demo.post.description, /fixed.*example only/);
+  assert.ok(demo.post.responses['201']);
+
 });
 
 test('staging documentation is isolated without changing production schema or docs configuration', async () => {

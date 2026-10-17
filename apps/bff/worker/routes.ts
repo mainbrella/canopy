@@ -4,6 +4,7 @@ import { BffError, checksum, functionInput, invokeInput, LIMITS, migrationInput,
 import { ProjectDatabase } from './database';
 import { manageApiKeys } from './api-keys';
 import { handleDataRequest } from './data-routes';
+import { handleDemoSessionRequest } from './demo';
 import { body, enabled, readyProject } from './http';
 import { invokeFunction } from './invocation';
 import { managePolicies } from './policies';
@@ -36,6 +37,7 @@ async function provision(env: Env, project: Project) {
 }
 
 export async function handleBffRequest(request: Request, env: Env): Promise<Response> {
+  if (new URL(request.url).pathname === '/bff/demo/session') return handleDemoSessionRequest(request, env);
   if (new URL(request.url).pathname.startsWith('/bff/data/')) return handleDataRequest(request, env);
   const cors = authCorsHeaders(request, env);
   if (!cors) return authJson({ error: 'origin_not_allowed' }, 403, {});

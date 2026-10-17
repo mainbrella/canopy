@@ -17,6 +17,11 @@ export async function manageSessions(request: Request, env: Env, project: Projec
   if (request.method !== 'POST') throw new BffError('method_not_allowed', 405);
   readyProject(env, project);
   const { userId } = parse(sessionInput, await body(request));
+  return issueUserSession(env, project, userId);
+}
+
+export async function issueUserSession(env: Env, project: Project, userId: string) {
+  readyProject(env, project);
   const [users] = await new ProjectDatabase(env, project).query([{ sql: 'SELECT id FROM users WHERE id=?', params: [userId] }]);
   if (!users.results.length) throw new BffError('user_not_found', 404);
   const created = new Date().toISOString(), expires = new Date(Date.now() + 3_600_000).toISOString();
