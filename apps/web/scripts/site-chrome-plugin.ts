@@ -141,6 +141,9 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
         if (html.includes('<!-- bff-app -->')) {
           html = html.replace('<!-- bff-app -->', await readFile(new URL(import.meta.resolve('@canopy/bff/app-page')), 'utf8'));
         }
+        if (html.includes('<!-- bff-demo -->')) {
+          html = html.replace('<!-- bff-demo -->', await readFile(new URL(import.meta.resolve('@canopy/bff/demo-page')), 'utf8'));
+        }
         // Unsubscribe and the isolated Repo Rodeo fixture run without shared chrome or a cookie dialog.
         if (/^\/(?:unsubscribe|repo-rodeo-bug)\/(?:index\.html)?$/.test(context.path)) return html;
         html = await inlineCriticalStyles(html);
@@ -159,7 +162,7 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
           html = html.replace('</body>', `${cookieDialog}  </body>`);
         }
         // Reading product previews and the blog does not require a cookie decision. Measurement still requires consent.
-        if (context.path.startsWith('/blog/') || context.path === '/bff/' || context.path === '/bff/index.html') {
+        if (context.path.startsWith('/blog/') || ['/bff/', '/bff/index.html', '/bff/demo/', '/bff/demo/index.html'].includes(context.path)) {
           html = html.replace('id="cookie-consent"', 'id="cookie-consent" data-consent-prompt="optional"');
         }
         // A separate static deployment bundles its own copy of shared images.

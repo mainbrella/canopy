@@ -22,7 +22,7 @@ const products = {
       'apps/backend/worker/app/openapi-shared',
       'apps/backend/worker/shared/bounded-body.js',
     ]),
-    hostExports: { backend: new Set(['routes', 'openapi', 'maintenance']), web: new Set(['landing', 'page', 'app-page', 'web']) },
+    hostExports: { backend: new Set(['routes', 'openapi', 'maintenance']), web: new Set(['landing', 'page', 'app-page', 'demo-page', 'demo', 'web']) },
   },
   voice: {
     name: 'Voice',

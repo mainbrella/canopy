@@ -7,6 +7,8 @@
     "./page": "./web/homepage.html",
     "./landing": "./web/landing.ts",
     "./app-page": "./web/app.html",
+    "./demo-page": "./web/demo.html",
+    "./demo": "./web/demo.ts",
     "./web": "./web/app.ts",
     "./routes": "./worker/routes.ts",
     "./openapi": "./worker/openapi.ts",

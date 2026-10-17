@@ -35,6 +35,7 @@ test('BFF composes its product-owned homepage with shared chrome and preview nav
   const html = await transform('bff/index.html', '/bff/index.html');
   assert.match(html, /<title>BFF · Everything behind your app · Mainbrella<\/title>/);
   assert.match(html, /<main id="main">/);
+  assert.match(html, /href="\/bff\/demo">Try Demo App/);
   assert.match(html, /href="#developer-experience">Developer experience<\/a>/);
   assert.match(html, /href="#early-access">Get early access<\/a>/);
   assert.match(html, /mailto:support@mainbrella.com\?subject=Mainbrella%20BFF%20early%20access/);
@@ -50,6 +51,14 @@ test('BFF composes its product-owned homepage with shared chrome and preview nav
     assert.match(footer, /href="\/bff\/"/);
     assert.match(footer, /Everything behind your app. Nothing to deploy./);
   }
+});
+
+test('BFF demo composes its public board without authenticated workspace navigation', async () => {
+  const html = await transform('bff/demo/index.html', '/bff/demo/index.html');
+  assert.match(html, /Message board/);
+  assert.match(html, /src="\/src\/bff-demo.ts"/);
+  assert.match(html, /id="cookie-consent" data-consent-prompt="optional"/);
+  assert.doesNotMatch(html, /<!-- bff-demo -->|app-navigation|Sign in/);
 });
 
 test('BFF workspace uses authenticated app chrome and its own route entry', async () => {
