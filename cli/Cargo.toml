@@ -3,6 +3,9 @@ name = "canopy"
 version = "0.1.0"
 edition = "2024"
 
+[dependencies]
+ureq = { version = "3.4", default-features = false, features = ["rustls"] }
+
 [[bin]]
 name = "canopy"
 path = "src/main.rs"
