@@ -220,6 +220,17 @@ npm run deploy:api -- --local
 npm run deploy:site -- --local
 ```
 
+From `apps/web`, `npm run deploy` publishes the builder and then the site using
+your local Wrangler login, and writes local release evidence. Run
+`npm run deploy -- --check` there to validate and bundle both without
+publishing. The equivalent commands from the repository root are:
+
+```sh
+npm run deploy -w @canopy/web
+npm run deploy -w @canopy/web -- --check
+npm run deploy -w @canopy/web -- --help
+```
+
 You can also run `npm run deploy` from `apps/backend`. That command applies
 pending account D1 migrations and deploys the API directly using Wrangler login.
 The full backend rollout is available there as `npm run deploy:all`.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { deploySite } from './deploy-site.mjs';
@@ -40,6 +40,7 @@ test('the site publisher uploads a verified copy that survives another build cle
   } });
   assert.equal(published, true);
   assert.equal(existsSync(snapshot), false, 'Direct deployments clean up the snapshot');
+  assert.deepEqual(readdirSync(join(f.directory, '.wrangler')), [], 'Direct deployments clean up their temporary directory');
 });
 
 test('an incomplete public-only build cannot reach Wrangler deployment', async t => {
@@ -52,6 +53,20 @@ test('an incomplete public-only build cannot reach Wrangler deployment', async t
     } else published = true;
   } }), /manifest.json/);
   assert.equal(published, false);
+  assert.deepEqual(readdirSync(join(f.directory, '.wrangler')), []);
+});
+
+test('failed site uploads clean up their temporary snapshot', async t => {
+  const f = fixture(t);
+  let snapshot;
+  await assert.rejects(deploySite({ directory: f.directory, env: {}, run(command, args) {
+    if (command === 'npm') return f.build();
+    snapshot = args[args.indexOf('--assets') + 1];
+    assert.ok(existsSync(join(snapshot, 'index.html')));
+    throw new Error('Upload failed');
+  } }), /Upload failed/);
+  assert.equal(existsSync(snapshot), false);
+  assert.deepEqual(readdirSync(join(f.directory, '.wrangler')), []);
 });
 
 test('site snapshots remain available for the release runner to hash after upload', async t => {

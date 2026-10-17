@@ -15,7 +15,8 @@ export async function deploySite({ directory = root, env = process.env, args = [
   await mkdir(join(directory, '.wrangler'), { recursive: true });
   // The release runner keeps this snapshot until it has recorded its hash.
   // Direct npm deployments own and clean up their temporary snapshot here.
-  const snapshot = env.CANOPY_SITE_ASSET_SNAPSHOT || await mkdtemp(join(directory, '.wrangler/site-assets-'));
+  const temporary = env.CANOPY_SITE_ASSET_SNAPSHOT ? undefined : await mkdtemp(join(directory, '.wrangler/site-assets-'));
+  const snapshot = env.CANOPY_SITE_ASSET_SNAPSHOT || join(temporary, 'assets');
   try {
     await cp(join(directory, 'dist'), snapshot, { recursive: true, errorOnExist: true, force: false });
     await checkBuild('site', snapshot);
@@ -23,7 +24,7 @@ export async function deploySite({ directory = root, env = process.env, args = [
     const wrangler = join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
     run(process.execPath, [wrangler, 'deploy', ...args, '--assets', snapshot], options);
   } finally {
-    if (!env.CANOPY_SITE_ASSET_SNAPSHOT) await rm(snapshot, { recursive: true, force: true });
+    if (temporary) await rm(temporary, { recursive: true, force: true });
   }
 }
 

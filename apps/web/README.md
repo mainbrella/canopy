@@ -17,7 +17,9 @@ npm run build:site # Build the site and dashboard into dist/
 npm run build:builder # Build only the builder into dist-builder/
 npm run preview   # Preview the built site with Wrangler
 npm run preview:builder # Preview the built builder at localhost:8788/build/
-npm run deploy    # Deploy builder first, then the site (full release)
+npm run deploy    # Deploy builder first, then the site from this machine
+npm run deploy -- --check # Check and bundle both deployments without publishing
+npm run deploy -- --help  # Show deployment options
 npm run deploy:site # Build and deploy only the site and dashboard
 npm run deploy:builder # Build and deploy only the builder
 npm run deploy:redirect # Deploy the www.mainbrella.com redirect
@@ -33,9 +35,12 @@ deployment histories. The builder owns `mainbrella.com/build/*`; the site's
 Both use the existing API and session on the same browser origin.
 
 For the first rollout, use `npm run deploy`: it deploys the builder before the
-site starts linking to it. Afterward, use `npm run deploy:builder` for builder
-changes or `npm run deploy:site` for site changes. Shared auth, CSS, navigation,
-and API-client changes require rebuilding every affected deployment. GitHub CI
+site starts linking to it. This command uses the local Wrangler login (or
+`CLOUDFLARE_API_TOKEN`) and records release evidence in `artifacts/releases/`.
+Use `npm run deploy -- --check` to check and bundle both hosts without
+publishing. Afterward, use `npm run deploy:builder` for builder changes or
+`npm run deploy:site` for site changes. Shared auth, CSS, navigation, and
+API-client changes require rebuilding every affected deployment. GitHub CI
 selects build targets from changed paths and conservatively checks both for
 shared or unrecognized browser source changes; CI does not publish releases.
 

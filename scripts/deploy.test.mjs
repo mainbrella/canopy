@@ -7,6 +7,7 @@ import { artifactHash, dispatchRelease, parseArguments, release, validateConfigu
 import { targetFor, targets } from './deploy-targets.mjs';
 import { deployBackend, parseArguments as parseBackendArguments } from '../apps/backend/scripts/deploy.mjs';
 import { deployBff, parseArguments as parseBffArguments } from '../apps/bff/scripts/deploy.mjs';
+import { deployWeb, parseArguments as parseWebArguments } from '../apps/web/scripts/deploy.mjs';
 
 const sourceSha = 'a'.repeat(40);
 const deploymentVersion = '12345678-1234-1234-1234-123456789abc';
@@ -323,6 +324,69 @@ test('BFF deploy --check validates both hosts without credentials, migrations, o
   assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => call.args[1]), [...targets.api.checks, ...targets.site.checks]);
   assert.equal(calls.filter(call => call.args.includes('--dry-run')).length, 2);
   assert.equal(calls.some(call => call.args.includes('auth') || ['db:migrate:remote', 'deploy:api', 'deploy:site'].includes(call.args[1])), false);
+});
+
+test('web npm deploy accepts local publication, check, and help modes', () => {
+  assert.deepEqual(parseWebArguments([]), { mode: 'publish' });
+  assert.deepEqual(parseWebArguments(['--check']), { mode: 'check' });
+  assert.deepEqual(parseWebArguments(['--help']), { mode: 'help' });
+  assert.deepEqual(parseWebArguments(['-h']), { mode: 'help' });
+  for (const args of [['builder'], ['--force'], ['--check', '--local']]) assert.throws(() => parseWebArguments(args), /Usage:/);
+  const pkg = JSON.parse(readFileSync(new URL('../apps/web/package.json', import.meta.url)));
+  assert.equal(pkg.scripts.deploy, 'node scripts/deploy.mjs');
+});
+
+test('web npm deploy publishes builder before site and records each local release', t => {
+  const { directory, app } = fixture(t, 'builder');
+  fixture(t, 'site', directory);
+  const calls = [], env = { SAFE: 'yes' };
+  const result = withoutConsoleOutput(() => deployWeb({ directory, env, run: stubRun(calls) }));
+  const npmCalls = calls.filter(call => call.command === 'npm');
+  assert.deepEqual(npmCalls.map(call => [call.args[1], call.cwd]), [
+    ['deploy:builder', app], ['deploy:site', app],
+  ]);
+  assert.ok(npmCalls.every(call => call.env.CLOUDFLARE_API_TOKEN === 'private-local-test-token'));
+  assert.equal(calls.filter(call => call.args.includes('auth')).length, 2);
+  assert.equal(result.builder.target, 'builder');
+  assert.equal(result.site.target, 'site');
+  assert.equal(result.builder.local, true);
+  assert.equal(result.site.local, true);
+  assert.ok(existsSync(join(directory, 'artifacts/releases/builder.json')));
+  assert.ok(existsSync(join(directory, 'artifacts/releases/site.json')));
+  assert.equal(calls.some(call => call.command === 'gh' || call.command === 'git' && ['fetch', 'merge-base', 'remote'].includes(call.args[0])), false);
+  assert.deepEqual(env, { SAFE: 'yes' });
+});
+
+test('web deploy stops before site publication when the builder fails', t => {
+  const { directory } = fixture(t, 'builder');
+  fixture(t, 'site', directory);
+  const calls = [];
+  assert.throws(() => deployWeb({ directory, env: {}, run: stubRun(calls, {
+    failOn: 'npm run deploy:builder --workspace @canopy/web -- --outdir=.wrangler/release-builder',
+  }) }), /stub failed/);
+  assert.equal(calls.some(call => call.command === 'npm' && call.args[1] === 'deploy:site'), false);
+});
+
+test('failed web site publication preserves the builder release record', t => {
+  const { directory } = fixture(t, 'builder');
+  fixture(t, 'site', directory);
+  const calls = [];
+  assert.throws(() => withoutConsoleOutput(() => deployWeb({ directory, env: {}, run: stubRun(calls, {
+    failOn: 'npm run deploy:site --workspace @canopy/web -- --outdir=.wrangler/release-site',
+  }) })), /stub failed/);
+  assert.ok(existsSync(join(directory, 'artifacts/releases/builder.json')));
+  assert.equal(existsSync(join(directory, 'artifacts/releases/site.json')), false);
+});
+
+test('web deploy --check validates and bundles both hosts without credentials or publication', t => {
+  const { directory } = fixture(t, 'builder');
+  fixture(t, 'site', directory);
+  const calls = [];
+  deployWeb({ publish: false, directory, env: {}, run: stubRun(calls) });
+  assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => call.args[1]), [...targets.builder.checks, ...targets.site.checks]);
+  assert.equal(calls.filter(call => call.args.includes('--dry-run')).length, 2);
+  assert.equal(calls.some(call => call.args.includes('auth') || ['deploy:builder', 'deploy:site', 'db:migrate:remote'].includes(call.args[1])), false);
+  assert.equal(calls.some(call => call.command === 'gh'), false);
 });
 
 test('local releases reuse explicit credentials and reject mismatched accounts before reading credentials', t => {
