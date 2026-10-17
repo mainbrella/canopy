@@ -465,7 +465,10 @@ await fetch(`${base}/tables/messages?id=eq.welcome`, {
 await fetch(`${base}/tables/messages?id=eq.welcome`, { method: 'DELETE', headers });
 ```
 
-An explicit different `user_id` or ownership transfer returns 403. UPDATE and
+An explicit different `user_id` or ownership transfer returns 403, including
+alternate column casing such as `USER_ID`. UPDATE checks both the existing row
+and the proposed changes: the existing row must belong to the session user, and
+any supplied ownership value must remain that user's ID. UPDATE and
 DELETE append the ownership predicate to the original filters atomically; a
 request targeting another user's row succeeds with no affected rows. Missing
 filters are rejected. Key grants and live policies apply in addition to the user

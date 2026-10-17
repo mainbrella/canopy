@@ -47,7 +47,11 @@ export async function authorizedQuery(env: Env, project: Project, principal: Dat
   let row = input.row;
   if (ownership) {
     const values = parse(filterInput, row);
-    if (Object.hasOwn(values, ownership.column) && values[ownership.column] !== ownership.value) throw new BffError('permission_denied', 403);
+    // SQLite column names are case-insensitive. Check every alias so duplicate
+    // spellings cannot bypass the proposed-row ownership check on UPDATE/INSERT.
+    for (const [column, value] of Object.entries(values)) {
+      if (column.toLowerCase() === ownership.column.toLowerCase() && value !== ownership.value) throw new BffError('permission_denied', 403);
+    }
     row = operation === 'insert' ? { ...values, [ownership.column]: ownership.value } : values;
   }
   return operation === 'insert' ? insertQuery(table, row) : updateQuery(table, input.filters, row, ownership);
