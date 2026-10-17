@@ -19,6 +19,14 @@ test('hosts use the correct product entry points without importing internals', (
   assert.ok(importViolation('apps/backend/worker/app/router.ts', '../../../voice/worker/app/voice'));
 });
 
+test('BFF is a browser product composed through its public web exports', () => {
+  assert.equal(importViolation('apps/web/src/bff.ts', '@canopy/bff/landing'), null);
+  assert.ok(importViolation('apps/backend/worker/index.ts', '@canopy/bff/landing'));
+  assert.ok(importViolation('apps/web/src/bff.ts', '../../bff/web/landing.ts'));
+  assert.ok(importViolation('apps/bff/web/landing.ts', '../../web/src/auth.ts'));
+  assert.ok(importViolation('apps/bff/web/landing.ts', '@canopy/voice/web'));
+});
+
 test('current production sources respect the product boundary', () => {
   assert.deepEqual(checkAppBoundaries(), []);
 });

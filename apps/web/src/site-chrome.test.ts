@@ -31,6 +31,27 @@ test('blog chrome keeps reading navigation compact and cookie preferences reacha
   assert.match(header, /Sign in/);
 });
 
+test('BFF composes its product-owned homepage with shared chrome and preview navigation', async () => {
+  const html = await transform('bff/index.html', '/bff/index.html');
+  assert.match(html, /<title>BFF · Everything behind your app · Mainbrella<\/title>/);
+  assert.match(html, /<main id="main">/);
+  assert.match(html, /href="#developer-experience">Developer experience<\/a>/);
+  assert.match(html, /href="#early-access">Get early access<\/a>/);
+  assert.match(html, /mailto:support@mainbrella.com\?subject=Mainbrella%20BFF%20early%20access/);
+  assert.match(html, /id="cookie-consent" data-consent-prompt="optional"/);
+  assert.doesNotMatch(html, /<!-- (?:bff-homepage|site-header|site-footer) -->/);
+  assert.match(html, /src="\/src\/bff.ts"/);
+  assert.match(html, /src="\/src\/account-menu.ts"/);
+  assert.match(html, /src="\/src\/acquisition.ts"/);
+  for (const path of ['/bff/', '/bff/index.html']) {
+    const { header, footer } = siteChrome(path);
+    assert.match(header, /href="#early-access"/);
+    assert.doesNotMatch(header, /Start building|Open Voice/);
+    assert.match(footer, /href="\/bff\/"/);
+    assert.match(footer, /Everything behind your app. Nothing to deploy./);
+  }
+});
+
 test('article CSS is inlined in source order after critical shared styles', async () => {
   const html = await transform('blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html', '/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html');
   const critical = html.indexOf('<style data-critical-css>');

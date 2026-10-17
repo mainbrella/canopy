@@ -21,6 +21,18 @@ test('shared backend changes select public consumers and SDK checks', () => {
   for (const key of ['backend_full', 'sdk', 'site', 'builder', 'raindrop_ui']) assert.equal(result[key], true);
 });
 
+test('BFF homepage changes select the site without backend or builder work', () => {
+  for (const path of ['apps/bff/web/homepage.html', 'apps/bff/web/landing.ts', 'apps/bff/web/landing.css', 'apps/bff/package.json']) {
+    const result = affectedTargets([path]);
+    assert.equal(result.site, true, path);
+    assert.equal(result.builder, false, path);
+    assert.equal(result.backend_full, false, path);
+  }
+  const docs = affectedTargets(['apps/bff/README.md']);
+  assert.equal(docs.docs, true);
+  assert.equal(docs.site, false);
+});
+
 test('Voice browser changes select the site and worker changes select their API host', () => {
   const browser = affectedTargets(['apps/voice/web/voice-api.ts']);
   assert.equal(browser.site, true);

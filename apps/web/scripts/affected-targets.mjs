@@ -18,7 +18,7 @@ function appLocalTargets(path) {
     // Source, scripts, and shared build inputs can affect either output.
     return ALL_TARGETS;
   }
-  if (path === 'index.html' || /^(?:docs|blog|pricing|public|sdk|unsubscribe|repo-rodeo-bug)\//.test(path)
+  if (path === 'index.html' || /^(?:bff|docs|blog|pricing|public|sdk|unsubscribe|repo-rodeo-bug)\//.test(path)
     || ['vite.config.ts', 'wrangler.jsonc', 'wrangler.redirect.jsonc', 'robots.txt', 'sitemap.xml'].includes(path)) {
     return ['site'];
   }
@@ -47,6 +47,8 @@ export function affectedTargetsForRepositoryPaths(paths) {
       for (const target of ALL_TARGETS) selected.add(target);
     } else if (path.startsWith('apps/backend/')) {
       if (backendPathAffectsWeb(path.slice('apps/backend/'.length))) selected.add('site');
+    } else if (path.startsWith('apps/bff/')) {
+      if (path !== 'apps/bff/README.md') selected.add('site');
     } else if (path.startsWith('apps/vibe/')) {
       if (!['apps/vibe/README.md', 'apps/vibe/AGENTS.md'].includes(path)) {
         for (const target of ALL_TARGETS) selected.add(target);

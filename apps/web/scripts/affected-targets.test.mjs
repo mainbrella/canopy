@@ -16,7 +16,7 @@ test('builder edits only build the builder', () => {
 
 test('public content and legacy routing edits only build the site', () => {
   for (const path of ['index.html', 'docs/containers/index.html', 'blog/new-post/index.html',
-    'public/images/blog/new.png', 'src/build-route.ts', 'vite.config.ts', 'wrangler.jsonc']) {
+    'public/images/blog/new.png', 'bff/index.html', 'src/build-route.ts', 'vite.config.ts', 'wrangler.jsonc']) {
     assert.deepEqual(affectedTargets([path]), ['site'], path);
   }
 });
@@ -42,6 +42,9 @@ test('repository paths select only web-owned checks and known backend contracts'
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/vibe/web/build-api.ts']), ['site', 'builder']);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/vibe/worker/app/build.ts']), ['site', 'builder']);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/vibe/README.md']), []);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/bff/web/homepage.html']), ['site']);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/bff/web/landing.css']), ['site']);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/bff/README.md']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['README.md']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['package.json']), ['site', 'builder']);
 });
