@@ -28,6 +28,16 @@ test('existing account keys authenticate BFF SQL, table data, functions, and pro
   await json(`${base}/query`, 'POST', { sql: 'INSERT INTO notes VALUES(?,?)', params: ['one', 'Account key works'] });
   assert.equal((await json(`${base}/query`, 'POST', { sql: 'SELECT * FROM notes' })).result.results[0].body, 'Account key works');
   assert.equal((await json(table)).data[0].body, 'Account key works');
+  assert.equal((await json(table, 'POST', { id: 'two', body: null }, 201)).data[0].id, 'two');
+  assert.equal((await json(`${table}?id=eq.two`, 'PATCH', { body: 'Changed' })).data[0].body, 'Changed');
+  assert.equal((await json(`${table}?id=eq.two`, 'DELETE')).meta.changes, 1);
+  await json(table, 'PATCH', { body: 'Missing filter' }, 400);
+  await json(table, 'DELETE', undefined, 400);
+  await json(table, 'POST', {}, 400);
+  const policy = await json(`${base}/policies/notes`, 'PUT', { select: 'public' });
+  assert.equal(policy.policy.select, 'public');
+  assert.equal((await json(`${base}/policies`)).policies[0].table, 'notes');
+  await json(`${base}/policies/notes`, 'DELETE');
   await json(`${base}/functions/hello`, 'PUT', { source: `export default () => 'hello'`, expectedVersion: 0 }, 201);
   assert.equal((await json(`${base}/functions/hello/invoke`, 'POST', { input: null })).value, 'hello');
   assert.equal((await json(`/data/${project.id}/functions/hello/invoke`, 'POST', { input: null })).value, 'hello');

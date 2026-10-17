@@ -8,19 +8,20 @@ broader SDK examples remain illustrative.
 The first release includes project creation, dedicated D1 provisioning, table and
 schema inspection, a SQL editor, ordered migrations, immutable function versions,
 function invocation, execution metadata, daily budgets, and project pause/resume.
-Existing navigation stays in place; authentication for application users, row
-policies, storage, realtime, automations, notifications, search, payments,
+Existing navigation stays in place; authentication for application users, per-user
+row policies, storage, realtime, automations, notifications, search, payments,
 templates, backup management, client SDKs, staging environments,
 and project deletion are deferred. Their screens have empty states and no
 simulated actions. Management APIs accept the project owner’s Mainbrella session
 or existing account API key from `/api-keys/`, using the same authentication as Linux.
-External browser apps can use scoped project keys for table CRUD and explicitly
-published function versions through the Data API.
+External browser apps can use scoped project keys for anonymous reads of tables
+with an explicit public SELECT policy and published function versions through the Data API.
 
 ## Setup
 
 1. Apply the backend’s pending migrations, including `050_bff.sql`,
-   `051_bff_api_keys.sql`, and `052_bff_shared_api_keys.sql`, using the normal migration
+   `051_bff_api_keys.sql`, `052_bff_shared_api_keys.sql`, and
+   `053_bff_table_policies.sql`, using the normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
@@ -162,6 +163,41 @@ and outputs are limited to 64 KiB; source is limited to 32 KiB.
 
 ## External browser Data API
 
+For the first frontend app, run this from `apps/bff` after deploying the API and
+applying pending backend migrations. It reads the existing account key from the
+referenced environment file without printing it:
+
+```sh
+node --env-file=../../../backend/.env scripts/prepare-public-read.mjs
+```
+
+Alternatively, set `MAINBRELLA_API_KEY` in your shell and run `npm run example:prepare`.
+The command provisions a real project, creates a `products` table with Coffee,
+Tea, and Water, enables public reads, creates a read-only browser key, and verifies
+browser CORS and the public SELECT request. It prints `{ apiOrigin, projectId, publicKey, table }`
+for use in the frontend. No account key goes into that configuration. Defaults
+are the production API and `http://localhost:5173` as the frontend origin; set
+`BFF_API_ORIGIN`, `BFF_FRONTEND_ORIGIN`, and `BFF_PROJECT_NAME` to override them.
+Project/migration retries reuse the project and rows; each run creates a new
+browser key. Revoke unused keys from `/api-keys/`.
+
+With the printed configuration, the frontend can immediately run:
+
+```js
+const { apiOrigin, projectId, publicKey, table } = config;
+const response = await fetch(
+  `${apiOrigin}/bff/data/${projectId}/tables/${table}?select=*`,
+  { headers: { apikey: publicKey } },
+);
+if (!response.ok) throw new Error((await response.json()).error);
+const { data } = await response.json(); // Coffee, Tea, Water
+```
+
+No user login, JWT, Mainbrella session cookie, or owner credential is needed for
+this request. Reads default to 100 rows; use `limit`, `offset`, and `order` for
+pagination. The public key identifies the project and limits table/function
+access; the table policy decides whether anonymous reads are allowed.
+
 Existing `MAINBRELLA_API_KEY` account credentials work for BFF, including SQL,
 project creation, provisioning, migrations, and function calls. From a trusted server:
 
@@ -178,6 +214,33 @@ function endpoint runs the latest saved version. Ownership, pause/block switches
 and budgets still apply. An explicit invalid Bearer credential never falls back
 to a browser session. Account keys are powerful server credentials; public
 browser apps should use scoped keys.
+
+All tables deny anonymous access by default, including tables with existing
+browser key grants. For an existing table, explicitly allow public reads using
+the owner API before creating or using its browser key:
+
+```sh
+curl -X PUT "https://api.mainbrella.com/bff/projects/$PROJECT_ID/policies/notes" \
+  -H "Authorization: Bearer $MAINBRELLA_API_KEY" \
+  -H 'Content-Type: application/json' \
+  --data '{"select":"public"}'
+```
+
+Both a `select` key grant and a `select: public` table policy are required.
+`GET /bff/projects/{id}/policies` lists policies. `PUT .../policies/{table}` accepts
+`{ "select": "public" }` or `{ "select": "none" }` for an existing table, with
+at most 100 policies per project. `DELETE .../policies/{table}` revokes public
+access and is idempotent. Listing and revocation remain available while paused
+or BFF is disabled. Policies are keyed by table name and cover all rows and
+columns, including data/columns added later. Deleting a project deletes its policies.
+
+Published functions invoked with a browser key receive an anonymous database
+capability. Every call checks the live key's table grant and current table policy.
+They cannot read private tables or write, even if the saved function has `write`
+database access or the key has a legacy write grant. Owner-authenticated
+invocations retain administrative database capabilities. Revoking a policy or key
+blocks subsequent database calls, including calls from a running function; it
+does not cancel provider requests already in flight.
 
 Scoped browser credentials use the same `api_keys` store, token generation,
 identity lookup, usage tracking, and revocation system as account keys. BFF keeps
@@ -200,7 +263,7 @@ const response = await fetch(`${api}/bff/projects/${projectId}/api-keys`, {
   body: JSON.stringify({
     name: 'My web app',
     origins: ['https://my-app.example', 'http://localhost:3000'],
-    tables: { notes: ['select', 'insert', 'update', 'delete'] },
+    tables: { notes: ['select'] },
     functions: { read_notes: 1 },
   }),
 });
@@ -251,12 +314,12 @@ rejected. Preflights allow `apikey`, `authorization`, and `content-type`, withou
 credentialed cookies. Non-browser requests can omit Origin; CORS is a browser
 control, not a substitute for the key's permissions.
 
-| Endpoint | Required table grant | Body / query |
+| Endpoint | Access | Body / query |
 | --- | --- | --- |
-| `GET /bff/data/{id}/tables/{table}` | `select` | Optional `select`, `limit`, `offset`, `order`, and column filters |
-| `POST /bff/data/{id}/tables/{table}` | `insert` | One JSON row; no query parameters |
-| `PATCH /bff/data/{id}/tables/{table}?id=eq.one` | `update` | JSON object of changed columns; at least one filter |
-| `DELETE /bff/data/{id}/tables/{table}?id=eq.one` | `delete` | At least one filter |
+| `GET /bff/data/{id}/tables/{table}` | Owner, or public SELECT policy + `select` key grant | Optional `select`, `limit`, `offset`, `order`, and column filters |
+| `POST /bff/data/{id}/tables/{table}` | Owner account key | One JSON row; no query parameters |
+| `PATCH /bff/data/{id}/tables/{table}?id=eq.one` | Owner account key | JSON object of changed columns; at least one filter |
+| `DELETE /bff/data/{id}/tables/{table}?id=eq.one` | Owner account key | At least one filter |
 
 Table responses are `{ data: [...], meta: {...} }`; insertion returns 201. Insert
 and update return the affected rows. Delete returns empty `data` and an affected
@@ -269,12 +332,11 @@ when paginating. Duplicate parameters, SQL expressions, joins, and other filter
 operators are rejected. Row and function request bodies are limited to 64 KiB;
 table results use the existing 2 MiB provider-response bound.
 
-Grants are denied by default. A table grant covers **every row and column** in
-that table, including rows added later. Browser keys are visible to app users;
-grant only data and operations you intend those users to access. Per-user
-authentication and row-level policies are not implemented. Published functions
-can implement narrower operations using their saved database capability; their
-inputs are untrusted and they receive no authenticated end-user identity.
+Anonymous policy enforcement currently supports public SELECT or no access.
+Per-user authentication, user-specific row predicates, and public write policies
+are not implemented. Public-read policies expose **every row and column** to
+anyone holding an authorized browser key; use them only for deliberately public
+data. Function inputs are untrusted and provide no authenticated end-user identity.
 Function grants pin immutable versions, so saving a new version does not change
 what an existing key runs. Create a replacement key to change grants or origins.
 Keys cannot use the owner SQL, schema, migration, provisioning, or function-source
@@ -317,7 +379,8 @@ limits, not billing controls.
 composes its existing page and browser exports. Endpoints live under `/bff`:
 `config`, `projects`, and `projects/{id}/{provision,schema,query,migrations,functions,executions,usage}`.
 Functions add `/{name}` and `/{name}/invoke`. Project PATCH pauses/resumes it.
-Projects also expose owner-managed `api-keys` and `api-keys/{keyId}`. The separate
+Projects also expose owner-managed `api-keys`, `api-keys/{keyId}`, `policies`, and
+`policies/{table}`. The separate
 browser Data API lives under `/bff/data/{projectId}` with `tables/{table}` and
 `functions/{functionName}/invoke`. Both entry points use the same project budgets,
 pause/block checks, and function runtime. The generated API document describes

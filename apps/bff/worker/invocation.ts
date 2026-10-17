@@ -1,8 +1,8 @@
-import { BffError, LIMITS, type FunctionVersion, type Project } from './contracts';
+import { BffError, LIMITS, type DatabasePrincipal, type FunctionVersion, type Project } from './contracts';
 import { reserveBudget } from './database';
 import { executeFunction } from './runtime';
 
-export async function invokeFunction(env: Env, project: Project, fn: FunctionVersion, input: unknown) {
+export async function invokeFunction(env: Env, project: Project, fn: FunctionVersion, input: unknown, principal: DatabasePrincipal) {
   if (!env.BFF_LOADER) throw new BffError('function_runtime_unavailable', 503);
   await reserveBudget(env, project.id, 'invocations');
   const id = crypto.randomUUID(), started = Date.now();
@@ -12,7 +12,7 @@ export async function invokeFunction(env: Env, project: Project, fn: FunctionVer
   if (!running.meta.changes) throw new BffError('concurrency_limit', 429);
   let status = 'error', errorCode: string | null = null;
   try {
-    const result = await executeFunction(env, project, fn, input);
+    const result = await executeFunction(env, project, fn, input, principal);
     status = result.ok ? 'success' : 'error'; errorCode = result.ok ? null : 'function_error';
     return { id, version: fn.version, ...result };
   } catch (error) {

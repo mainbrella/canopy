@@ -5,6 +5,7 @@ import { BffError, clientInvokeInput, LIMITS, parse, type ApiKeyRecord, type Fun
 import { ProjectDatabase } from './database';
 import { body, enabled, readyProject } from './http';
 import { invokeFunction } from './invocation';
+import { authorizeTable } from './policies';
 import { identifier } from './sql';
 import { deleteQuery, insertQuery, selectQuery, tableParameters, updateQuery } from './table-queries';
 
@@ -61,10 +62,11 @@ export async function handleDataRequest(request: Request, env: Env): Promise<Res
       const fn = await env.DB.prepare(`SELECT * FROM bff_function_versions WHERE project_id=? AND name=? ${key ? 'AND version=?' : ''} ORDER BY version DESC LIMIT 1`)
         .bind(projectId, name, ...(key ? [key.functions[name]] : [])).first<FunctionVersion>();
       if (!fn) throw new BffError('not_found', 404);
-      return reply(await invokeFunction(env, project, fn, input.input));
+      return reply(await invokeFunction(env, project, fn, input.input, key ? { role: 'anon', keyId: key.id } : { role: 'owner' }));
     }
     const operation = { GET: 'select', POST: 'insert', PATCH: 'update', DELETE: 'delete' }[request.method] as 'select' | 'insert' | 'update' | 'delete';
     if (key && (!Object.hasOwn(key.tables, name) || !key.tables[name].includes(operation))) throw new BffError('permission_denied', 403);
+    await authorizeTable(env, project, key ? { role: 'anon', keyId: key.id } : { role: 'owner' }, name, operation);
     const query = tableParameters(url.searchParams, request.method === 'GET');
     let compiled: SqlQuery;
     if (request.method === 'GET') compiled = selectQuery(name, query.filters, query.limit, query.offset, query.select, query.order);

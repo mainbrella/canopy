@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { checksum, LIMITS } from './contracts';
 import { runtime } from './system-test-helpers';
 
-test('browser Data API: scoped keys, CORS, table CRUD, pinned functions, and revocation', { timeout: 60_000 }, async t => {
+test('browser Data API: scoped public reads, CORS, pinned functions, and revocation', { timeout: 60_000 }, async t => {
   const f = await runtime(t);
   const project = (await f.json('/projects', 'POST', { name: 'Browser backend' }, 201)).project;
   const base = `/projects/${project.id}`;
   await f.json(`${base}/provision`, 'POST');
   await f.json(`${base}/migrations`, 'POST', { sequence: 1, name: 'notes', sql: 'CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT, rank INTEGER); CREATE TABLE private_notes(secret TEXT);' });
   await f.json(`${base}/query`, 'POST', { sql: 'INSERT INTO notes VALUES(?,?,?)', params: ['one', 'First note', 1] });
+  await f.json(`${base}/policies/notes`, 'PUT', { select: 'public' });
   await f.json(`${base}/functions/read_notes`, 'PUT', {
     source: `export default async (input, ctx) => (await ctx.db.select('notes', {id:input.id})).results`,
     databaseAccess: 'read', expectedVersion: 0,
@@ -88,18 +89,15 @@ test('browser Data API: scoped keys, CORS, table CRUD, pinned functions, and rev
   assert.equal((await request(fn, 'OPTIONS', undefined, '', { 'access-control-request-method': 'GET' })).status, 403);
 
   const writable = await f.json(`${base}/api-keys`, 'POST', { name: 'Editor', origins: [origin], tables: { notes: ['select', 'insert', 'update', 'delete'] } }, 201);
-  assert.deepEqual((await json(table, 'POST', { id: 'two', body: null, rank: 2 }, 201, writable.token)).data, [{ id: 'two', body: null, rank: 2 }]);
+  await json(table, 'POST', { id: 'two', body: null, rank: 2 }, 403, writable.token);
+  await f.json(`${base}/query`, 'POST', { sql: 'INSERT INTO notes VALUES(?,?,?)', params: ['two', null, 2] });
   assert.deepEqual((await json(`${table}?rank=eq.2`)).data.map((row: any) => row.id), ['two']);
   assert.deepEqual((await json(`${table}?body=is.null`)).data.map((row: any) => row.id), ['two']);
   assert.deepEqual((await json(`${table}?order=rank.desc&select=id&limit=1`)).data, [{ id: 'two' }]);
-  await json(table, 'PATCH', { body: 'No filter' }, 400, writable.token);
-  await json(table, 'DELETE', undefined, 400, writable.token);
-  assert.equal((await json(`${table}?id=eq.two`, 'PATCH', { body: "Bound ' ; value" }, 200, writable.token)).data[0].body, "Bound ' ; value");
-  assert.equal((await json(`${table}?id=eq.two`, 'DELETE', undefined, 200, writable.token)).meta.changes, 1);
-  await json(`${table}?id=eq.one`, 'POST', { id: 'bad' }, 400, writable.token);
-  await json(table, 'POST', {}, 400, writable.token);
-  assert.equal((await request(table, 'POST', { id: 'bad' }, writable.token, { 'content-type': 'text/plain' })).status, 415);
-  await json(table, 'POST', { id: 'large', body: 'x'.repeat(LIMITS.inputBytes) }, 413, writable.token);
+  await json(table, 'PATCH', { body: 'No filter' }, 403, writable.token);
+  await json(table, 'DELETE', undefined, 403, writable.token);
+  await json(`${table}?id=eq.two`, 'PATCH', { body: "Bound ' ; value" }, 403, writable.token);
+  await json(`${table}?id=eq.two`, 'DELETE', undefined, 403, writable.token);
 
   const otherOriginKey = await f.json(`${base}/api-keys`, 'POST', { ...grants, origins: ['https://another.example'] }, 201);
   assert.equal((await request(table, 'GET', undefined, otherOriginKey.token)).status, 403, 'An origin on another key does not authorize this key');

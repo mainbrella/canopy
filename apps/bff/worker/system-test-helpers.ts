@@ -56,7 +56,7 @@ export async function runtime(t: test.TestContext, bindings: Record<string, stri
   }] }));
   t.after(async () => { await mf.dispose(); for (const { db } of databases.values()) db.close(); });
   const db = await mf.getD1Database('DB');
-  for (const migration of ['001_initial', '002_auth_sessions', '010_api_keys', '050_bff', '051_bff_api_keys', '052_bff_shared_api_keys']) {
+  for (const migration of ['001_initial', '002_auth_sessions', '010_api_keys', '050_bff', '051_bff_api_keys', '052_bff_shared_api_keys', '053_bff_table_policies']) {
     const sql = readFileSync(new URL(`../../backend/migrations/${migration}.sql`, import.meta.url), 'utf8').replace(/^--.*$/gm, '');
     for (const statement of sql.match(/\s*CREATE TRIGGER[\s\S]*?END;|\s*[^;]+;/g) || []) await db.prepare(statement.trim()).run();
   }

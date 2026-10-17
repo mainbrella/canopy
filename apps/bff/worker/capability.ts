@@ -1,6 +1,7 @@
 import { RpcTarget } from 'cloudflare:workers';
-import { BffError, LIMITS, type Project, type SqlQuery } from './contracts';
+import { BffError, LIMITS, type DatabasePrincipal, type Project, type SqlQuery } from './contracts';
 import { ProjectDatabase } from './database';
+import { authorizeTable } from './policies';
 import { deleteQuery, insertQuery, selectQuery, updateQuery } from './table-queries';
 
 // This object crosses the isolate boundary via RPC. Its private fields, parent
@@ -12,18 +13,20 @@ export class DatabaseCapability extends RpcTarget {
   #env: Env;
   #project: Project;
   #access: 'read' | 'write';
-  constructor(env: Env, project: Project, access: 'read' | 'write') {
-    super(); this.#env = env; this.#project = project; this.#access = access;
+  #principal: DatabasePrincipal;
+  constructor(env: Env, project: Project, access: 'read' | 'write', principal: DatabasePrincipal) {
+    super(); this.#env = env; this.#project = project; this.#access = access; this.#principal = principal;
   }
   // Only the parent owns this setter; exposing close can only revoke access.
   close() { this.#closed = true; }
 
-  async #query(query: SqlQuery, write = false) {
+  async #query(table: string, query: SqlQuery, operation: 'select' | 'insert' | 'update' | 'delete' = 'select') {
     if (this.#closed || Date.now() >= this.#expires) throw new BffError('execution_expired');
     if (this.#remaining-- <= 0) throw new BffError('database_call_limit');
-    if (write && this.#access !== 'write') throw new BffError('database_write_denied');
+    if (operation !== 'select' && this.#access !== 'write') throw new BffError('database_write_denied');
     const project = await this.#env.DB.prepare('SELECT suspended,blocked,state FROM bff_projects WHERE id=?').bind(this.#project.id).first<Project>();
     if (!project || project.blocked || project.suspended || project.state !== 'ready' || this.#env.BFF_ENABLED !== 'true') throw new BffError('project_unavailable');
+    await authorizeTable(this.#env, this.#project, this.#principal, table, operation);
     if (this.#closed || Date.now() >= this.#expires) throw new BffError('execution_expired');
     const [result] = await new ProjectDatabase(this.#env, this.#project).query([query]);
     const output = JSON.stringify(result);
@@ -33,15 +36,15 @@ export class DatabaseCapability extends RpcTarget {
 
   async select(table: string, where: unknown = {}, limit = 100) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new BffError('invalid_limit');
-    return this.#query(selectQuery(table, where, limit));
+    return this.#query(table, selectQuery(table, where, limit));
   }
   async insert(table: string, row: unknown) {
-    return this.#query(insertQuery(table, row), true);
+    return this.#query(table, insertQuery(table, row), 'insert');
   }
   async update(table: string, where: unknown, row: unknown) {
-    return this.#query(updateQuery(table, where, row), true);
+    return this.#query(table, updateQuery(table, where, row), 'update');
   }
   async remove(table: string, where: unknown) {
-    return this.#query(deleteQuery(table, where), true);
+    return this.#query(table, deleteQuery(table, where), 'delete');
   }
 }

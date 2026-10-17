@@ -6,6 +6,7 @@ import { manageApiKeys } from './api-keys';
 import { handleDataRequest } from './data-routes';
 import { body, enabled, readyProject } from './http';
 import { invokeFunction } from './invocation';
+import { managePolicies } from './policies';
 import { statements } from './sql';
 
 const publicProject = ({ id, name, state, suspended, blocked, created_at }: Project) => ({ id, name, state, suspended: !!(suspended || blocked), created_at });
@@ -96,7 +97,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       }
       return reply({ project: { id, name: input.name, state: 'pending', suspended: false, created_at: created } }, 201);
     }
-    const match = /^\/bff\/projects\/([a-f0-9-]{36})(?:\/(schema|query|migrations|functions|executions|usage|provision|api-keys)(?:\/([a-zA-Z0-9_-]{1,63})(?:\/(invoke))?)?)?$/.exec(url.pathname);
+    const match = /^\/bff\/projects\/([a-f0-9-]{36})(?:\/(schema|query|migrations|functions|executions|usage|provision|api-keys|policies)(?:\/([a-zA-Z0-9_-]{1,63})(?:\/(invoke))?)?)?$/.exec(url.pathname);
     if (!match) throw new BffError('not_found', 404);
     const [, projectId, resource, functionName, invocation] = match;
     const project = await env.DB.prepare('SELECT * FROM bff_projects WHERE id=? AND user_id=?').bind(projectId, user.id).first<Project>();
@@ -109,7 +110,8 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       await env.DB.prepare('UPDATE bff_projects SET suspended=? WHERE id=? AND user_id=?').bind(Number(input.suspended), projectId, user.id).run();
       return reply({ project: publicProject({ ...project, suspended: Number(input.suspended) }) });
     }
-    if ((functionName && resource !== 'functions' && resource !== 'api-keys') || (invocation && resource !== 'functions')) throw new BffError('not_found', 404);
+    if ((functionName && !['functions', 'api-keys', 'policies'].includes(resource)) || (invocation && resource !== 'functions')) throw new BffError('not_found', 404);
+    if (resource === 'policies') return reply(await managePolicies(request, env, project, functionName));
     if (resource === 'api-keys') {
       if (functionName && !/^[a-f0-9-]{36}$/.test(functionName)) throw new BffError('not_found', 404);
       const result = await manageApiKeys(request, env, project, functionName);
@@ -179,7 +181,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
         const fn = await env.DB.prepare(`SELECT * FROM bff_function_versions WHERE project_id=? AND name=? ${input.version ? 'AND version=?' : ''} ORDER BY version DESC LIMIT 1`)
           .bind(projectId, functionName, ...(input.version ? [input.version] : [])).first<FunctionVersion>();
         if (!fn) throw new BffError('not_found', 404);
-        return reply(await invokeFunction(env, project, fn, input.input));
+        return reply(await invokeFunction(env, project, fn, input.input, { role: 'owner' }));
       }
       if (method === 'GET') {
         const fn = await env.DB.prepare('SELECT * FROM bff_function_versions WHERE project_id=? AND name=? ORDER BY version DESC LIMIT 1').bind(projectId, functionName).first<FunctionVersion>();

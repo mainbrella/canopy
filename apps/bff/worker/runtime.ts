@@ -1,4 +1,4 @@
-import { BffError, LIMITS, type FunctionVersion, type Project } from './contracts';
+import { BffError, LIMITS, type DatabasePrincipal, type FunctionVersion, type Project } from './contracts';
 
 const wrapper = `import { WorkerEntrypoint } from 'cloudflare:workers';
 import handler from './customer.js';
@@ -23,12 +23,12 @@ export function workerCode(source: string): WorkerLoaderWorkerCode {
   };
 }
 
-export async function executeFunction(env: Env, project: Project, fn: FunctionVersion, input: unknown) {
+export async function executeFunction(env: Env, project: Project, fn: FunctionVersion, input: unknown, principal: DatabasePrincipal) {
   if (!env.BFF_LOADER) throw new BffError('function_runtime_unavailable', 503);
   // Import only in the Workers runtime; Node-based routing/schema tests never
   // need to emulate cloudflare:workers or substitute a weaker JS sandbox.
   const { DatabaseCapability } = await import('./capability');
-  const capability = fn.database_access === 'none' ? null : new DatabaseCapability(env, project, fn.database_access);
+  const capability = fn.database_access === 'none' ? null : new DatabaseCapability(env, project, fn.database_access, principal);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     // Fresh isolate for every invocation, including globals and module state.

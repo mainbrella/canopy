@@ -14,7 +14,8 @@
   },
   "scripts": {
     "deploy": "node scripts/deploy.mjs",
-    "test": "tsx --test worker/*.test.ts web/*.test.ts",
+    "test": "tsx --test worker/*.test.ts web/*.test.ts scripts/*.test.mjs",
+    "example:prepare": "node scripts/prepare-public-read.mjs",
     "type-check": "tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.web.json"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { errors, jsonResponse, register, requestBody, type LegacyHandler, type OpenAPIApi } from '../../backend/worker/app/openapi-shared';
-import { apiKeyInput, clientInvokeInput, filterInput, functionInput, invokeInput, migrationInput, projectInput, projectPatch, queryInput, tableOperation, tableReadInput } from './contracts';
+import { apiKeyInput, clientInvokeInput, filterInput, functionInput, invokeInput, migrationInput, projectInput, projectPatch, queryInput, tableNameInput, tableOperation, tablePolicyInput, tableReadInput } from './contracts';
 
 const project = z.object({ id: z.string().uuid(), name: z.string(), state: z.enum(['pending', 'ready', 'error']), suspended: z.boolean(), created_at: z.string() });
 const row = z.record(z.string(), z.unknown());
@@ -10,10 +10,12 @@ const params = z.object({ projectId: z.string().uuid() });
 const functionParams = params.extend({ functionName: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/) });
 const apiKey = z.object({ id: z.string().uuid(), name: z.string(), prefix: z.string(), origins: z.array(z.string()),
   tables: z.record(z.string(), z.array(tableOperation)), functions: z.record(z.string(), z.number().int()), created_at: z.string() });
+const tablePolicy = z.object({ table: z.string(), select: z.enum(['none', 'public']), updated_at: z.string() });
 
 export function registerBffRoutes(api: OpenAPIApi, handler: LegacyHandler) {
-  const common = { tags: ['BFF'], security: [{ cookieAuth: [] }, { apiKeyBearer: [] }],
-    description: 'BFF owner management API. Accepts a Mainbrella session cookie or an existing account API key (mb_ prefix) as Bearer authorization, using the same key authentication as Linux. Browser requests require an allowed Mainbrella Origin. Invalid explicit Bearer credentials never fall back to a cookie. Project ownership is always checked. Public browser apps use scoped keys on /bff/data routes. End-user row policies are not available.' };
+  const ownerSecurity: Record<string, string[]>[] = [{ cookieAuth: [] }, { apiKeyBearer: [] }];
+  const common = { tags: ['BFF'], security: ownerSecurity,
+    description: 'BFF owner management API. Accepts a Mainbrella session cookie or an existing account API key (mb_ prefix) as Bearer authorization, using the same key authentication as Linux. Browser requests require an allowed Mainbrella Origin. Invalid explicit Bearer credentials never fall back to a cookie. Project ownership is always checked. Public browser apps use scoped keys on /bff/data routes and explicit public-read table policies. Per-user row policies are not available.' };
   const failure = errors(400, 401, 403, 404, 405, 408, 409, 413, 415, 422, 429, 502, 503);
   const route = (method: 'get' | 'post' | 'patch' | 'put' | 'delete', path: string, operationId: string, summary: string,
     request: object | undefined, response: z.ZodType, created = false) => register(api, method, path, {
@@ -51,13 +53,19 @@ export function registerBffRoutes(api: OpenAPIApi, handler: LegacyHandler) {
     { params, ...requestBody(apiKeyInput) }, z.object({ key: apiKey, token: z.string() }), true);
   route('delete', `${base}/api-keys/{keyId}`, 'revokeBffApiKey', 'Revoke a browser key, including while its project is paused or BFF is disabled',
     { params: params.extend({ keyId: z.string().uuid() }) }, z.object({ revoked: z.boolean() }));
+  route('get', `${base}/policies`, 'listBffTablePolicies', 'List table policies; tables without a policy deny anonymous access',
+    { params }, z.object({ policies: z.array(tablePolicy) }));
+  route('put', `${base}/policies/{table}`, 'setBffTablePolicy', 'Set public SELECT or deny anonymous reads on an existing table; public writes remain denied',
+    { params: params.extend({ table: tableNameInput }), ...requestBody(tablePolicyInput) }, z.object({ policy: tablePolicy }));
+  route('delete', `${base}/policies/{table}`, 'revokeBffTablePolicy', 'Revoke anonymous table access, including while paused or BFF is disabled; retries are idempotent',
+    { params: params.extend({ table: tableNameInput }) }, z.object({ revoked: z.boolean() }));
 
   api.registry.registerComponent('securitySchemes', 'bffBearer', { type: 'http', scheme: 'bearer', description: 'Scoped project browser key (bff_pk_ prefix), managed in the shared /api-keys system. Does not authorize owner, Linux, or raw SQL APIs.' });
   api.registry.registerComponent('securitySchemes', 'bffApiKey', { type: 'apiKey', in: 'header', name: 'apikey', description: 'Scoped BFF browser key or trusted-server account key, supplied as an apikey header instead of Bearer authorization.' });
   const clientRoute = (method: 'get' | 'post' | 'patch' | 'delete', path: string, operationId: string, summary: string,
     request: object, response: z.ZodType, created = false) => register(api, method, path, {
       tags: ['BFF'], security: [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }], operationId, summary,
-      description: 'Accepts existing account keys for the owner’s projects or scoped browser keys from the shared API key store. Account keys have owner access and run the latest function version; browser origins are limited to trusted Mainbrella origins. Scoped keys require explicit table operations or pinned function versions and, when Origin is sent, an exact origin configured on that key. Cookies do not authenticate this API. Table grants cover all rows and columns; there are no end-user row policies. Table filters use column=eq.value or column=is.null, combined with AND. Duplicate query parameters are rejected. PATCH and DELETE require at least one filter. Functions retain their saved database capability and isolation limits. All operations share the project daily budgets and pause/block switches. Responses are not cached.',
+      description: 'Accepts existing account keys for the owner’s projects or scoped browser keys from the shared API key store. Account keys have owner access and run the latest function version; browser origins are limited to trusted Mainbrella origins. Anonymous reads require both a SELECT key grant and a table policy with select=public. Missing or none policies deny access. Public reads expose all rows and selected columns; per-user row policies are not implemented. Browser writes are denied, even with a legacy write key grant. Scoped keys require pinned function versions and an exact configured origin when Origin is sent. Functions invoked by browser keys use the same table policies and key grants, checked on every database call; they cannot bypass policy or write. Owner invocations retain administrative database access. Cookies do not authenticate this API. Table filters use column=eq.value or column=is.null, combined with AND. Duplicate query parameters are rejected. PATCH and DELETE require at least one filter for owner requests. All operations share project budgets and pause/block switches. Responses are not cached.',
       request, responses: { [created ? 201 : 200]: jsonResponse(response), ...failure },
     }, handler);
   const dataBase = '/bff/data/{projectId}';

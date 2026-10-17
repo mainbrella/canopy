@@ -12,6 +12,7 @@ const endpointMethods: Record<string, string[]> = {
   '/bff/projects/{projectId}/functions/{functionName}/invoke': ['post'],
   '/bff/projects/{projectId}/executions': ['get'], '/bff/projects/{projectId}/usage': ['get'],
   '/bff/projects/{projectId}/api-keys': ['get', 'post'], '/bff/projects/{projectId}/api-keys/{keyId}': ['delete'],
+  '/bff/projects/{projectId}/policies': ['get'], '/bff/projects/{projectId}/policies/{table}': ['put', 'delete'],
   '/bff/data/{projectId}/tables/{table}': ['get', 'post', 'patch', 'delete'],
   '/bff/data/{projectId}/functions/{functionName}/invoke': ['post'],
   '/pools': ['get', 'post'], '/pools/{poolId}': ['get', 'patch', 'delete'], '/pools/{poolId}/acquire': ['post'],
@@ -111,7 +112,8 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   const table = paths['/bff/data/{projectId}/tables/{table}'];
   for (const method of ['get', 'post', 'patch', 'delete']) {
     assert.deepEqual(table[method].security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }]);
-    assert.match(table[method].description, /no end-user row policies/);
+    assert.match(table[method].description, /per-user row policies are not implemented/);
+    assert.match(table[method].description, /select=public/);
   }
   assert.equal(components.securitySchemes.bffApiKey.name, 'apikey');
   assert.equal(components.securitySchemes.bffBearer.scheme, 'bearer');
@@ -122,6 +124,10 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   const invoke = paths['/bff/data/{projectId}/functions/{functionName}/invoke'].post;
   assert.deepEqual(invoke.security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }]);
   assert.equal(invoke.requestBody.content['application/json'].schema.properties.version, undefined);
+  const policy = paths['/bff/projects/{projectId}/policies/{table}'];
+  assert.deepEqual(policy.put.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
+  assert.deepEqual(policy.put.requestBody.content['application/json'].schema.properties.select.enum, ['none', 'public']);
+  assert.ok(policy.delete.responses['200']);
 });
 
 test('staging documentation is isolated without changing production schema or docs configuration', async () => {

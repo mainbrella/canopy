@@ -6,7 +6,7 @@ export const LIMITS = {
   inputBytes: 65_536, outputBytes: 65_536, sqlBytes: 32_768,
   migrationStatements: 50, queriesPerDay: 10_000, invocationsPerDay: 1_000,
   concurrentInvocations: 3, databaseCalls: 10, cpuMs: 50, wallMs: 5_000,
-  apiKeys: 20,
+  apiKeys: 20, tablePolicies: 100,
 } as const;
 export const nameInput = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/);
 export const scalar = z.union([z.string().max(16_384), z.number().finite(), z.null()]);
@@ -26,6 +26,9 @@ export const invokeInput = z.object({ input: z.json(), version: z.number().int()
 export const filterInput = z.record(nameInput, scalar).refine(value => Object.keys(value).length <= 50);
 export const tableNameInput = nameInput.refine(name => !/^sqlite_/i.test(name));
 export const tableOperation = z.enum(['select', 'insert', 'update', 'delete']);
+export const tablePolicyInput = z.object({ select: z.enum(['none', 'public']) }).strict();
+export type TablePolicy = { table: string; select: 'none' | 'public'; updated_at: string };
+export type DatabasePrincipal = { role: 'owner' } | { role: 'anon'; keyId: string };
 export const apiKeyInput = z.object({
   name: z.string().trim().min(1).max(80),
   origins: z.array(z.string().max(2048).refine(value => {
