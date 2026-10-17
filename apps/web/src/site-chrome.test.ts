@@ -56,6 +56,11 @@ test('BFF composes its product-owned homepage with shared chrome and preview nav
 test('BFF demo composes its public board without authenticated workspace navigation', async () => {
   const html = await transform('bff/demo/index.html', '/bff/demo/index.html');
   assert.match(html, /Message board/);
+  assert.match(html, /id="login-panel"/);
+  assert.match(html, /id="login-user"/);
+  assert.match(html, /value="alice" selected>Alice/);
+  assert.match(html, /id="board-panel"[^>]* hidden/);
+  assert.doesNotMatch(html, /type="password"|id="demo-user"/);
   assert.match(html, /src="\/src\/bff-demo.ts"/);
   assert.match(html, /id="cookie-consent" data-consent-prompt="optional"/);
   assert.doesNotMatch(html, /<!-- bff-demo -->|app-navigation|Sign in/);
