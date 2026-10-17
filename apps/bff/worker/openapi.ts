@@ -53,7 +53,7 @@ export function registerBffRoutes(api: OpenAPIApi, handler: LegacyHandler) {
   route('get', `${base}/api-keys`, 'listBffApiKeys', 'List this project’s scoped browser keys from the shared API key store', { params }, z.object({ keys: z.array(apiKey) }));
   route('post', `${base}/api-keys`, 'createBffApiKey', 'Create a browser key with explicit table operations, allowed origins, and pinned function versions; token returned once',
     { params, ...requestBody(apiKeyInput) }, z.object({ key: apiKey, token: z.string() }), true);
-  route('patch', `${base}/api-keys/{keyId}`, 'grantBffApiKeySelect', 'Idempotently add SELECT on an existing table to one browser key; preserves its token, origins, other grants, and pinned functions; public reads also require a public table policy',
+  route('patch', `${base}/api-keys/{keyId}`, 'grantBffApiKeySelect', 'Idempotently add a table operation to one browser key; preserves its token, origins, other grants, and pinned functions; policies still apply to each operation',
     { params: params.extend({ keyId: z.string().uuid() }), ...requestBody(apiKeyGrantInput) }, z.object({ key: apiKey }));
   route('delete', `${base}/api-keys/{keyId}`, 'revokeBffApiKey', 'Revoke a browser key, including while its project is paused or BFF is disabled',
     { params: params.extend({ keyId: z.string().uuid() }) }, z.object({ revoked: z.boolean() }));

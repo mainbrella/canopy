@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { checksum } from './contracts';
 import { runtime } from './system-test-helpers';
 
-test('owners add SELECT without rotating a browser token or replacing other grants', async t => {
+test('owners add table operations without rotating a browser token or replacing other grants', async t => {
   const f = await runtime(t);
   const project = (await f.json('/projects', 'POST', { name: 'Grant example', template: 'empty' }, 201)).project;
   const base = `/projects/${project.id}`;
@@ -18,7 +18,7 @@ test('owners add SELECT without rotating a browser token or replacing other gran
   assert.equal(issued.status, 201);
   const account = await issued.json() as { key: { id: string }; token: string };
   await f.json(`${base}/api-keys/${account.key.id}`, 'PATCH', { table: 'boards', operation: 'select' }, 404);
-  const patch = (table: string) => f.request(`${base}/api-keys/${key.id}`, 'PATCH', { table, operation: 'select' }, 'owner',
+  const patch = (table: string, operation = 'select') => f.request(`${base}/api-keys/${key.id}`, 'PATCH', { table, operation }, 'owner',
     { authorization: `Bearer ${account.token}` });
   const browser = (origin = 'https://board.example', method = 'GET') => f.mf.dispatchFetch(
     `https://api.mainbrella.com/bff/data/${project.id}/tables/boards`, { method,
@@ -42,10 +42,14 @@ test('owners add SELECT without rotating a browser token or replacing other gran
   assert.ok(!JSON.stringify(result).includes(await checksum(token)));
 
   // Separate additions and identical retries both merge against current grants.
-  const concurrent = await Promise.all(['tags', 'teams', 'boards', 'boards', 'constructor'].map(patch));
-  assert.deepEqual(concurrent.map(response => response.status), [200, 200, 200, 200, 200]);
+  const concurrent = await Promise.all([patch('tags'), patch('teams'), patch('boards'), patch('boards', 'insert'), patch('boards', 'delete'), patch('constructor')]);
+  assert.deepEqual(concurrent.map(response => response.status), [200, 200, 200, 200, 200, 200]);
   const saved = (await f.json(`${base}/api-keys`)).keys[0];
-  assert.deepEqual(saved, { ...key, tables: { notes: ['select', 'update'], boards: ['select'], tags: ['select'], teams: ['select'], constructor: ['select'] } });
+  assert.deepEqual(saved.tables.notes, ['select', 'update']);
+  assert.deepEqual(saved.tables.boards.slice().sort(), ['delete', 'insert', 'select'].sort());
+  assert.deepEqual(saved.tables.tags, ['select']);
+  assert.deepEqual(saved.tables.teams, ['select']);
+  assert.deepEqual(saved.tables.constructor, ['select']);
   const revoking = await Promise.all([patch('boards'), f.request(`${base}/api-keys/${key.id}`, 'DELETE')]);
   assert.ok([200, 404].includes(revoking[0].status));
   assert.equal(revoking[1].status, 200);
@@ -69,7 +73,7 @@ test('browser grants require owner access, an existing project key and table, an
   await f.json(`/projects/${other.id}/provision`, 'POST');
   await f.json(`/projects/${other.id}/api-keys/${key.id}`, 'PATCH', grant, 404);
   await f.json(`${base}/api-keys/${crypto.randomUUID()}`, 'PATCH', grant, 404);
-  for (const input of [{ ...grant, operation: 'update' }, { ...grant, origins: ['https://wrong.example'] },
+  for (const input of [{ ...grant, operation: 'upsert' }, { ...grant, origins: ['https://wrong.example'] },
     { ...grant, table: 'sqlite_schema' }, { ...grant, table: '_bff_migrations' }, { table: 'boards' }]) {
     await f.json(path, 'PATCH', input, 400);
   }
@@ -88,7 +92,7 @@ test('browser grants require owner access, an existing project key and table, an
   assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM bff_api_key_grants WHERE api_key_id=?').bind(key.id).first())!.n, 0);
 });
 
-test('concurrent SELECT grants respect the combined table/function cap and allow retries at capacity', async t => {
+test('concurrent table grants respect the combined table/function cap and allow retries at capacity', async t => {
   const f = await runtime(t);
   const project = (await f.json('/projects', 'POST', { name: 'Grant quota', template: 'empty' }, 201)).project;
   const base = `/projects/${project.id}`;

@@ -5,11 +5,22 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-enum Operation {
+pub(crate) enum Operation {
     Select,
     Insert,
     Update,
     Delete,
+}
+
+impl Operation {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Select => "select",
+            Self::Insert => "insert",
+            Self::Update => "update",
+            Self::Delete => "delete",
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -51,19 +62,28 @@ fn list_with_origin(project_dir: &Path, api_key: &str, origin: &str) -> Result<S
     Ok(format_keys(&response.keys))
 }
 
-pub fn grant_select(
+pub(crate) fn grant_operation(
     project_dir: &Path,
     api_key: &str,
     table: &str,
+    operation: Operation,
     key_id: &str,
 ) -> Result<String, String> {
-    grant_select_with_origin(project_dir, api_key, table, key_id, api::API_ORIGIN)
+    grant_with_origin(
+        project_dir,
+        api_key,
+        table,
+        operation,
+        key_id,
+        api::API_ORIGIN,
+    )
 }
 
-fn grant_select_with_origin(
+fn grant_with_origin(
     project_dir: &Path,
     api_key: &str,
     table: &str,
+    operation: Operation,
     key_id: &str,
     origin: &str,
 ) -> Result<String, String> {
@@ -79,10 +99,7 @@ fn grant_select_with_origin(
         &api::agent(),
         &endpoint,
         api_key,
-        &GrantRequest {
-            table,
-            operation: Operation::Select,
-        },
+        &GrantRequest { table, operation },
     )
     .map_err(|error| {
         format!("PATCH /bff/projects/{project_id}/api-keys/{key_id} failed: {error}")
@@ -92,16 +109,29 @@ fn grant_select_with_origin(
             .key
             .tables
             .get(table)
-            .is_some_and(|operations| operations.contains(&Operation::Select))
+            .is_some_and(|operations| operations.contains(&operation))
     {
         return Err(format!(
-            "PATCH /bff/projects/{project_id}/api-keys/{key_id} returned a key without the requested select grant"
+            "PATCH /bff/projects/{project_id}/api-keys/{key_id} returned a key without the requested {} grant",
+            operation.as_str()
         ));
     }
     Ok(format!(
-        "Granted select on {table} to browser key {} ({})",
-        response.key.id, response.key.prefix
+        "Granted {} on {table} to browser key {} ({})",
+        operation.as_str(),
+        response.key.id,
+        response.key.prefix
     ))
+}
+
+pub(crate) fn parse_operation(value: &str) -> Option<Operation> {
+    match value {
+        "select" => Some(Operation::Select),
+        "insert" => Some(Operation::Insert),
+        "update" => Some(Operation::Update),
+        "delete" => Some(Operation::Delete),
+        _ => None,
+    }
 }
 
 fn format_keys(keys: &[BrowserKey]) -> String {
@@ -279,8 +309,15 @@ mod tests {
             String::new(),
             format!(r#"{{"key":{response_key}}}"#),
         )]);
-        let message =
-            grant_select_with_origin(&project.0, "test-key", "boards", KEY_ID, &origin).unwrap();
+        let message = grant_with_origin(
+            &project.0,
+            "test-key",
+            "boards",
+            Operation::Select,
+            KEY_ID,
+            &origin,
+        )
+        .unwrap();
         assert!(message.contains(KEY_ID));
         let requests = server.join().unwrap();
         assert_eq!(requests.len(), 1);
@@ -301,6 +338,36 @@ mod tests {
     }
 
     #[test]
+    fn patch_supports_each_additive_table_operation() {
+        for (operation, wire_value) in [
+            (Operation::Select, "select"),
+            (Operation::Insert, "insert"),
+            (Operation::Update, "update"),
+            (Operation::Delete, "delete"),
+        ] {
+            let project = TempProject::new();
+            let response_key = key_json(KEY_ID, &format!(r#"{{"messages":["{wire_value}"]}}"#));
+            let (origin, server) = mock_server(vec![(
+                200,
+                String::new(),
+                format!(r#"{{"key":{response_key}}}"#),
+            )]);
+            let result = grant_with_origin(
+                &project.0, "test-key", "messages", operation, KEY_ID, &origin,
+            )
+            .unwrap();
+            assert!(result.contains(&format!("Granted {wire_value}")));
+            let requests = server.join().unwrap();
+            assert!(requests[0].0.starts_with(&format!(
+                "PATCH /bff/projects/{PROJECT_ID}/api-keys/{KEY_ID} "
+            )));
+            let body: serde_json::Value = serde_json::from_str(&requests[0].2).unwrap();
+            assert_eq!(body["table"], "messages");
+            assert_eq!(body["operation"], wire_value);
+        }
+    }
+
+    #[test]
     fn rejects_bad_inputs_before_network_and_surfaces_bad_responses() {
         let project = TempProject::new();
         for (table, key_id, expected) in [
@@ -309,7 +376,7 @@ mod tests {
         ] {
             let (origin, server) = mock_server(Vec::new());
             assert!(
-                grant_select_with_origin(&project.0, "key", table, key_id, &origin)
+                grant_with_origin(&project.0, "key", table, Operation::Select, key_id, &origin,)
                     .unwrap_err()
                     .contains(expected)
             );
@@ -330,9 +397,16 @@ mod tests {
             r#"{"error":"not_found"}"#.to_owned(),
         )]);
         assert!(
-            grant_select_with_origin(&project.0, "key", "boards", KEY_ID, &origin)
-                .unwrap_err()
-                .contains("HTTP 404: not_found")
+            grant_with_origin(
+                &project.0,
+                "key",
+                "boards",
+                Operation::Select,
+                KEY_ID,
+                &origin,
+            )
+            .unwrap_err()
+            .contains("HTTP 404: not_found")
         );
         assert_eq!(server.join().unwrap().len(), 1);
 
@@ -347,11 +421,35 @@ mod tests {
             let (origin, server) =
                 mock_server(vec![(200, String::new(), format!(r#"{{"key":{key}}}"#))]);
             assert!(
-                grant_select_with_origin(&project.0, "key", "boards", KEY_ID, &origin)
-                    .unwrap_err()
-                    .contains("without the requested select grant")
+                grant_with_origin(
+                    &project.0,
+                    "key",
+                    "boards",
+                    Operation::Select,
+                    KEY_ID,
+                    &origin,
+                )
+                .unwrap_err()
+                .contains("without the requested select grant")
             );
             assert_eq!(server.join().unwrap().len(), 1);
         }
+
+        let key = key_json(KEY_ID, r#"{"messages":["select"]}"#);
+        let (origin, server) =
+            mock_server(vec![(200, String::new(), format!(r#"{{"key":{key}}}"#))]);
+        assert!(
+            grant_with_origin(
+                &project.0,
+                "key",
+                "messages",
+                Operation::Insert,
+                KEY_ID,
+                &origin,
+            )
+            .unwrap_err()
+            .contains("without the requested insert grant")
+        );
+        assert_eq!(server.join().unwrap().len(), 1);
     }
 }

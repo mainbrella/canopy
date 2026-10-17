@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 const initialMigration = readFileSync(new URL('../migrations/001_init.sql', import.meta.url), 'utf8');
 const boardsMigration = readFileSync(new URL('../migrations/002_boards.sql', import.meta.url), 'utf8');
+const boardOwnersMigration = readFileSync(new URL('../migrations/003_board_owners.sql', import.meta.url), 'utf8');
 
 function database(t: TestContext): DatabaseSync {
   const db = new DatabaseSync(':memory:');
@@ -68,4 +69,25 @@ test('boards have unique URL slugs and messages can be listed within each board'
   assert.match(String(rows[0].id), /^[a-f0-9]{32}$/);
   assert.ok(Number.isFinite(Date.parse(String(rows[0].created_at))));
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM messages WHERE board_id='general'").get()!.n, 2);
+});
+
+test('board owners migration preserves historical rows and adds a nullable user foreign key', t => {
+  const db = database(t);
+  db.exec(boardsMigration);
+  db.exec("INSERT INTO boards(id,slug,name) VALUES('owned','owned','Owned');");
+  const boardsBefore = db.prepare('SELECT * FROM boards ORDER BY id').all();
+  const messagesBefore = db.prepare('SELECT * FROM messages ORDER BY id').all();
+  const usersBefore = db.prepare('SELECT * FROM users ORDER BY id').all();
+
+  db.exec(`BEGIN;\n${boardOwnersMigration}\nCOMMIT;`);
+
+  assert.deepEqual(db.prepare('SELECT * FROM boards ORDER BY id').all().map(row => Object.values(row)),
+    boardsBefore.map(row => [...Object.values(row), null]));
+  assert.deepEqual(db.prepare('SELECT * FROM messages ORDER BY id').all(), messagesBefore);
+  assert.deepEqual(db.prepare('SELECT * FROM users ORDER BY id').all(), usersBefore);
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+  assert.throws(() => db.prepare("UPDATE boards SET user_id='missing' WHERE id='owned'").run(), /FOREIGN KEY/);
+  db.prepare("UPDATE boards SET user_id='alice' WHERE id='owned'").run();
+  assert.equal(db.prepare("SELECT user_id FROM boards WHERE id='owned'").get()!.user_id, 'alice');
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_list(boards)').all().map((row: any) => [row.table, row.from, row.to]), [['users', 'user_id', 'id']]);
 });

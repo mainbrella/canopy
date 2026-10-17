@@ -31,17 +31,17 @@ export async function manageApiKeys(request: Request, env: Env, project: Project
     // Append against the current JSON in one statement. Concurrent grants cannot
     // overwrite each other, exceed the 50 table/function limit, or revive a key.
     await env.DB.prepare(`UPDATE bff_api_key_grants SET tables=CASE WHEN json_type(tables,?) IS NULL
-        THEN json_set(tables,?,json('["select"]')) ELSE json_insert(tables,?,'select') END
+        THEN json_set(tables,?,json_array(?)) ELSE json_insert(tables,?,?) END
       WHERE api_key_id=? AND project_id=?
         AND EXISTS(SELECT 1 FROM api_keys WHERE id=api_key_id AND user_id=? AND prefix GLOB 'bff_pk_*')
-        AND NOT EXISTS(SELECT 1 FROM json_each(tables,?) WHERE value='select')
+        AND NOT EXISTS(SELECT 1 FROM json_each(tables,?) WHERE value=?)
         AND (json_type(tables,?) IS NOT NULL
           OR (SELECT COUNT(*) FROM json_each(tables)) + (SELECT COUNT(*) FROM json_each(functions)) < 50)`)
-      .bind(path, path, `${path}[#]`, keyId, project.id, project.user_id, path, path).run();
+      .bind(path, path, input.operation, `${path}[#]`, input.operation, keyId, project.id, project.user_id, path, input.operation, path).run();
     const saved = await readKey();
     if (!saved) throw new BffError('not_found', 404);
     const key = publicApiKey(saved);
-    if (!Object.hasOwn(key.tables, input.table) || !key.tables[input.table].includes('select')) throw new BffError('api_key_grant_limit', 429);
+    if (!Object.hasOwn(key.tables, input.table) || !key.tables[input.table].includes(input.operation)) throw new BffError('api_key_grant_limit', 429);
     return { data: { key }, status: 200 };
   }
   if (request.method === 'GET') {

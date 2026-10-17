@@ -62,18 +62,51 @@ grant for that table. Browser access requires both that grant and the public
 read policy. Table names start with a letter, contain only letters, digits, and
 underscores, and are at most 63 characters; the `sqlite_` prefix is reserved.
 
-List browser keys to find the key ID you want to update, then add a select grant
-for the table:
+List browser keys to find the key ID you want to update, then add the specific
+table operations it needs:
 
 ```sh
 canopy --browser-keys
-canopy --grant-select boards --key <KEY_ID>
+canopy --grant messages insert --key 673cfd0a-65b7-4029-b823-fca7733e7a96
 ```
 
 The listing includes key IDs, names, safe prefixes, allowed origins, table
 operation grants, and function pins. It never returns key tokens. The grant
-command adds the table's `select` operation to the specified key while
-preserving its other grants and settings; it does not rotate the token. Run
-`--read-everyone boards` as well to enable the public table policy. The additive
-grant command requires a BFF deployment that supports
+command adds one operation (`select`, `insert`, `update`, or `delete`) to the
+specified key while preserving its other grants and settings; it does not
+rotate the token. `--grant-select <TABLE> --key <KEY_ID>` remains available as
+an alias for `--grant <TABLE> select --key <KEY_ID>`.
+
+Configure signed-in, own-row writes for a table with `--own-rows`:
+
+```sh
+canopy --own-rows messages --owner-column user_id
+```
+
+This sets insert, update, and delete to `own` and uses `user_id` to scope those
+operations to the signed-in user. It preserves the table's current read policy;
+tables without a policy keep reads denied. For `messages`, `user_id` identifies
+the author, while `board_id` references an existing board. Any signed-in user
+can post to any existing board; board ownership does not restrict message
+posting. The browser key must also have a `messages` insert grant.
+
+Apply the board-ownership migration before configuring its policy:
+
+```sh
+canopy --migrate
+canopy --own-rows boards --owner-column user_id
+```
+
+Migration `003_board_owners.sql` adds nullable `boards.user_id` references and
+leaves existing boards without an assigned creator. The account owner can assign
+those owners explicitly. When board CRUD is added to the app, grant the chosen
+browser key the needed operations, for example:
+
+```sh
+canopy --grant boards insert --key 673cfd0a-65b7-4029-b823-fca7733e7a96
+canopy --grant boards update --key 673cfd0a-65b7-4029-b823-fca7733e7a96
+canopy --grant boards delete --key 673cfd0a-65b7-4029-b823-fca7733e7a96
+```
+
+Grant commands require the updated BFF API supporting all four operations at
 `PATCH /bff/projects/{projectId}/api-keys/{keyId}`.

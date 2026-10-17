@@ -318,31 +318,34 @@ revokes a key, as does the top-level API Keys page. Listing and revocation work 
 feature is disabled. Revocation stops new requests; it does not cancel operations
 already running. There are at most 20 live keys per project.
 
-After a migration adds a table, the owner can add `select` to an existing browser
-key without rotating its token:
+The owner can add a table operation to an existing browser key without rotating
+its token:
 
 ```js
 await fetch(`${api}/bff/projects/${projectId}/api-keys/${key.id}`, {
   method: 'PATCH',
   headers: { authorization: `Bearer ${accountKey}`, 'content-type': 'application/json' },
-  body: JSON.stringify({ table: 'boards', operation: 'select' }),
+  body: JSON.stringify({ table: 'messages', operation: 'insert' }),
 }); // 200: { key }, with updated grant metadata; no token or hash
 ```
 
-This operation is idempotent and adds only the named table's read grant. It
-preserves origins, existing table operations, and pinned functions, including
-under concurrent grant requests. The table and key must exist in the owner's
-ready project. Adding a new table respects the combined limit of 50 table and
-function grants per key; adding `select` to an already-granted table is allowed
-at that limit. Missing keys/tables return 404; a full grant list returns 429
-`api_key_grant_limit`. Public reads also require a `select: public` table policy.
+Use `select`, `insert`, `update`, or `delete` for `operation`. This operation is
+idempotent and adds only that grant. It preserves origins, other table
+operations, and pinned functions, including under concurrent grant requests.
+The table and key must exist in the owner's ready project. Adding a new table
+respects the combined limit of 50 table and function grants per key; adding an
+operation to an already-granted table is allowed at that limit. Missing
+keys/tables return 404; a full grant list returns 429 `api_key_grant_limit`.
+Public reads also require a `select: public` table policy. Writes require both
+the matching key grant and an `own` policy with its ownership column; signed-in
+inserts also require the project user session.
 
 With the updated API deployed, run the Canopy CLI from the application directory
 containing `canopy.json` and use an account key in `MAINBRELLA_API_KEY`:
 
 ```sh
 canopy --browser-keys
-canopy --grant-select boards --key <KEY_ID>
+canopy --grant messages insert --key <KEY_ID>
 ```
 
 The listing includes IDs, safe prefixes, origins, and grants. Use the existing

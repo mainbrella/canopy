@@ -4,7 +4,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-enum Access {
+pub(crate) enum Access {
     None,
     Own,
     Public,
@@ -51,6 +51,63 @@ struct UpdateResponse {
 
 pub fn run(project_dir: &Path, api_key: &str, table: &str) -> Result<(), String> {
     run_with_origin(project_dir, api_key, table, api::API_ORIGIN)
+}
+
+pub fn own_rows(
+    project_dir: &Path,
+    api_key: &str,
+    table: &str,
+    owner_column: &str,
+) -> Result<String, String> {
+    own_rows_with_origin(project_dir, api_key, table, owner_column, api::API_ORIGIN)
+}
+
+fn own_rows_with_origin(
+    project_dir: &Path,
+    api_key: &str,
+    table: &str,
+    owner_column: &str,
+    origin: &str,
+) -> Result<String, String> {
+    validate_table(table)?;
+    validate_column(owner_column)?;
+    let project_id = api::read_project_id(project_dir)?;
+    let endpoint = format!("{origin}/bff/projects/{project_id}/policies");
+    let agent = api::agent();
+    let current: PoliciesResponse = api::get_json(&agent, &endpoint, api_key)
+        .map_err(|error| format!("GET /bff/projects/{project_id}/policies failed: {error}"))?;
+    let select = current
+        .policies
+        .iter()
+        .find(|policy| policy.table == table)
+        .map_or(Access::None, |policy| policy.select);
+    let owner_column_value = Some(owner_column.to_owned());
+    let request = UpdatePolicy {
+        select,
+        insert: Access::Own,
+        update: Access::Own,
+        delete: Access::Own,
+        owner_column: &owner_column_value,
+    };
+    let put_url = format!("{endpoint}/{table}");
+    let response: UpdateResponse =
+        api::put_json(&agent, &put_url, api_key, &request).map_err(|error| {
+            format!("PUT /bff/projects/{project_id}/policies/{table} failed: {error}")
+        })?;
+    if response.policy.table != table
+        || response.policy.select != select
+        || response.policy.insert != Access::Own
+        || response.policy.update != Access::Own
+        || response.policy.delete != Access::Own
+        || response.policy.owner_column.as_deref() != Some(owner_column)
+    {
+        return Err(format!(
+            "PUT /bff/projects/{project_id}/policies/{table} returned an unexpected own-row policy"
+        ));
+    }
+    Ok(format!(
+        "{table}: own-row writes enabled with {owner_column}"
+    ))
 }
 
 fn run_with_origin(
@@ -112,6 +169,23 @@ pub(crate) fn validate_table(table: &str) -> Result<(), String> {
     } else {
         Err(format!(
             "invalid table name '{table}': expected 1-63 ASCII letters, digits, or underscores, starting with a letter, and not using the sqlite_ prefix"
+        ))
+    }
+}
+
+pub(crate) fn validate_column(column: &str) -> Result<(), String> {
+    let bytes = column.as_bytes();
+    let valid = !bytes.is_empty()
+        && bytes.len() <= 63
+        && bytes[0].is_ascii_alphabetic()
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+    if valid {
+        Ok(())
+    } else {
+        Err(format!(
+            "invalid owner column '{column}': expected 1-63 ASCII letters, digits, or underscores, starting with a letter"
         ))
     }
 }
@@ -362,5 +436,85 @@ mod tests {
             );
             assert_eq!(server.join().unwrap().len(), 2);
         }
+    }
+
+    #[test]
+    fn own_rows_preserves_select_and_sets_all_write_operations() {
+        let project = TempProject::new();
+        let existing = policy("messages", "public", "none", "none", "none", "null");
+        let saved = policy("messages", "public", "own", "own", "own", r#""user_id""#);
+        let (origin, server) = mock_server(vec![
+            (
+                200,
+                String::new(),
+                format!(r#"{{"policies":[{existing}]}}"#),
+            ),
+            (200, String::new(), format!(r#"{{"policy":{saved}}}"#)),
+        ]);
+        let message =
+            own_rows_with_origin(&project.0, "key", "messages", "user_id", &origin).unwrap();
+        assert!(message.contains("own-row writes enabled"));
+        let requests = server.join().unwrap();
+        assert!(
+            requests[0]
+                .0
+                .starts_with("GET /bff/projects/90da3093-84b6-4cd7-a39a-a8afc39403b8/policies ")
+        );
+        assert!(requests[1].0.starts_with(
+            "PUT /bff/projects/90da3093-84b6-4cd7-a39a-a8afc39403b8/policies/messages "
+        ));
+        for (_, headers, _) in &requests {
+            assert!(
+                headers
+                    .to_ascii_lowercase()
+                    .contains("authorization: bearer key")
+            );
+        }
+        let put: serde_json::Value = serde_json::from_str(&requests[1].2).unwrap();
+        assert_eq!(put["select"], "public");
+        assert_eq!(put["insert"], "own");
+        assert_eq!(put["update"], "own");
+        assert_eq!(put["delete"], "own");
+        assert_eq!(put["ownerColumn"], "user_id");
+    }
+
+    #[test]
+    fn own_rows_defaults_select_to_none_and_validates_before_network() {
+        let project = TempProject::new();
+        let saved = policy("boards", "none", "own", "own", "own", r#""user_id""#);
+        let (origin, server) = mock_server(vec![
+            (200, String::new(), r#"{"policies":[]}"#.to_owned()),
+            (200, String::new(), format!(r#"{{"policy":{saved}}}"#)),
+        ]);
+        own_rows_with_origin(&project.0, "key", "boards", "user_id", &origin).unwrap();
+        let requests = server.join().unwrap();
+        let put: serde_json::Value = serde_json::from_str(&requests[1].2).unwrap();
+        assert_eq!(put["select"], "none");
+
+        for (table, column) in [("bad-name", "user_id"), ("messages", "user-id")] {
+            let (origin, server) = mock_server(Vec::new());
+            assert!(own_rows_with_origin(&project.0, "key", table, column, &origin).is_err());
+            assert!(server.join().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn own_rows_rejects_malformed_or_unexpected_policy_responses() {
+        let project = TempProject::new();
+        let (origin, server) = mock_server(vec![(200, String::new(), "not-json".to_owned())]);
+        assert!(own_rows_with_origin(&project.0, "key", "messages", "user_id", &origin).is_err());
+        assert_eq!(server.join().unwrap().len(), 1);
+
+        let wrong = policy("messages", "public", "own", "own", "none", r#""user_id""#);
+        let (origin, server) = mock_server(vec![
+            (200, String::new(), r#"{"policies":[]}"#.to_owned()),
+            (200, String::new(), format!(r#"{{"policy":{wrong}}}"#)),
+        ]);
+        assert!(
+            own_rows_with_origin(&project.0, "key", "messages", "user_id", &origin)
+                .unwrap_err()
+                .contains("unexpected own-row policy")
+        );
+        assert_eq!(server.join().unwrap().len(), 2);
     }
 }

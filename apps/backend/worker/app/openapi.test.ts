@@ -126,7 +126,7 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   const grant = paths['/bff/projects/{projectId}/api-keys/{keyId}'].patch;
   assert.deepEqual(grant.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
   assert.equal(grant.operationId, 'grantBffApiKeySelect');
-  assert.deepEqual(grant.requestBody.content['application/json'].schema.properties.operation.enum, ['select']);
+  assert.deepEqual(grant.requestBody.content['application/json'].schema.properties.operation.enum, ['select', 'insert', 'update', 'delete']);
   assert.equal(grant.requestBody.content['application/json'].schema.additionalProperties, false);
   assert.deepEqual(grant.requestBody.content['application/json'].schema.required, ['table', 'operation']);
   assert.ok(grant.responses['200'].content['application/json'].schema.properties.key);

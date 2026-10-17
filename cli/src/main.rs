@@ -17,7 +17,15 @@ enum Command {
     Migrate,
     ReadEveryone(String),
     BrowserKeys,
-    GrantSelect { table: String, key_id: String },
+    Grant {
+        table: String,
+        operation: browser_keys::Operation,
+        key_id: String,
+    },
+    OwnRows {
+        table: String,
+        owner_column: String,
+    },
 }
 
 fn main() {
@@ -73,11 +81,31 @@ fn main() {
                 process::exit(1);
             }
         },
-        Command::GrantSelect { table, key_id } => match browser_keys::grant_select(
+        Command::Grant {
+            table,
+            operation,
+            key_id,
+        } => match browser_keys::grant_operation(
             std::path::Path::new("."),
             api_key.trim(),
             &table,
+            operation,
             &key_id,
+        ) {
+            Ok(message) => println!("{message}"),
+            Err(error) => {
+                eprintln!("error: {error}");
+                process::exit(1);
+            }
+        },
+        Command::OwnRows {
+            table,
+            owner_column,
+        } => match permissions::own_rows(
+            std::path::Path::new("."),
+            api_key.trim(),
+            &table,
+            &owner_column,
         ) {
             Ok(message) => println!("{message}"),
             Err(error) => {
@@ -107,45 +135,73 @@ fn parse_args(args: &[String]) -> Result<Command, String> {
                 Ok(Command::ReadEveryone(table.clone()))
             }
         }
-        [flag] if flag == "--grant-select" => {
-            Err("--grant-select requires a table name followed by --key <KEY_ID>".to_owned())
-        }
-        [flag, table] if flag == "--grant-select" => {
-            if table.is_empty() || table.starts_with('-') {
-                Err("--grant-select requires a table name followed by --key <KEY_ID>".to_owned())
-            } else {
-                Err("--grant-select requires --key <KEY_ID>".to_owned())
-            }
-        }
-        [flag, table, key_flag] if flag == "--grant-select" => {
-            if table.is_empty() || table.starts_with('-') {
-                Err("--grant-select requires a table name".to_owned())
-            } else if key_flag == "--key" {
-                Err("--grant-select --key requires a browser key ID".to_owned())
-            } else {
-                Err("--grant-select requires --key <KEY_ID>".to_owned())
-            }
-        }
-        [flag, table, key_flag, key_id] if flag == "--grant-select" => {
-            if table.is_empty() || table.starts_with('-') {
-                Err("--grant-select requires a table name".to_owned())
-            } else if key_flag != "--key" || key_id.is_empty() || key_id.starts_with('-') {
-                Err("expected --grant-select <TABLE> --key <KEY_ID>".to_owned())
-            } else if let Err(error) = permissions::validate_table(table) {
-                Err(error)
-            } else if !api::is_lowercase_uuid(key_id) {
-                Err(format!(
-                    "invalid browser key ID '{key_id}': expected a lowercase UUID"
-                ))
-            } else {
-                Ok(Command::GrantSelect {
-                    table: table.clone(),
-                    key_id: key_id.clone(),
-                })
-            }
-        }
+        [flag, rest @ ..] if flag == "--grant-select" => parse_grant_select(rest),
+        [flag, rest @ ..] if flag == "--grant" => parse_grant(rest),
+        [flag, rest @ ..] if flag == "--own-rows" => parse_own_rows(rest),
         [argument, ..] => Err(format!("unexpected argument '{argument}'")),
     }
+}
+
+fn parse_grant_select(args: &[String]) -> Result<Command, String> {
+    if args.len() != 3 {
+        return Err("expected --grant-select <TABLE> --key <KEY_ID>".to_owned());
+    }
+    parse_grant_fields(&args[0], "select", &args[1], &args[2])
+}
+
+fn parse_grant(args: &[String]) -> Result<Command, String> {
+    if args.len() != 4 {
+        return Err("expected --grant <TABLE> <OPERATION> --key <KEY_ID>".to_owned());
+    }
+    parse_grant_fields(&args[0], &args[1], &args[2], &args[3])
+}
+
+fn parse_grant_fields(
+    table: &str,
+    operation: &str,
+    key_flag: &str,
+    key_id: &str,
+) -> Result<Command, String> {
+    if table.is_empty() || table.starts_with('-') {
+        return Err("grant requires a table name".to_owned());
+    }
+    if key_flag != "--key" || key_id.is_empty() || key_id.starts_with('-') {
+        return Err("expected --key <KEY_ID>".to_owned());
+    }
+    permissions::validate_table(table)?;
+    let operation = browser_keys::parse_operation(operation)
+        .ok_or_else(|| "operation must be select, insert, update, or delete".to_owned())?;
+    if !api::is_lowercase_uuid(key_id) {
+        return Err(format!(
+            "invalid browser key ID '{key_id}': expected a lowercase UUID"
+        ));
+    }
+    Ok(Command::Grant {
+        table: table.to_owned(),
+        operation,
+        key_id: key_id.to_owned(),
+    })
+}
+
+fn parse_own_rows(args: &[String]) -> Result<Command, String> {
+    if args.len() != 3 {
+        return Err("expected --own-rows <TABLE> --owner-column <COLUMN>".to_owned());
+    }
+    let table = &args[0];
+    let option = &args[1];
+    let column = &args[2];
+    if table.is_empty() || table.starts_with('-') {
+        return Err("--own-rows requires a table name".to_owned());
+    }
+    if option != "--owner-column" || column.is_empty() || column.starts_with('-') {
+        return Err("expected --owner-column <COLUMN>".to_owned());
+    }
+    permissions::validate_table(table)?;
+    permissions::validate_column(column)?;
+    Ok(Command::OwnRows {
+        table: table.clone(),
+        owner_column: column.clone(),
+    })
 }
 
 fn fetch_whoami(url: &str, api_key: &str) -> Result<String, ureq::Error> {
@@ -169,7 +225,7 @@ fn fetch_whoami(url: &str, api_key: &str) -> Result<String, ureq::Error> {
 
 fn print_help() {
     println!(
-        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n  --whoami                         Call /api-keys/me and print the returned JSON\n  --migrate                        Apply pending SQL files from ./migrations\n  --read-everyone <TABLE>           Allow public reads from a table\n  --browser-keys                    List browser keys and their grants\n  --grant-select <TABLE> --key <KEY_ID>\n                                    Add a table SELECT grant to an existing browser key\n  -h, --help                        Print this help message\n\nProject config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
+        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n  --whoami                         Call /api-keys/me and print the returned JSON\n  --migrate                        Apply pending SQL files from ./migrations\n  --read-everyone <TABLE>          Allow public reads from a table\n  --browser-keys                   List browser keys and their grants\n  --grant <TABLE> <OPERATION> --key <KEY_ID>\n                                    Add a select/insert/update/delete grant to a browser key\n  --grant-select <TABLE> --key <KEY_ID>\n                                    Alias for --grant <TABLE> select --key <KEY_ID>\n  --own-rows <TABLE> --owner-column <COLUMN>\n                                    Enable insert/update/delete for matching owner rows\n  -h, --help                       Print this help message\n\nProject config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
     );
 }
 
@@ -218,9 +274,45 @@ mod tests {
                 "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9".into(),
             ])
             .unwrap(),
-            Command::GrantSelect {
+            Command::Grant {
                 table: "boards".into(),
+                operation: browser_keys::Operation::Select,
                 key_id: "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9".into(),
+            }
+        );
+        for (operation, expected) in [
+            ("select", browser_keys::Operation::Select),
+            ("insert", browser_keys::Operation::Insert),
+            ("update", browser_keys::Operation::Update),
+            ("delete", browser_keys::Operation::Delete),
+        ] {
+            let args = [
+                "--grant".into(),
+                "messages".into(),
+                operation.into(),
+                "--key".into(),
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9".into(),
+            ];
+            assert_eq!(
+                parse_args(&args).unwrap(),
+                Command::Grant {
+                    table: "messages".into(),
+                    operation: expected,
+                    key_id: "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9".into(),
+                }
+            );
+        }
+        assert_eq!(
+            parse_args(&[
+                "--own-rows".into(),
+                "messages".into(),
+                "--owner-column".into(),
+                "user_id".into(),
+            ])
+            .unwrap(),
+            Command::OwnRows {
+                table: "messages".into(),
+                owner_column: "user_id".into(),
             }
         );
         for invalid in [
@@ -239,6 +331,33 @@ mod tests {
                 "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
             ],
             vec!["--grant-select", "boards", "--key", "not-a-uuid"],
+            vec![
+                "--grant",
+                "boards",
+                "write",
+                "--key",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+            ],
+            vec![
+                "--grant",
+                "boards",
+                "insert",
+                "wrong",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+            ],
+            vec!["--grant", "boards", "insert", "--key", "not-a-uuid"],
+            vec![
+                "--grant",
+                "boards",
+                "insert",
+                "--key",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+                "extra",
+            ],
+            vec!["--own-rows", "messages"],
+            vec!["--own-rows", "messages", "--owner-column"],
+            vec!["--own-rows", "messages", "wrong", "user_id"],
+            vec!["--own-rows", "messages", "--owner-column", "bad-name"],
             vec![
                 "--grant-select",
                 "bad-name",
