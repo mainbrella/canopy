@@ -2,14 +2,17 @@ use std::env;
 use std::process;
 use std::time::Duration;
 
+mod migration;
+
 const API_KEY_ME_URL: &str = "https://api.mainbrella.com/api-keys/me";
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    let whoami = match args.as_slice() {
-        [] => false,
-        [arg] if arg == "--whoami" => true,
+    let command = match args.as_slice() {
+        [] => "help",
+        [arg] if arg == "--whoami" => "whoami",
+        [arg] if arg == "--migrate" => "migrate",
         [arg] if arg == "-h" || arg == "--help" => {
             print_help();
             return;
@@ -28,13 +31,18 @@ fn main() {
         process::exit(1);
     }
 
-    if whoami {
+    if command == "whoami" {
         match fetch_whoami(API_KEY_ME_URL, api_key.trim()) {
             Ok(json) => println!("{json}"),
             Err(error) => {
                 eprintln!("error: GET /api-keys/me failed: {error}");
                 process::exit(1);
             }
+        }
+    } else if command == "migrate" {
+        if let Err(error) = migration::run(std::path::Path::new("."), api_key.trim()) {
+            eprintln!("error: {error}");
+            process::exit(1);
         }
     } else {
         print_help();
@@ -62,7 +70,7 @@ fn fetch_whoami(url: &str, api_key: &str) -> Result<String, ureq::Error> {
 
 fn print_help() {
     println!(
-        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n      --whoami  Call /api-keys/me and print the returned JSON\n  -h, --help    Print this help message\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
+        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n      --whoami   Call /api-keys/me and print the returned JSON\n      --migrate  Apply pending SQL files from ./migrations\n  -h, --help     Print this help message\n\nMigration config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
     );
 }
 
