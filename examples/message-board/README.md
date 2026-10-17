@@ -17,7 +17,11 @@ Open the URL printed by Vite. Choose Alice or Bob to log in, read and search
 messages, create a post, and edit a post. **Create** opens a full-screen composer
 with boards loaded from the `boards` table and labeled `board/:slug`. Title and
 plain-text body are required; only the selected `board_id`, session's `user_id`,
-and trimmed body are inserted into `messages`. Titles are not persisted yet.
+and trimmed body are inserted into `messages` by the current composer. Apply
+`migrations/004_message_titles.sql` after the existing migrations to add a
+stored title column. Existing messages are titled from the first 200 characters
+of their trimmed body; inserts that omit a title receive `Untitled` until the
+composer is updated to send titles.
 The backend enforces ownership; editing another
 user's post shows its denial and preserves the draft. Sessions stay in memory,
 and logging out revokes the current session.
