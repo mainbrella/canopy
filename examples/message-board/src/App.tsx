@@ -219,7 +219,8 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
 
   const term = search.trim().toLocaleLowerCase();
   const messagesInView = data.messages.filter(message => view === 'all' || message.user_id === session.session.user_id);
-  const visible = messagesInView.filter(message => !term || message.user_id.toLocaleLowerCase().includes(term) || message.body.toLocaleLowerCase().includes(term))
+  const visible = messagesInView.filter(message => !term || message.user_id.toLocaleLowerCase().includes(term)
+    || message.title.toLocaleLowerCase().includes(term) || message.body.toLocaleLowerCase().includes(term))
     .sort((a, b) => sort === 'oldest' ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
   const recent = [...visible].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 5);
   const count = `${messagesInView.length} ${messagesInView.length === 1 ? 'message' : 'messages'}`;
@@ -270,6 +271,7 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
           </div>) : visible.map(message => <article key={message.id} id={`message-${encodeURIComponent(message.id)}`} className="message-row" tabIndex={-1}>
             <span className="avatar" aria-hidden="true">{message.user_id.trim().charAt(0).toLocaleUpperCase() || '?'}</span>
             <div className="message-content">
+              <h3 className="message-title">{message.title}</h3>
               <div className="message-meta">
                 <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
                 <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
@@ -304,8 +306,8 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
       </div> : recent.length ? <ul className="recent-list">
         {recent.map(message => <li key={message.id}>
           <a className="recent-message" href={`#message-${encodeURIComponent(message.id)}`}>
+            <p>{message.title}</p>
             <span className="recent-author">{message.user_id}</span>
-            <p>{message.body}</p>
             <time dateTime={message.created_at}>{formatRelative(message.created_at)}</time>
           </a>
         </li>)}
