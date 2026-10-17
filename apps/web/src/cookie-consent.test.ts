@@ -75,14 +75,15 @@ test('every page entry includes one working consent dialog before tracking can l
     assert.match(html, /src="\/src\/acquisition\.ts"/, path);
     assert.match(html, /data-consent="accepted"/, path);
     assert.match(html, /data-consent="rejected"/, path);
-    if (path.startsWith('/blog/')) {
+    const optionalConsent = path.startsWith('/blog/') || path.startsWith('/bff/');
+    if (optionalConsent) {
       assert.match(html, /data-consent-prompt="optional"/, path);
       assert.match(html, /data-cookie-settings[^>]*>Cookie settings<\/button>/, path);
       assert.match(html, /data-cookie-close/, path);
     }
 
     const first = visit({ html });
-    assert.equal(first.dialog.open, !path.startsWith('/blog/'), path);
+    assert.equal(first.dialog.open, !optionalConsent, path);
     assert.deepEqual(first.scripts, [], path);
     assert.deepEqual(first.cookieWrites, [], path);
     if (!first.dialog.open) first.reopen();

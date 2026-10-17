@@ -12,8 +12,8 @@
 .bff-page :is(h1, h2, h3, p, figure, dl, dd) { margin: 0; }
 .bff-page :is(a, button, [tabindex]):focus-visible { outline: 2px solid #8dcaff; outline-offset: 5px; }
 .bff-container { width: min(100% - 96px, 1184px); margin-inline: auto; }
-.bff-page > .site-header { max-width: none; padding: 16px max(48px, calc((100% - 1184px) / 2)); border-bottom: 1px solid var(--bff-line); }
-.bff-page > .site-header nav { gap: 28px; }
+.bff-page > .site-header { max-width: none; flex-wrap: nowrap; padding: 16px max(48px, calc((100% - 1184px) / 2)); border-bottom: 1px solid var(--bff-line); }
+.bff-page > .site-header nav { width: auto; gap: 28px; }
 .bff-page .site-header nav > a:not(.button) { color: #b5c4d6; }
 .bff-page .site-header nav > a:not(.button):hover { color: #fff; }
 .bff-page .site-header .button { background: #e5f1ff; color: #0a1d32; box-shadow: none; border-radius: 5px; font-size: 13px; }
@@ -51,8 +51,8 @@
 .bff-foundation ul { display: flex; flex-wrap: wrap; gap: 28px; margin: 0; padding: 0; color: #aabed2; font-size: 12px; list-style: none; }
 .bff-section { padding-block: 96px; border-top: 1px solid var(--bff-line); }
 .bff-section-label { margin-bottom: 16px !important; color: #a2b8ce; font-size: 12px; }
-.bff-page h2 { color: var(--bff-text); font-size: clamp(31px, 3.1vw, 43px); font-weight: 500; line-height: 1.18; letter-spacing: -.025em; }
-.bff-page h2 > span { color: #8ea7bf; }
+.bff-page main h2 { color: var(--bff-text); font-size: clamp(31px, 3.1vw, 43px); font-weight: 500; line-height: 1.18; letter-spacing: -.025em; }
+.bff-page main h2 > span { color: #8ea7bf; }
 .bff-section-copy > p:not(.bff-section-label) { max-width: 38ch; margin-top: 24px !important; color: var(--bff-muted); font-size: 15px; line-height: 1.75; }
 .bff-section-copy > .bff-text-link { margin-top: 20px; }
 .bff-sdk-layout { display: grid; grid-template-columns: .8fr 1.2fr; align-items: center; gap: 76px; }
@@ -65,7 +65,7 @@
 .bff-code-tabs button:hover { color: #edf4fc; }
 .bff-code-tabs [aria-selected="true"] { border-bottom-color: var(--bff-blue); color: #deeeff; }
 .bff-code-panel { padding: 25px 24px 18px; }
-.bff-code-panel pre { overflow-x: auto; margin: 0; padding-bottom: 8px; color: #c9d8e8; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 1.95; tab-size: 2; }
+.bff-code-panel pre { min-height: calc(15.6em + 8px); overflow-x: auto; margin: 0; padding-bottom: 8px; color: #c9d8e8; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 1.95; tab-size: 2; }
 .bff-code-panel code { font: inherit; }
 .bff-code-comment { color: #7f96ad; }
 .bff-code-keyword { color: #a1c4ff; }
@@ -94,7 +94,7 @@
 .bff-principle-list dd { max-width: 53ch; margin-top: 8px; color: #a1b3c7; font-size: 13px; line-height: 1.75; }
 .bff-early-access { overflow: hidden; border-block: 1px solid #29425a; background: #0b1d30; }
 .bff-access-layout { display: grid; grid-template-columns: 1.5fr 1fr; align-items: center; gap: 64px; padding-block: 72px; }
-.bff-access-layout h2 > span { color: #a3cef1; }
+.bff-page .bff-access-layout h2 > span { color: #a3cef1; }
 .bff-access-layout > div > p:not(.bff-section-label):not(.bff-access-note) { max-width: 45ch; margin-top: 20px !important; color: #acbfd2; font-size: 14px; line-height: 1.75; }
 .bff-access-layout .bff-button { margin-top: 27px; }
 .bff-access-note { margin-top: 12px !important; color: #91a9bf; font-size: 11px; }
@@ -171,7 +171,7 @@
   .bff-foundation ul { justify-content: start; gap: 10px 22px; margin-top: 12px; font-size: 11px; }
   .bff-section { padding-block: 48px; }
   .bff-section-label { margin-bottom: 12px !important; font-size: 11px; }
-  .bff-page h2 { font-size: 31px; }
+  .bff-page main h2 { font-size: 31px; }
   .bff-section-copy > p:not(.bff-section-label) { margin-top: 18px !important; font-size: 14px; }
   .bff-section-copy > .bff-text-link { margin-top: 14px; }
   .bff-sdk-layout { gap: 26px; }
@@ -197,7 +197,7 @@
   .bff-principle-list dt { font-size: 15px; }
   .bff-principle-list dd { font-size: 12px; }
   .bff-access-layout { grid-template-columns: 1fr; padding-block: 48px; }
-  .bff-access-layout h2 { font-size: clamp(28px, 7.7vw, 36px); }
+  .bff-page .bff-access-layout h2 { font-size: clamp(28px, 7.7vw, 36px); }
   .bff-access-layout > div > p:not(.bff-section-label):not(.bff-access-note) { font-size: 13px; }
   .bff-closing-wordmark { display: none; }
   .bff-page .site-footer { padding: 36px 20px; }
