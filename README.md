@@ -223,6 +223,8 @@ npm run deploy:site -- --local
 You can also run `npm run deploy` from `apps/backend`. That command applies
 pending account D1 migrations and deploys the API directly using Wrangler login.
 The full backend rollout is available there as `npm run deploy:all`.
+Running `npm run deploy` from `apps/bff` applies account D1 migrations and deploys
+both the shared API and website in order, using your local Wrangler login.
 
 Each local command waits for its deployment to finish. It uses the current
 checkout, including uncommitted changes, and keeps the target’s preflight and

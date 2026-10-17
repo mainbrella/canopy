@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { artifactHash, dispatchRelease, parseArguments, release, validateConfiguration } from './deploy.mjs';
 import { targetFor, targets } from './deploy-targets.mjs';
 import { deployBackend, parseArguments as parseBackendArguments } from '../apps/backend/scripts/deploy.mjs';
+import { deployBff, parseArguments as parseBffArguments } from '../apps/bff/scripts/deploy.mjs';
 
 const sourceSha = 'a'.repeat(40);
 const deploymentVersion = '12345678-1234-1234-1234-123456789abc';
@@ -22,8 +23,7 @@ function withoutConsoleOutput(callback) {
   try { return callback(); } finally { console.log = log; }
 }
 
-function fixture(t, name) {
-  const directory = mkdtempSync(join(tmpdir(), 'canopy-deploy-'));
+function fixture(t, name, directory = mkdtempSync(join(tmpdir(), 'canopy-deploy-'))) {
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const target = targetFor(name);
   const app = join(directory, target.directory);
@@ -262,6 +262,66 @@ test('backend deploy --check never reads credentials, migrates, or publishes', t
   assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => call.args[1]), target.checks);
   assert.ok(calls.some(call => call.args.includes('--dry-run')));
   assert.equal(calls.some(call => call.args.includes('auth') || call.args.includes('db:migrate:remote') || call.args.includes('deploy:api')), false);
+});
+
+test('BFF deploy command accepts local publication, check, and help modes', () => {
+  assert.deepEqual(parseBffArguments([]), { mode: 'publish' });
+  assert.deepEqual(parseBffArguments(['--check']), { mode: 'check' });
+  assert.deepEqual(parseBffArguments(['--help']), { mode: 'help' });
+  for (const args of [['api'], ['--force'], ['--check', '--local']]) assert.throws(() => parseBffArguments(args), /Usage:/);
+  const pkg = JSON.parse(readFileSync(new URL('../apps/bff/package.json', import.meta.url)));
+  assert.equal(pkg.scripts.deploy, 'node scripts/deploy.mjs');
+});
+
+test('BFF deploy migrates and publishes API before building and publishing the shared site', t => {
+  const { directory } = fixture(t, 'api');
+  fixture(t, 'site', directory);
+  const calls = [];
+  const evidence = withoutConsoleOutput(() => deployBff({ directory, env: {}, run: stubRun(calls) }));
+  assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => [call.args[1], call.cwd]), [
+    ['db:migrate:remote', join(directory, 'apps/backend')],
+    ['api:preflight', join(directory, 'apps/backend')],
+    ['deploy:api', join(directory, 'apps/backend')],
+    ['deploy:site', join(directory, 'apps/web')],
+  ]);
+  assert.equal(evidence.api.local, true);
+  assert.equal(evidence.site.local, true);
+  assert.equal(evidence.api.target, 'api');
+  assert.equal(evidence.site.target, 'site');
+  assert.ok(existsSync(join(directory, 'artifacts/releases/api.json')));
+  assert.ok(existsSync(join(directory, 'artifacts/releases/site.json')));
+  assert.equal(calls.some(call => call.command === 'gh' || call.command === 'git' && ['fetch', 'merge-base', 'remote'].includes(call.args[0])), false);
+});
+
+test('BFF deploy stops before the site when migrations or API preflight fail', t => {
+  for (const failOn of ['npm run db:migrate:remote --workspace @canopy/backend', 'npm run api:preflight --workspace @canopy/backend']) {
+    const { directory } = fixture(t, 'api');
+    fixture(t, 'site', directory);
+    const calls = [];
+    assert.throws(() => deployBff({ directory, env: {}, run: stubRun(calls, { failOn }) }), /stub failed/);
+    assert.equal(calls.some(call => call.command === 'npm' && ['deploy:api', 'deploy:site'].includes(call.args[1])), false);
+  }
+});
+
+test('failed site publication preserves the successfully published API release record', t => {
+  const { directory } = fixture(t, 'api');
+  fixture(t, 'site', directory);
+  const calls = [];
+  assert.throws(() => withoutConsoleOutput(() => deployBff({ directory, env: {}, run: stubRun(calls, {
+    failOn: 'npm run deploy:site --workspace @canopy/web -- --outdir=.wrangler/release-site',
+  }) })), /stub failed/);
+  assert.ok(existsSync(join(directory, 'artifacts/releases/api.json')));
+  assert.equal(existsSync(join(directory, 'artifacts/releases/site.json')), false);
+});
+
+test('BFF deploy --check validates both hosts without credentials, migrations, or publication', t => {
+  const { directory } = fixture(t, 'api');
+  fixture(t, 'site', directory);
+  const calls = [];
+  deployBff({ publish: false, directory, env: {}, run: stubRun(calls) });
+  assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => call.args[1]), [...targets.api.checks, ...targets.site.checks]);
+  assert.equal(calls.filter(call => call.args.includes('--dry-run')).length, 2);
+  assert.equal(calls.some(call => call.args.includes('auth') || ['db:migrate:remote', 'deploy:api', 'deploy:site'].includes(call.args[1])), false);
 });
 
 test('local releases reuse explicit credentials and reject mismatched accounts before reading credentials', t => {

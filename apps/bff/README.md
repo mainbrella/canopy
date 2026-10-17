@@ -31,27 +31,32 @@ simulated actions. All APIs require the project owner’s Mainbrella session.
    a function. Local provisioning creates **real remote D1 databases** using the
    configured account; there is no in-memory development substitute in the app.
 
-To deploy BFF directly from your Mac, run these from the repository root:
+Configure your Wrangler login and BFF secrets once from the repository root:
 
 ```sh
 npm exec -w @canopy/backend -- wrangler login
 npm exec -w @canopy/backend -- wrangler secret put BFF_CLOUDFLARE_ACCOUNT_ID
 npm exec -w @canopy/backend -- wrangler secret put BFF_CLOUDFLARE_API_TOKEN
-npm run db:migrate:remote -w @canopy/backend
-npm run deploy:api -- --local
-npm run deploy:site -- --local
 ```
 
-The secret commands prompt for values. Login and secret configuration are one-time
-setup. Each deployment finishes before the next command runs; API preflight
-verifies migrations and existing services before publishing. `--local` uses your
-current checkout and local Cloudflare authentication and requires no GitHub
-workflow or push. The deploy commands also accept `-- --check` for validation
-without publishing.
+Then deploy directly from `apps/bff`:
 
-Alternatively, run `npm run deploy` from `apps/backend` to apply the account D1
-migrations and deploy the API in one command using your Wrangler login. Deploy
-the site separately afterward.
+```sh
+npm run deploy
+```
+
+This applies pending account D1 migrations, runs API preflight, deploys the API,
+then builds and deploys the website. BFF uses the existing shared API and website
+Workers; both hosts are published from the current checkout. Each step waits for
+the preceding step to succeed, using your local Cloudflare authentication. No
+GitHub workflow, push, or extra flag is needed. The secret commands prompt for
+values; they are not repeated by deployment.
+
+Use `npm run deploy -- --check` to check and bundle both hosts without credentials,
+migrations, or publication. A site failure leaves the successful API release record
+available in `artifacts/releases/`; rerunning deploy reapplies only pending
+migrations and republishes the hosts. For an API-only release, `npm run deploy`
+from `apps/backend` remains available.
 
 No infrastructure is provisioned just by opening the workspace. Project creation
 first persists a pending control record, then the UI requests provisioning. Failed
