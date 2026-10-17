@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createDemoApi, type DemoSession, type Message } from './api.ts';
 import type { DemoUser } from './config.ts';
+import { CreateMessageDialog } from './CreateMessageDialog.tsx';
 
 type BoardApi = ReturnType<typeof createDemoApi>;
 const defaultApi = createDemoApi();
@@ -15,6 +16,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
   const busy = useRef(false);
   const loginSelect = useRef<HTMLSelectElement>(null);
   const restoreLoginFocus = useRef(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => () => { generation.current++; }, []);
   useEffect(() => {
@@ -54,6 +56,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
     const request = ++generation.current;
     busy.current = true;
     restoreLoginFocus.current = true;
+    setCreateOpen(false);
     setSession(null);
     setPending(true);
     setError('');
@@ -74,12 +77,15 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
     <header className={`topbar${session ? ' topbar--authenticated' : ''}`}>
       <a className="wordmark" href="https://mainbrella.com/bff/" aria-label="BFF home">bff<span aria-hidden="true">.</span></a>
       {session ? <div id="session-controls" className="session-controls">
+        <button id="create-message" className="primary-button create-message-button" type="button" onClick={() => setCreateOpen(true)}>
+          <span aria-hidden="true">+</span> Create
+        </button>
         <span id="current-user" className="current-user">{session.session.user_id}</span>
         <button id="logout" className="secondary-button" type="button" onClick={() => void logout()}>Log out</button>
       </div> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
     </header>
     <main id="main" className={`workspace${session ? ' workspace--authenticated' : ''}`}>
-      {session ? <Board key={session.session.id} api={api} session={session} /> : <>
+      {session ? <Board key={session.session.id} api={api} session={session} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
         <div className="page-heading">
           <div><h1>Message board</h1><p>Messages from a live BFF project.</p></div>
         </div>
@@ -100,7 +106,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
   </>;
 }
 
-function Board({ api, session }: { api: BoardApi; session: DemoSession }) {
+function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; session: DemoSession; createOpen: boolean; onCloseCreate: () => void }) {
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,6 +123,28 @@ function Board({ api, session }: { api: BoardApi; session: DemoSession }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const editButtons = useRef(new Map<string, HTMLButtonElement>());
   const restoreFocus = useRef('');
+
+  function onCreated(message: Message) {
+    // Invalidate a feed refresh so it cannot overwrite this row. Keep an
+    // in-flight edit's request serial and busy state intact so its completion
+    // can still update the row and release the edit controls.
+    if (loading && !saving) {
+      serial.current++;
+      busy.current = false;
+      setLoading(false);
+    }
+    setData(previous => ({
+      ...previous,
+      messages: [message, ...previous.messages.filter(row => row.id !== message.id)],
+      loaded: true,
+      updated: new Date(),
+      error: '',
+    }));
+    setView('all');
+    setSearch('');
+    setSort('newest');
+    setFeedback('Message posted.');
+  }
 
   const load = useCallback(async () => {
     if (busy.current) return;
@@ -199,6 +227,7 @@ function Board({ api, session }: { api: BoardApi; session: DemoSession }) {
     `${term ? `${visible.length} of ` : ''}${count}${data.error ? ' · Showing last loaded data' : data.updated ? ` · Updated at ${data.updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}`;
 
   return <div className="board-layout">
+    <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />
     <aside className="board-navigation">
       <nav className="board-nav" aria-label="Message views">
         <button className="board-nav-item" type="button" aria-pressed={view === 'all'} onClick={() => setView('all')}>
