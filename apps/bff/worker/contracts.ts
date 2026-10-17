@@ -6,6 +6,7 @@ export const LIMITS = {
   inputBytes: 65_536, outputBytes: 65_536, sqlBytes: 32_768,
   migrationStatements: 50, queriesPerDay: 10_000, invocationsPerDay: 1_000,
   concurrentInvocations: 3, databaseCalls: 10, cpuMs: 50, wallMs: 5_000,
+  apiKeys: 20,
 } as const;
 export const nameInput = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/);
 export const scalar = z.union([z.string().max(16_384), z.number().finite(), z.null()]);
@@ -23,6 +24,29 @@ export const functionInput = z.object({
 }).strict();
 export const invokeInput = z.object({ input: z.json(), version: z.number().int().min(1).max(LIMITS.versions).optional() }).strict();
 export const filterInput = z.record(nameInput, scalar).refine(value => Object.keys(value).length <= 50);
+export const tableNameInput = nameInput.refine(name => !/^sqlite_/i.test(name));
+export const tableOperation = z.enum(['select', 'insert', 'update', 'delete']);
+export const apiKeyInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  origins: z.array(z.string().max(2048).refine(value => {
+    try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && url.origin === value; }
+    catch { return false; }
+  })).min(1).max(10),
+  tables: z.record(tableNameInput, z.array(tableOperation).min(1).max(4)).default({}),
+  // Pin published functions so a later owner edit cannot silently widen access.
+  functions: z.record(nameInput, z.number().int().min(1).max(LIMITS.versions)).default({}),
+}).strict().refine(value => Object.keys(value.tables).length <= 50 && Object.keys(value.functions).length <= 50
+  && Object.keys(value.tables).length + Object.keys(value.functions).length > 0);
+export const tableReadInput = z.object({
+  select: z.string().min(1).max(3200).default('*'),
+  limit: z.coerce.number().int().min(1).max(100).default(100),
+  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+  order: z.string().max(68).optional(),
+}).strict();
+export const clientInvokeInput = invokeInput.omit({ version: true });
+export type ApiKeyGrants = z.infer<typeof apiKeyInput>;
+export type ApiKey = ApiKeyGrants & { id: string; prefix: string; created_at: string };
+export type ApiKeyRecord = { id: string; name: string; prefix: string; origins: string; tables: string; functions: string; created_at: string };
 
 export class BffError extends Error {
   constructor(readonly code: string, readonly status = 400) { super(code); }

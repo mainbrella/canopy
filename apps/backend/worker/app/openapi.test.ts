@@ -11,6 +11,9 @@ const endpointMethods: Record<string, string[]> = {
   '/bff/projects/{projectId}/functions': ['get'], '/bff/projects/{projectId}/functions/{functionName}': ['get', 'put'],
   '/bff/projects/{projectId}/functions/{functionName}/invoke': ['post'],
   '/bff/projects/{projectId}/executions': ['get'], '/bff/projects/{projectId}/usage': ['get'],
+  '/bff/projects/{projectId}/api-keys': ['get', 'post'], '/bff/projects/{projectId}/api-keys/{keyId}': ['delete'],
+  '/bff/data/{projectId}/tables/{table}': ['get', 'post', 'patch', 'delete'],
+  '/bff/data/{projectId}/functions/{functionName}/invoke': ['post'],
   '/pools': ['get', 'post'], '/pools/{poolId}': ['get', 'patch', 'delete'], '/pools/{poolId}/acquire': ['post'],
   '/secrets': ['get', 'post'], '/secrets/{secretId}': ['put', 'delete'],
   '/containers/stop': ['post'], '/containers/resume': ['post'], '/containers/fork': ['post'],
@@ -102,6 +105,24 @@ async function document() {
   assert.equal(response.status, 200);
   return response.json() as Promise<any>;
 }
+
+test('BFF browser APIs distinguish scoped project keys from owner management and raw SQL', async () => {
+  const { paths, components } = await document();
+  const table = paths['/bff/data/{projectId}/tables/{table}'];
+  for (const method of ['get', 'post', 'patch', 'delete']) {
+    assert.deepEqual(table[method].security, [{ bffBearer: [] }, { bffApiKey: [] }]);
+    assert.match(table[method].description, /no end-user row policies/);
+  }
+  assert.equal(components.securitySchemes.bffApiKey.name, 'apikey');
+  assert.equal(components.securitySchemes.bffBearer.scheme, 'bearer');
+  assert.equal(table.get.parameters.find((parameter: any) => parameter.name === 'limit').schema.maximum, 100);
+  assert.ok(table.post.responses['201'].content['application/json'].schema.properties.data);
+  assert.deepEqual(paths['/bff/projects/{projectId}/api-keys'].post.security, [{ cookieAuth: [] }]);
+  assert.deepEqual(paths['/bff/projects/{projectId}/query'].post.security, [{ cookieAuth: [] }]);
+  const invoke = paths['/bff/data/{projectId}/functions/{functionName}/invoke'].post;
+  assert.deepEqual(invoke.security, [{ bffBearer: [] }, { bffApiKey: [] }]);
+  assert.equal(invoke.requestBody.content['application/json'].schema.properties.version, undefined);
+});
 
 test('staging documentation is isolated without changing production schema or docs configuration', async () => {
   const productionEnv = {} as Env;

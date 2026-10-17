@@ -10,13 +10,15 @@ schema inspection, a SQL editor, ordered migrations, immutable function versions
 function invocation, execution metadata, daily budgets, and project pause/resume.
 Existing navigation stays in place; authentication for application users, row
 policies, storage, realtime, automations, notifications, search, payments,
-templates, backup management, client SDKs, public endpoints, staging environments,
+templates, backup management, client SDKs, staging environments,
 and project deletion are deferred. Their screens have empty states and no
-simulated actions. All APIs require the project owner’s Mainbrella session.
+simulated actions. Management APIs require the project owner’s Mainbrella session.
+External browser apps can use scoped project keys for table CRUD and explicitly
+published function versions through the Data API.
 
 ## Setup
 
-1. Apply `apps/backend/migrations/050_bff.sql` using the backend’s normal migration
+1. Apply `apps/backend/migrations/050_bff.sql` and `051_bff_api_keys.sql` using the backend’s normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
@@ -156,6 +158,100 @@ later fails or times out. A function is not an interactive database transaction;
 design side effects to tolerate retries. Results must serialize to JSON. Inputs
 and outputs are limited to 64 KiB; source is limited to 32 KiB.
 
+## External browser Data API
+
+Create a key with the owner management API using your signed-in Mainbrella session:
+
+```js
+const api = 'https://api.mainbrella.com';
+const projectId = 'YOUR_PROJECT_ID';
+const response = await fetch(`${api}/bff/projects/${projectId}/api-keys`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    name: 'My web app',
+    origins: ['https://my-app.example', 'http://localhost:3000'],
+    tables: { notes: ['select', 'insert', 'update', 'delete'] },
+    functions: { read_notes: 1 },
+  }),
+});
+if (!response.ok) throw new Error((await response.json()).error);
+const { key, token } = await response.json();
+```
+
+Run key management from an allowed Mainbrella origin. The project must be ready;
+any granted function version must already exist. The response returns the full
+`bff_pk_…` token once. Only its SHA-256 hash is stored. `GET` on the same URL lists
+key IDs, names, prefixes, origins and grants; `DELETE /bff/projects/{projectId}/api-keys/{keyId}`
+revokes a key. Listing and revocation work while the project is paused or the
+feature is disabled. Revocation stops new requests; it does not cancel operations
+already running. There are at most 20 live keys per project.
+
+In the external frontend, use the scoped token without Mainbrella cookies:
+
+```js
+const base = `https://api.mainbrella.com/bff/data/${projectId}`;
+const headers = { apikey: 'YOUR_BFF_BROWSER_KEY' };
+
+// Equivalent to SELECT * FROM notes LIMIT 100.
+const response = await fetch(`${base}/tables/notes`, { headers });
+if (!response.ok) throw new Error((await response.json()).error);
+const { data, meta } = await response.json();
+// data: [{ id: 'one', body: 'Hello' }], meta: provider execution metadata
+
+// SELECT id, body FROM notes WHERE id IS ? ORDER BY id ASC LIMIT 10.
+const params = new URLSearchParams({
+  select: 'id,body', id: 'eq.one', order: 'id.asc', limit: '10',
+});
+const filtered = await fetch(`${base}/tables/notes?${params}`, { headers });
+
+// Invoke only the function version pinned in the key's grant.
+const result = await fetch(`${base}/functions/read_notes/invoke`, {
+  method: 'POST',
+  headers: { ...headers, 'content-type': 'application/json' },
+  body: JSON.stringify({ input: { id: 'one' } }),
+}).then(response => response.json());
+// { id, version: 1, ok: true, value: [...] }
+```
+
+The key can be sent as `apikey` or `Authorization: Bearer …`. Supplying both with
+different values is rejected. A key authorizes only its own project. Browser
+origins must match an origin on that key exactly; wildcards and URL paths are
+rejected. Preflights allow `apikey`, `authorization`, and `content-type`, without
+credentialed cookies. Non-browser requests can omit Origin; CORS is a browser
+control, not a substitute for the key's permissions.
+
+| Endpoint | Required table grant | Body / query |
+| --- | --- | --- |
+| `GET /bff/data/{id}/tables/{table}` | `select` | Optional `select`, `limit`, `offset`, `order`, and column filters |
+| `POST /bff/data/{id}/tables/{table}` | `insert` | One JSON row; no query parameters |
+| `PATCH /bff/data/{id}/tables/{table}?id=eq.one` | `update` | JSON object of changed columns; at least one filter |
+| `DELETE /bff/data/{id}/tables/{table}?id=eq.one` | `delete` | At least one filter |
+
+Table responses are `{ data: [...], meta: {...} }`; insertion returns 201. Insert
+and update return the affected rows. Delete returns empty `data` and an affected
+row count in `meta.changes`. Filters support `column=eq.value` and `column=is.null`,
+combined with AND. Equality values are strings bound through SQLite's column
+affinity rules. Rows accept strings, finite numbers, and null. Reads select `*`
+or comma-separated column names, with one `order=column.asc` or `.desc`, a limit
+of 1–100 (default 100), and an offset of 0–1,000,000 (default 0). Choose an order
+when paginating. Duplicate parameters, SQL expressions, joins, and other filter
+operators are rejected. Row and function request bodies are limited to 64 KiB;
+table results use the existing 2 MiB provider-response bound.
+
+Grants are denied by default. A table grant covers **every row and column** in
+that table, including rows added later. Browser keys are visible to app users;
+grant only data and operations you intend those users to access. Per-user
+authentication and row-level policies are not implemented. Published functions
+can implement narrower operations using their saved database capability; their
+inputs are untrusted and they receive no authenticated end-user identity.
+Function grants pin immutable versions, so saving a new version does not change
+what an existing key runs. Create a replacement key to change grants or origins.
+Keys cannot use the owner SQL, schema, migration, provisioning, or function-source
+APIs. Raw SQL stays in the owner SQL editor/API. This is a limited Supabase-style
+REST surface, not full PostgREST or Supabase SDK compatibility.
+
 ## Budgets and operations
 
 There are at most 5 projects per owner, 100 functions per project, and 100 versions
@@ -182,8 +278,7 @@ provisioning and continues even when BFF is disabled. Keep the D1 token configur
 until the deletion outbox is empty. Revoked credentials retain pending cleanup
 records for retry; they do not silently discard resource identifiers.
 
-This is a private, owner-authenticated MVP. Public client keys, application-user
-authorization, billing, automatic abuse detection, and production qualification
+Application-user authorization, billing, automatic abuse detection, and production qualification
 of account quotas are separate release work. Treat the fixed budgets as resource
 limits, not billing controls.
 
@@ -193,7 +288,11 @@ limits, not billing controls.
 composes its existing page and browser exports. Endpoints live under `/bff`:
 `config`, `projects`, and `projects/{id}/{provision,schema,query,migrations,functions,executions,usage}`.
 Functions add `/{name}` and `/{name}/invoke`. Project PATCH pauses/resumes it.
-The generated API document describes request and response schemas.
+Projects also expose owner-managed `api-keys` and `api-keys/{keyId}`. The separate
+browser Data API lives under `/bff/data/{projectId}` with `tables/{table}` and
+`functions/{functionName}/invoke`. Both entry points use the same project budgets,
+pause/block checks, and function runtime. The generated API document describes
+request and response schemas and the separate cookie/key authentication schemes.
 
 Run `npm test -w @canopy/bff`, `npm run type-check -w @canopy/bff`,
 `npm run test:openapi -w @canopy/backend`, `npm run type-check -w @canopy/backend`,

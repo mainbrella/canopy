@@ -7,7 +7,7 @@ import { build } from 'esbuild';
 import { Miniflare, Response as MfResponse, convertV4MiniflareOptions } from 'miniflare';
 import { hashToken } from '../../backend/worker/app/auth-core';
 
-export async function runtime(t: test.TestContext) {
+export async function runtime(t: test.TestContext, bindings: Record<string, string> = {}) {
   const bundle = await build({ stdin: { contents: `import { handleBffRequest } from './routes'; import { cleanupBffDatabases } from './maintenance'; export default { async fetch(request,env) { if(new URL(request.url).pathname==='/__test_cleanup') {await cleanupBffDatabases(env);return new Response('ok')} return handleBffRequest(request,env); } };`, resolveDir: fileURLToPath(new URL('.', import.meta.url)) },
     bundle: true, write: false, format: 'esm', target: 'es2022', platform: 'browser', external: ['cloudflare:*', 'node:*'] });
   const databases = new Map<string, { name: string; db: DatabaseSync }>();
@@ -19,7 +19,7 @@ export async function runtime(t: test.TestContext) {
   const mf = new Miniflare(convertV4MiniflareOptions({ workers: [{
     name: 'bff-test', modules: true, script: bundle.outputFiles[0].text, compatibilityDate: '2026-10-01',
     d1Databases: ['DB'], workerLoaders: { BFF_LOADER: {} },
-    bindings: { BFF_ENABLED: 'true', BFF_CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), BFF_CLOUDFLARE_API_TOKEN: 'platform-token-must-never-leak', PLATFORM_SECRET: 'platform-secret-must-never-leak' },
+    bindings: { BFF_ENABLED: 'true', BFF_CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), BFF_CLOUDFLARE_API_TOKEN: 'platform-token-must-never-leak', PLATFORM_SECRET: 'platform-secret-must-never-leak', ...bindings },
     outboundService: async request => {
       const url = new URL(request.url);
       outboundTargets.push(url.origin);
@@ -56,7 +56,7 @@ export async function runtime(t: test.TestContext) {
   }] }));
   t.after(async () => { await mf.dispose(); for (const { db } of databases.values()) db.close(); });
   const db = await mf.getD1Database('DB');
-  for (const migration of ['001_initial', '002_auth_sessions', '050_bff']) {
+  for (const migration of ['001_initial', '002_auth_sessions', '050_bff', '051_bff_api_keys']) {
     const sql = readFileSync(new URL(`../../backend/migrations/${migration}.sql`, import.meta.url), 'utf8').replace(/^--.*$/gm, '');
     for (const statement of sql.match(/\s*CREATE TRIGGER[\s\S]*?END;|\s*[^;]+;/g) || []) await db.prepare(statement.trim()).run();
   }

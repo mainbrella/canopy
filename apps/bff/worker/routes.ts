@@ -1,23 +1,14 @@
 import { authCorsHeaders, authJson, currentUser } from '../../backend/worker/app/auth-core';
-import { boundedBody } from '../../backend/worker/shared/bounded-body.js';
 import { BffError, checksum, functionInput, invokeInput, LIMITS, migrationInput, nameInput, parse, projectInput, projectPatch, queryInput, VERSION, type FunctionVersion, type Project } from './contracts';
-import { ProjectDatabase, reserveBudget } from './database';
-import { executeFunction } from './runtime';
+import { ProjectDatabase } from './database';
+import { manageApiKeys } from './api-keys';
+import { handleDataRequest } from './data-routes';
+import { body, enabled, readyProject } from './http';
+import { invokeFunction } from './invocation';
 import { statements } from './sql';
 
 const publicProject = ({ id, name, state, suspended, blocked, created_at }: Project) => ({ id, name, state, suspended: !!(suspended || blocked), created_at });
 const functionColumns = 'name,version,checksum,database_access,created_at';
-async function body(request: Request, maxBytes = 100_000): Promise<unknown> {
-  if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) throw new BffError('json_required', 415);
-  let bytes;
-  try { bytes = await boundedBody(request.body, maxBytes); }
-  catch { throw new BffError('request_too_large', 413); }
-  try { return JSON.parse(new TextDecoder().decode(bytes)); }
-  catch { throw new BffError('invalid_json'); }
-}
-function enabled(env: Env) {
-  if (env.BFF_ENABLED !== 'true') throw new BffError('bff_unavailable', 503);
-}
 
 async function provision(env: Env, project: Project) {
   if (project.blocked) throw new BffError('project_blocked', 403);
@@ -66,6 +57,7 @@ async function migrate(db: ProjectDatabase, input: ReturnType<typeof migrationIn
 }
 
 export async function handleBffRequest(request: Request, env: Env): Promise<Response> {
+  if (new URL(request.url).pathname.startsWith('/bff/data/')) return handleDataRequest(request, env);
   const cors = authCorsHeaders(request, env);
   if (!cors) return authJson({ error: 'origin_not_allowed' }, 403, {});
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -100,7 +92,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       }
       return reply({ project: { id, name: input.name, state: 'pending', suspended: false, created_at: created } }, 201);
     }
-    const match = /^\/bff\/projects\/([a-f0-9-]{36})(?:\/(schema|query|migrations|functions|executions|usage|provision)(?:\/([a-zA-Z][a-zA-Z0-9_]{0,62})(?:\/(invoke))?)?)?$/.exec(url.pathname);
+    const match = /^\/bff\/projects\/([a-f0-9-]{36})(?:\/(schema|query|migrations|functions|executions|usage|provision|api-keys)(?:\/([a-zA-Z0-9_-]{1,63})(?:\/(invoke))?)?)?$/.exec(url.pathname);
     if (!match) throw new BffError('not_found', 404);
     const [, projectId, resource, functionName, invocation] = match;
     const project = await env.DB.prepare('SELECT * FROM bff_projects WHERE id=? AND user_id=?').bind(projectId, user.id).first<Project>();
@@ -113,7 +105,12 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       await env.DB.prepare('UPDATE bff_projects SET suspended=? WHERE id=? AND user_id=?').bind(Number(input.suspended), projectId, user.id).run();
       return reply({ project: publicProject({ ...project, suspended: Number(input.suspended) }) });
     }
-    if (functionName && resource !== 'functions') throw new BffError('not_found', 404);
+    if ((functionName && resource !== 'functions' && resource !== 'api-keys') || (invocation && resource !== 'functions')) throw new BffError('not_found', 404);
+    if (resource === 'api-keys') {
+      if (functionName && !/^[a-f0-9-]{36}$/.test(functionName)) throw new BffError('not_found', 404);
+      const result = await manageApiKeys(request, env, project, functionName);
+      return reply(result.data, result.status);
+    }
     if (resource === 'executions' && method === 'GET') {
       const rows = await env.DB.prepare(`SELECT id,function_name,version,
         CASE WHEN status='running' AND expires_at < ? THEN 'timeout' ELSE status END AS status,
@@ -130,9 +127,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       if (method !== 'POST') throw new BffError('method_not_allowed', 405);
       return reply({ project: await provision(env, project) });
     }
-    if (project.blocked) throw new BffError('project_blocked', 403);
-    if (project.suspended) throw new BffError('project_paused', 403);
-    if (project.state !== 'ready') throw new BffError('database_not_ready', 409);
+    readyProject(env, project);
     const db = new ProjectDatabase(env, project);
     if (resource === 'schema' && method === 'GET') {
       const [tables] = await db.query([{ sql: `SELECT name,sql FROM sqlite_schema WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*' AND name NOT GLOB '_bff_*' ORDER BY name LIMIT ${LIMITS.schemaTables + 1}` }]);
@@ -180,24 +175,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
         const fn = await env.DB.prepare(`SELECT * FROM bff_function_versions WHERE project_id=? AND name=? ${input.version ? 'AND version=?' : ''} ORDER BY version DESC LIMIT 1`)
           .bind(projectId, functionName, ...(input.version ? [input.version] : [])).first<FunctionVersion>();
         if (!fn) throw new BffError('not_found', 404);
-        await reserveBudget(env, projectId, 'invocations');
-        const id = crypto.randomUUID(), started = Date.now();
-        const running = await env.DB.prepare(`INSERT INTO bff_executions (id,project_id,function_name,version,status,expires_at,created_at)
-          SELECT ?,?,?,?,'running',?,? WHERE (SELECT COUNT(*) FROM bff_executions WHERE project_id=? AND status='running' AND expires_at>?) < ?`)
-          .bind(id, projectId, functionName, fn.version, started + LIMITS.wallMs, new Date(started).toISOString(), projectId, started, LIMITS.concurrentInvocations).run();
-        if (!running.meta.changes) throw new BffError('concurrency_limit', 429);
-        let status = 'error', errorCode: string | null = null;
-        try {
-          const result = await executeFunction(env, project, fn, input.input);
-          status = result.ok ? 'success' : 'error'; errorCode = result.ok ? null : 'function_error';
-          return reply({ id, version: fn.version, ...result });
-        } catch (error) {
-          errorCode = error instanceof BffError ? error.code : 'function_failed';
-          status = errorCode === 'function_timeout' ? 'timeout' : 'error';
-          throw error;
-        } finally {
-          await env.DB.prepare('UPDATE bff_executions SET status=?,error=?,duration_ms=? WHERE id=?').bind(status, errorCode, Date.now() - started, id).run();
-        }
+        return reply(await invokeFunction(env, project, fn, input.input));
       }
       if (method === 'GET') {
         const fn = await env.DB.prepare('SELECT * FROM bff_function_versions WHERE project_id=? AND name=? ORDER BY version DESC LIMIT 1').bind(projectId, functionName).first<FunctionVersion>();
