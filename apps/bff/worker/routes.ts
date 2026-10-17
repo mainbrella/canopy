@@ -1,4 +1,5 @@
 import { authCorsHeaders, authJson, currentUser } from '../../backend/worker/app/auth-core';
+import { apiKeyUser } from '../../backend/worker/app/api-keys';
 import { BffError, checksum, functionInput, invokeInput, LIMITS, migrationInput, nameInput, parse, projectInput, projectPatch, queryInput, VERSION, type FunctionVersion, type Project } from './contracts';
 import { ProjectDatabase } from './database';
 import { manageApiKeys } from './api-keys';
@@ -63,7 +64,10 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   const reply = (data: unknown, status = 200) => authJson(data, status, cors);
   try {
-    const user = await currentUser(env, request);
+    const authorization = request.headers.get('authorization');
+    const token = authorization?.match(/^Bearer (mb_[a-f0-9]{64})$/i)?.[1];
+    // An explicit invalid credential never falls back to a session cookie.
+    const user = authorization !== null ? (token ? await apiKeyUser(env, token) : null) : await currentUser(env, request);
     if (!user) throw new BffError('unauthorized', 401);
     const url = new URL(request.url), method = request.method;
     if (url.pathname === '/bff/config' && method === 'GET') return reply({ version: VERSION,

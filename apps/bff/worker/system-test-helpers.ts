@@ -8,7 +8,7 @@ import { Miniflare, Response as MfResponse, convertV4MiniflareOptions } from 'mi
 import { hashToken } from '../../backend/worker/app/auth-core';
 
 export async function runtime(t: test.TestContext, bindings: Record<string, string> = {}) {
-  const bundle = await build({ stdin: { contents: `import { handleBffRequest } from './routes'; import { cleanupBffDatabases } from './maintenance'; export default { async fetch(request,env) { if(new URL(request.url).pathname==='/__test_cleanup') {await cleanupBffDatabases(env);return new Response('ok')} return handleBffRequest(request,env); } };`, resolveDir: fileURLToPath(new URL('.', import.meta.url)) },
+  const bundle = await build({ stdin: { contents: `import { handleBffRequest } from './routes'; import { cleanupBffDatabases } from './maintenance'; import { handleAPIKeysRequest } from '../../backend/worker/app/api-keys'; export default { async fetch(request,env) { const path=new URL(request.url).pathname; if(path==='/__test_cleanup') {await cleanupBffDatabases(env);return new Response('ok')} if(path.startsWith('/api-keys')) return handleAPIKeysRequest(request,env); return handleBffRequest(request,env); } };`, resolveDir: fileURLToPath(new URL('.', import.meta.url)) },
     bundle: true, write: false, format: 'esm', target: 'es2022', platform: 'browser', external: ['cloudflare:*', 'node:*'] });
   const databases = new Map<string, { name: string; db: DatabaseSync }>();
   const calls: { path: string; body: any }[] = [];
@@ -56,7 +56,7 @@ export async function runtime(t: test.TestContext, bindings: Record<string, stri
   }] }));
   t.after(async () => { await mf.dispose(); for (const { db } of databases.values()) db.close(); });
   const db = await mf.getD1Database('DB');
-  for (const migration of ['001_initial', '002_auth_sessions', '050_bff', '051_bff_api_keys']) {
+  for (const migration of ['001_initial', '002_auth_sessions', '010_api_keys', '050_bff', '051_bff_api_keys', '052_bff_shared_api_keys']) {
     const sql = readFileSync(new URL(`../../backend/migrations/${migration}.sql`, import.meta.url), 'utf8').replace(/^--.*$/gm, '');
     for (const statement of sql.match(/\s*CREATE TRIGGER[\s\S]*?END;|\s*[^;]+;/g) || []) await db.prepare(statement.trim()).run();
   }

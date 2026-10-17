@@ -12,13 +12,15 @@ Existing navigation stays in place; authentication for application users, row
 policies, storage, realtime, automations, notifications, search, payments,
 templates, backup management, client SDKs, staging environments,
 and project deletion are deferred. Their screens have empty states and no
-simulated actions. Management APIs require the project owner’s Mainbrella session.
+simulated actions. Management APIs accept the project owner’s Mainbrella session
+or existing account API key from `/api-keys/`, using the same authentication as Linux.
 External browser apps can use scoped project keys for table CRUD and explicitly
 published function versions through the Data API.
 
 ## Setup
 
-1. Apply `apps/backend/migrations/050_bff.sql` and `051_bff_api_keys.sql` using the backend’s normal migration
+1. Apply the backend’s pending migrations, including `050_bff.sql`,
+   `051_bff_api_keys.sql`, and `052_bff_shared_api_keys.sql`, using the normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
@@ -160,7 +162,33 @@ and outputs are limited to 64 KiB; source is limited to 32 KiB.
 
 ## External browser Data API
 
-Create a key with the owner management API using your signed-in Mainbrella session:
+Existing `MAINBRELLA_API_KEY` account credentials work for BFF, including SQL,
+project creation, provisioning, migrations, and function calls. From a trusted server:
+
+```sh
+curl "https://api.mainbrella.com/bff/projects/$PROJECT_ID/query" \
+  -H "Authorization: Bearer $MAINBRELLA_API_KEY" \
+  -H 'Content-Type: application/json' \
+  --data '{"sql":"SELECT * FROM notes","params":[]}'
+```
+
+The response is `{ result: { success, results: [...], meta } }`. The same account
+key can call `/bff/data/{projectId}/tables/{table}` with owner access, and the data
+function endpoint runs the latest saved version. Ownership, pause/block switches,
+and budgets still apply. An explicit invalid Bearer credential never falls back
+to a browser session. Account keys are powerful server credentials; public
+browser apps should use scoped keys.
+
+Scoped browser credentials use the same `api_keys` store, token generation,
+identity lookup, usage tracking, and revocation system as account keys. BFF keeps
+only its table/function/origin grants in `bff_api_key_grants`. Both key types are
+listed at `https://mainbrella.com/api-keys/`, labeled Account or BFF browser, and
+can be revoked there. Browser keys retain their `bff_pk_` prefix and cannot
+authenticate Linux or BFF owner operations. Migration 052 preserves existing
+browser tokens and grants; no key rotation is required.
+
+Create a scoped key with the owner management API using your signed-in Mainbrella
+session, or use `Authorization: Bearer <MAINBRELLA_API_KEY>` from a trusted server:
 
 ```js
 const api = 'https://api.mainbrella.com';
@@ -180,11 +208,12 @@ if (!response.ok) throw new Error((await response.json()).error);
 const { key, token } = await response.json();
 ```
 
-Run key management from an allowed Mainbrella origin. The project must be ready;
+Browser key-management requests require an allowed Mainbrella origin. Server
+requests can omit Origin. The project must be ready;
 any granted function version must already exist. The response returns the full
-`bff_pk_…` token once. Only its SHA-256 hash is stored. `GET` on the same URL lists
+`bff_pk_…` token once. Only its SHA-256 hash is stored in the shared key store. `GET` on the same URL lists
 key IDs, names, prefixes, origins and grants; `DELETE /bff/projects/{projectId}/api-keys/{keyId}`
-revokes a key. Listing and revocation work while the project is paused or the
+revokes a key, as does the top-level API Keys page. Listing and revocation work while the project is paused or the
 feature is disabled. Revocation stops new requests; it does not cancel operations
 already running. There are at most 20 live keys per project.
 
@@ -292,7 +321,7 @@ Projects also expose owner-managed `api-keys` and `api-keys/{keyId}`. The separa
 browser Data API lives under `/bff/data/{projectId}` with `tables/{table}` and
 `functions/{functionName}/invoke`. Both entry points use the same project budgets,
 pause/block checks, and function runtime. The generated API document describes
-request and response schemas and the separate cookie/key authentication schemes.
+request and response schemas and the cookie, account-key, and scoped-key authentication schemes.
 
 Run `npm test -w @canopy/bff`, `npm run type-check -w @canopy/bff`,
 `npm run test:openapi -w @canopy/backend`, `npm run type-check -w @canopy/backend`,

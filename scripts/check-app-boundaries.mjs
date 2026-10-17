@@ -18,6 +18,7 @@ const products = {
     name: 'BFF',
     platformModules: new Set([
       'apps/backend/worker/app/auth-core',
+      'apps/backend/worker/app/api-keys',
       'apps/backend/worker/app/openapi-shared',
       'apps/backend/worker/shared/bounded-body.js',
     ]),

@@ -24,11 +24,18 @@ test('browser Data API: scoped keys, CORS, table CRUD, pinned functions, and rev
   assert.equal((await f.request(`${base}/api-keys`, 'POST', grants, 'stranger')).status, 404);
   const { key, token } = await f.json(`${base}/api-keys`, 'POST', grants, 201);
   assert.match(token, /^bff_pk_[a-f0-9]{64}$/);
-  assert.equal((await f.db.prepare('SELECT token_hash FROM bff_api_keys WHERE id=?').bind(key.id).first())!.token_hash, await checksum(token));
+  assert.equal((await f.db.prepare('SELECT token_hash FROM api_keys WHERE id=?').bind(key.id).first())!.token_hash, await checksum(token));
   const listed = await f.json(`${base}/api-keys`);
   assert.deepEqual(listed.keys, [key]);
   assert.ok(!JSON.stringify(listed).includes(token));
   assert.ok(!JSON.stringify(listed).includes(await checksum(token)));
+  const accountKeys = await f.mf.dispatchFetch('https://api.mainbrella.com/api-keys', { headers: { cookie: 'mainbrella_session=owner' } });
+  const sharedList = await accountKeys.json() as any;
+  assert.equal(sharedList.keys[0].id, key.id);
+  assert.equal(sharedList.keys[0].scope, 'bff');
+  assert.ok(!JSON.stringify(sharedList).includes(token));
+  assert.equal((await f.mf.dispatchFetch('https://api.mainbrella.com/api-keys/me', { headers: { authorization: `Bearer ${token}` } })).status, 401);
+  assert.equal((await f.request('/projects', 'GET', undefined, 'owner', { authorization: `Bearer ${token}` })).status, 401);
 
   const dataBase = `/data/${project.id}`;
   const table = `${dataBase}/tables/notes`;
@@ -113,7 +120,9 @@ test('browser Data API: scoped keys, CORS, table CRUD, pinned functions, and rev
   await json(fn, 'POST', { input: null }, 429);
   await f.db.prepare('UPDATE bff_daily_usage SET queries=? WHERE project_id=? AND day=?').bind(LIMITS.queriesPerDay, project.id, day).run();
   await json(table, 'GET', undefined, 429);
-  await f.json(`${base}/api-keys/${key.id}`, 'DELETE');
+  const revoked = await f.mf.dispatchFetch(`https://api.mainbrella.com/api-keys?id=${key.id}`, { method: 'DELETE', headers: { cookie: 'mainbrella_session=owner', origin: 'https://mainbrella.com' } });
+  assert.equal(revoked.status, 200);
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM bff_api_key_grants WHERE api_key_id=?').bind(key.id).first())!.n, 0);
   await json(table, 'GET', undefined, 401);
   // The cap is enforced by an atomic INSERT, including simultaneous creation.
   for (let i = 0; i < LIMITS.apiKeys - 2; i++) await f.json(`${base}/api-keys`, 'POST', grants, 201);
@@ -121,15 +130,18 @@ test('browser Data API: scoped keys, CORS, table CRUD, pinned functions, and rev
   assert.deepEqual(lastKeys.map(response => response.status).sort(), [201, 429]);
   assert.equal((await f.json(`${base}/api-keys`)).keys.length, LIMITS.apiKeys);
   await f.db.prepare("DELETE FROM users WHERE id='owner'").run();
-  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM bff_api_keys').first())!.n, 0);
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM api_keys').first())!.n, 0);
+  assert.equal((await f.db.prepare('SELECT COUNT(*) AS n FROM bff_api_key_grants').first())!.n, 0);
 });
 
 test('disabled BFF denies the Data API while owners can still inspect and revoke keys', async t => {
   const f = await runtime(t, { BFF_ENABLED: 'false' });
   const projectId = crypto.randomUUID(), keyId = crypto.randomUUID(), token = `bff_pk_${'a'.repeat(64)}`;
   await f.db.prepare("INSERT INTO bff_projects(id,user_id,name,state,created_at) VALUES(?,'owner','Paused service','ready',?)").bind(projectId, new Date().toISOString()).run();
-  await f.db.prepare('INSERT INTO bff_api_keys(id,project_id,name,token_hash,prefix,origins,tables,functions,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
-    .bind(keyId, projectId, 'Browser', await checksum(token), token.slice(0, 15), '["https://customer.example"]', '{"notes":["select"]}', '{}', new Date().toISOString()).run();
+  await f.db.prepare('INSERT INTO api_keys(id,user_id,name,token_hash,prefix,created_at) VALUES(?,?,?,?,?,?)')
+    .bind(keyId, 'owner', 'Browser', await checksum(token), token.slice(0, 15), new Date().toISOString()).run();
+  await f.db.prepare('INSERT INTO bff_api_key_grants(api_key_id,project_id,origins,tables,functions) VALUES(?,?,?,?,?)')
+    .bind(keyId, projectId, '["https://customer.example"]', '{"notes":["select"]}', '{}').run();
   const response = await f.mf.dispatchFetch(`https://api.mainbrella.com/bff/data/${projectId}/tables/notes`, { headers: { apikey: token } });
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: 'bff_unavailable' });
