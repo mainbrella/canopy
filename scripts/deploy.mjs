@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
@@ -90,26 +90,31 @@ export function release(name, { publish = false, local = false, run = execute, d
   rmSync(publication, { force: true });
   const bundle = join('.wrangler', `release-${name}`);
   rmSync(join(cwd, bundle), { recursive: true, force: true });
-  npm(target.publish, { ...env, WRANGLER_OUTPUT_FILE_PATH: publication }, ['--', `--outdir=${bundle}`]);
-  // Record the actual deployment output, including assets built by its publisher.
-  const hash = artifactHash([join(cwd, bundle), ...(target.assets ? [join(cwd, target.assets)] : [])]);
-  const published = readFileSync(publication, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
-    .filter(entry => entry.type === 'deploy' && entry.version_id);
-  if (published.length !== 1 || published[0].worker_name !== target.worker
-    || !/^[a-f0-9-]{36}$/.test(published[0].version_id)) throw new Error('Publisher did not report exactly one selected worker version; inspect release output before retrying.');
-  const workerVersion = published[0].version_id;
-  const require = createRequire(join(cwd, 'package.json'));
-  const wrangler = join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
-  const deployments = JSON.parse(capture(run, process.execPath,
-    [wrangler, 'deployments', 'list', '--config', target.config, '--json'], options));
-  const deployed = deployments.find(item => item.versions?.length === 1 && item.versions[0].version_id === workerVersion);
-  if (!deployed) throw new Error('Published worker deployment could not be recorded; inspect the deployment before retrying.');
-  const evidence = { sourceSha, target: name, worker: target.worker, environment: 'production', artifactSha256: hash,
-    workerVersion, deploymentId: deployed.id, recordedAt: new Date().toISOString(),
-    ...(local ? { local: true, sourceDirty } : {}) };
-  record(join(output, `${name}.json`), JSON.stringify(evidence, null, 2) + '\n');
-  console.log(JSON.stringify(evidence));
-  return evidence;
+  const snapshot = name === 'site' ? join(cwd, '.wrangler', `site-assets-${randomUUID()}`) : undefined;
+  try {
+    npm(target.publish, { ...env, WRANGLER_OUTPUT_FILE_PATH: publication, ...(snapshot ? { CANOPY_SITE_ASSET_SNAPSHOT: snapshot } : {}) }, ['--', `--outdir=${bundle}`]);
+    // Record the actual deployment output, including assets built by its publisher.
+    const hash = artifactHash([join(cwd, bundle), ...(target.assets ? [snapshot || join(cwd, target.assets)] : [])]);
+    const published = readFileSync(publication, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+      .filter(entry => entry.type === 'deploy' && entry.version_id);
+    if (published.length !== 1 || published[0].worker_name !== target.worker
+      || !/^[a-f0-9-]{36}$/.test(published[0].version_id)) throw new Error('Publisher did not report exactly one selected worker version; inspect release output before retrying.');
+    const workerVersion = published[0].version_id;
+    const require = createRequire(join(cwd, 'package.json'));
+    const wrangler = join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
+    const deployments = JSON.parse(capture(run, process.execPath,
+      [wrangler, 'deployments', 'list', '--config', target.config, '--json'], options));
+    const deployed = deployments.find(item => item.versions?.length === 1 && item.versions[0].version_id === workerVersion);
+    if (!deployed) throw new Error('Published worker deployment could not be recorded; inspect the deployment before retrying.');
+    const evidence = { sourceSha, target: name, worker: target.worker, environment: 'production', artifactSha256: hash,
+      workerVersion, deploymentId: deployed.id, recordedAt: new Date().toISOString(),
+      ...(local ? { local: true, sourceDirty } : {}) };
+    record(join(output, `${name}.json`), JSON.stringify(evidence, null, 2) + '\n');
+    console.log(JSON.stringify(evidence));
+    return evidence;
+  } finally {
+    if (snapshot) rmSync(snapshot, { recursive: true, force: true });
+  }
 }
 
 export function localDeploymentEnvironment(cwd, configuration, env, run) {

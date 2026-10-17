@@ -13,7 +13,7 @@
     "preview": "wrangler dev",
     "preview:builder": "wrangler dev --config wrangler.builder.jsonc --port 8788 --persist-to .wrangler/builder",
     "deploy": "npm run deploy:builder && npm run deploy:site",
-    "deploy:site": "npm run build:site && wrangler deploy",
+    "deploy:site": "node scripts/deploy-site.mjs",
     "deploy:builder": "npm run build:builder && wrangler deploy --config wrangler.builder.jsonc",
     "deploy:redirect": "wrangler deploy --config wrangler.redirect.jsonc",
     "test": "tsx --test src/*.test.ts scripts/*.test.mjs && npm run test:web -w @canopy/voice && npm run test:web -w @canopy/vibe && npm run test:web -w @canopy/linux",

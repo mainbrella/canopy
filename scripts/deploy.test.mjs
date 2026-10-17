@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { artifactHash, dispatchRelease, parseArguments, release, validateConfiguration } from './deploy.mjs';
@@ -71,6 +71,7 @@ function stubRun(log, { failOn = null, status = '', sha = sourceSha, credential 
         mkdirSync(join(options.cwd, output), { recursive: true });
         writeFileSync(join(options.cwd, output, 'worker.js'), 'published bundle');
         onPublish({ target: targets[targetName], options, receiptPath });
+        if (options.env.CANOPY_SITE_ASSET_SNAPSHOT) cpSync(join(options.cwd, 'dist'), options.env.CANOPY_SITE_ASSET_SNAPSHOT, { recursive: true });
       }
     }
     if (command === process.execPath && args.includes('--dry-run')) {
@@ -409,6 +410,21 @@ test('release hash includes static assets rebuilt by the publisher', t => {
   const expected = artifactHash([join(app, '.wrangler/release-site'), join(app, 'dist')]);
   assert.equal(evidence.artifactSha256, expected);
   assert.equal(readFileSync(join(app, 'dist/index.html'), 'utf8'), '<main>rebuilt by publisher</main>');
+});
+
+test('site release hashes the uploaded snapshot even if another build clears dist during upload', t => {
+  const { directory, app, target } = fixture(t, 'site');
+  let expected, snapshot;
+  const evidence = withoutConsoleOutput(() => release('site', { publish: true,
+    run: stubRun([], { onCall: call => {
+      if (call.command === 'npm' && call.args[1] === 'deploy:site') snapshot = call.env.CANOPY_SITE_ASSET_SNAPSHOT;
+      if (call.command === process.execPath && call.args.includes('list')) {
+        expected = artifactHash([join(app, '.wrangler/release-site'), snapshot]);
+        rmSync(join(app, 'dist'), { recursive: true });
+      }
+    } }), directory, env: productionEnv, readConfig: () => mockConfig(target), record: () => {} }));
+  assert.equal(evidence.artifactSha256, expected);
+  assert.equal(existsSync(snapshot), false, 'Snapshot is removed after recording release evidence');
 });
 
 test('malformed, unexpected, or multiple publisher receipts stop before deployment lookup', t => {
