@@ -12,6 +12,7 @@ not necessarily require a separate deployment.
 | `@canopy/platform` | [packages/platform](packages/platform) | Shared wallet, product usage charging, and billing client |
 | `@canopy/vibe` | [apps/vibe](apps/vibe) | Builder API, agent/workflow, source/history, and browser behavior |
 | `@canopy/linux` | [apps/linux](apps/linux) | Compute API, runtime, images, workspaces, SDKs, and browser behavior |
+| `@canopy/bff` | [apps/bff](apps/bff) | BFF marketing homepage, styles, and browser interactions |
 | `@canopy/voice` | [apps/voice](apps/voice) | Voice API, receptionist runtime, providers, usage meters, and browser behavior |
 
 The three original source histories were imported with `git subtree add` without squashing.
@@ -32,6 +33,7 @@ apps/
   backend/    # platform services and API/deployment composition
   web/        # public site, shared account UI, route/build composition
   raindrop/   # platform administration
+  bff/        # backend-for-frontend marketing page and browser interactions
   voice/      # worker/ and web/ owned by Voice
   vibe/       # builder API, agent/workflow, source/history, builder UI
   linux/      # compute API, runtime, images, files, terminals, workspaces

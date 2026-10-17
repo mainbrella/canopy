@@ -14,6 +14,11 @@ const platformModules = new Set([
   'apps/backend/worker/shared/bounded-body.js',
 ]);
 const products = {
+  bff: {
+    name: 'BFF',
+    platformModules: new Set(),
+    hostExports: { web: new Set(['landing', 'page']) },
+  },
   voice: {
     name: 'Voice',
     platformModules,
@@ -105,7 +110,7 @@ function sourceFiles(directory) {
 
 export function checkAppBoundaries() {
   const failures = [];
-  for (const directory of ['packages/platform', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
+  for (const directory of ['packages/platform', 'apps/bff/web', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
     for (const path of sourceFiles(join(root, directory))) {
       const file = relative(root, path).replaceAll('\\', '/');
       // Integration fixtures deliberately exercise the real shared host.
@@ -125,5 +130,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (failures.length) {
     console.error(failures.join('\n'));
     process.exitCode = 1;
-  } else console.log('Voice, Vibe, Linux, and host import boundaries verified.');
+  } else console.log('BFF, Voice, Vibe, Linux, and host import boundaries verified.');
 }

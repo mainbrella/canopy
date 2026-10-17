@@ -10,6 +10,7 @@
     "apps/voice",
     "apps/vibe",
     "apps/linux",
+    "apps/bff",
     "packages/platform"
   ],
   "packageManager": "npm@10.9.7",

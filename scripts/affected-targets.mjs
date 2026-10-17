@@ -29,6 +29,9 @@ export function affectedTargets(paths) {
         // A shared backend change can affect both public clients and Raindrop auth.
         selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
       } else service.services.forEach(name => services.add(name));
+    } else if (path.startsWith('apps/bff/')) {
+      if (path === 'apps/bff/README.md') selected.docs = true;
+      else selected.site = true;
     } else if (path.startsWith('apps/voice/')) {
       const local = path.slice('apps/voice/'.length);
       if (local === 'README.md') selected.docs = true;
