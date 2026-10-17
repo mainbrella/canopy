@@ -13,8 +13,8 @@ const capture = (run, command, args, options) => String(run(command, args, { ...
 export function parseArguments(args) {
   const [target, ...flags] = args;
   targetFor(target);
-  if (flags.length > 1 || flags.some(flag => !['--check', '--execute'].includes(flag))) {
-    throw new Error('Usage: npm run deploy:<target> [-- --check]. Releases use the production workflow at a committed source SHA.');
+  if (flags.length > 1 || flags.some(flag => !['--local', '--check', '--execute'].includes(flag))) {
+    throw new Error('Usage: npm run deploy:<target> [-- --local | --check]. Use --local to publish from this machine; --execute is reserved for the production workflow.');
   }
   return { target, mode: flags[0]?.slice(2) ?? 'dispatch' };
 }
@@ -62,16 +62,17 @@ export function artifactHash(directories) {
   return hash.digest('hex');
 }
 
-export function release(name, { publish = false, run = execute, directory = root, env = process.env,
+export function release(name, { publish = false, local = false, run = execute, directory = root, env = process.env,
   readConfig = path => JSON.parse(readFileSync(path, 'utf8')), record = writeFileSync } = {}) {
   const target = targetFor(name);
   const cwd = join(directory, target.directory);
   const configuration = readConfig(join(cwd, target.config));
   validateConfiguration(name, configuration);
-  if (publish && (env.GITHUB_ACTIONS !== 'true' || env.GITHUB_REPOSITORY !== 'mainbrella/canopy'
+  if (publish && !local && (env.GITHUB_ACTIONS !== 'true' || env.GITHUB_REPOSITORY !== 'mainbrella/canopy'
     || env.GITHUB_WORKFLOW_REF !== 'mainbrella/canopy/.github/workflows/deploy.yml@refs/heads/main')) {
-    throw new Error('Production publishing must run through the Canopy production workflow and its deployment lock.');
+    throw new Error('Production publishing must run through the Canopy production workflow and its deployment lock. Use --local to publish from this machine.');
   }
+  if (publish && local) env = localDeploymentEnvironment(cwd, configuration, env, run);
   const options = { cwd, env };
   const npm = (script, commandEnv = env, args = []) => run('npm', ['run', script, '--workspace', target.workspace, ...args], { cwd, env: commandEnv });
   if (!publish) {
@@ -81,7 +82,8 @@ export function release(name, { publish = false, run = execute, directory = root
   }
   for (const script of target.preflight) npm(script);
   const sourceSha = capture(run, 'git', ['rev-parse', 'HEAD'], { cwd: directory });
-  if (sourceSha !== env.RELEASE_SHA || !/^[a-f0-9]{40}$/.test(sourceSha)) throw new Error('Release checkout differs from the selected source SHA.');
+  if (!/^[a-f0-9]{40}$/.test(sourceSha) || !local && sourceSha !== env.RELEASE_SHA) throw new Error('Release checkout differs from the selected source SHA.');
+  const sourceDirty = local && Boolean(capture(run, 'git', ['status', '--porcelain'], { cwd: directory }));
   const output = join(directory, 'artifacts/releases');
   mkdirSync(output, { recursive: true });
   const publication = join(output, `${name}.wrangler.jsonl`);
@@ -103,10 +105,39 @@ export function release(name, { publish = false, run = execute, directory = root
   const deployed = deployments.find(item => item.versions?.length === 1 && item.versions[0].version_id === workerVersion);
   if (!deployed) throw new Error('Published worker deployment could not be recorded; inspect the deployment before retrying.');
   const evidence = { sourceSha, target: name, worker: target.worker, environment: 'production', artifactSha256: hash,
-    workerVersion, deploymentId: deployed.id, recordedAt: new Date().toISOString() };
+    workerVersion, deploymentId: deployed.id, recordedAt: new Date().toISOString(),
+    ...(local ? { local: true, sourceDirty } : {}) };
   record(join(output, `${name}.json`), JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence));
   return evidence;
+}
+
+function localDeploymentEnvironment(cwd, configuration, env, run) {
+  const deploymentEnv = { ...env };
+  if (configuration.account_id) {
+    for (const name of ['CLOUDFLARE_ACCOUNT_ID', 'CF_ACCOUNT_ID']) {
+      if (env[name] && env[name] !== configuration.account_id) throw new Error(`${name} differs from the configured deployment account.`);
+    }
+    deploymentEnv.CLOUDFLARE_ACCOUNT_ID = configuration.account_id;
+  }
+  if (!deploymentEnv.CLOUDFLARE_API_TOKEN?.trim()) {
+    delete deploymentEnv.CLOUDFLARE_API_TOKEN;
+    const require = createRequire(join(cwd, 'package.json'));
+    const wrangler = join(dirname(require.resolve('wrangler/package.json')), 'bin/wrangler.js');
+    try {
+      // API preflights use REST as well as Wrangler. Reuse the local login for
+      // both, capturing credentials only in memory and never in release evidence.
+      const output = capture(run, process.execPath, [wrangler, 'auth', 'token', '--json'], {
+        cwd, env: { ...deploymentEnv, WRANGLER_WRITE_LOGS: 'false' }, timeout: 60_000,
+      });
+      const credential = JSON.parse(output);
+      if (!['oauth', 'api_token'].includes(credential.type) || typeof credential.token !== 'string' || !credential.token.trim()) throw new Error('invalid_credentials');
+      deploymentEnv.CLOUDFLARE_API_TOKEN = credential.token;
+    } catch {
+      throw new Error('Cloudflare credentials are unavailable. Run npm exec -w @canopy/backend -- wrangler login or set CLOUDFLARE_API_TOKEN, then retry.');
+    }
+  }
+  return deploymentEnv;
 }
 
 export function bundleTarget(name, { run = execute, directory = root, env = process.env,
@@ -136,7 +167,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const { target, mode } = parseArguments(process.argv.slice(2));
     if (mode === 'dispatch') dispatchRelease(target);
-    else release(target, { publish: mode === 'execute' });
+    else release(target, { publish: mode === 'execute' || mode === 'local', local: mode === 'local' });
   } catch (error) {
     console.error(error.status ? 'Release command failed. Review the preceding command output before retrying.' : error.message);
     process.exitCode = 1;

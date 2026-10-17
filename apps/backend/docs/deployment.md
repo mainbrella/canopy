@@ -7,6 +7,15 @@ secrets, publish web, or run paid verification. Direct `deploy:api`,
 `deploy:previews`, and `deploy:containers` commands remain operator tools and
 bypass the combined gate.
 
+From the repository root, `npm run deploy:api -- --local` publishes directly
+from the current Mac through the API preflight. The same flag works for other
+root deployment targets, including `deploy:site`. It uses Wrangler login (run
+`npm exec -w @canopy/backend -- wrangler login`) or `CLOUDFLARE_API_TOKEN`, and
+records local release evidence. Uncommitted changes can be deployed; no GitHub
+workflow or push is required. Apply the account migrations first with
+`npm run db:migrate:remote -w @canopy/backend`. Keep local deployments separate
+from workflow releases, since they do not share the GitHub concurrency lock.
+
 ## Independent admin and marketing releases
 
 This repository contains three independently deployed application Workers:

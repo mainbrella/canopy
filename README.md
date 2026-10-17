@@ -212,6 +212,27 @@ target, published artifact hash, and deployed worker version. Backend releases s
 lock; each frontend target has its own lock. Bare `npm run deploy` fails with usage
 help and publishes nothing.
 
+To deploy directly from your Mac, add `--local`:
+
+```sh
+npm exec -w @canopy/backend -- wrangler login
+npm run deploy:api -- --local
+npm run deploy:site -- --local
+```
+
+Each local command waits for its deployment to finish. It uses the current
+checkout, including uncommitted changes, and keeps the target’s preflight and
+publisher. It reuses Wrangler login or `CLOUDFLARE_API_TOKEN`; credentials stay in
+memory. Local release records under `artifacts/releases/` include the source SHA,
+whether the checkout was dirty, artifact hash, and deployed version. No GitHub
+login or push is required. Local deployments do not share GitHub’s concurrency
+lock, so run them separately from workflow releases of the same Workers.
+
+For the first BFF release, configure `BFF_CLOUDFLARE_ACCOUNT_ID` and
+`BFF_CLOUDFLARE_API_TOKEN` on the API Worker, then apply
+`npm run db:migrate:remote -w @canopy/backend` before deploying API and site.
+See [BFF setup](apps/bff/README.md#setup).
+
 For local validation without publication or remote deployment preflights:
 
 ```sh

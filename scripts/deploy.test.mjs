@@ -40,7 +40,7 @@ function fixture(t, name) {
   return { directory, app, target };
 }
 
-function stubRun(log, { failOn = null, status = '', sha = sourceSha, onCall = () => {},
+function stubRun(log, { failOn = null, status = '', sha = sourceSha, credential = { type: 'oauth', token: 'private-local-test-token' }, onCall = () => {},
   publicationContent, deploymentRows, onPublish = () => {} } = {}) {
   return (command, args, options = {}) => {
     const call = { command, args, cwd: options.cwd, env: options.env };
@@ -50,6 +50,7 @@ function stubRun(log, { failOn = null, status = '', sha = sourceSha, onCall = ()
     if (command === 'git' && args[0] === 'status') return status;
     if (command === 'git' && args[0] === 'rev-parse') return sha;
     if (command === 'git' && args[0] === 'remote') return 'git@github.com:mainbrella/canopy.git';
+    if (command === process.execPath && args.includes('auth') && args.includes('token')) return JSON.stringify(credential);
     if (command === 'npm' && args[0] === 'run') {
       const targetName = Object.keys(targets).find(name => targets[name].publish === args[1]);
       if (targetName) {
@@ -182,7 +183,72 @@ test('arguments reject bare, unknown, duplicate, and unsupported deployment opti
   }
   assert.deepEqual(parseArguments(['api']), { target: 'api', mode: 'dispatch' });
   assert.deepEqual(parseArguments(['api', '--check']), { target: 'api', mode: 'check' });
+  assert.deepEqual(parseArguments(['api', '--local']), { target: 'api', mode: 'local' });
   assert.deepEqual(parseArguments(['api', '--execute']), { target: 'api', mode: 'execute' });
+  for (const args of [['api', '--local', '--check'], ['api', '--local', '--execute'], ['api', '--local', '--local']]) assert.throws(() => parseArguments(args));
+});
+
+test('local releases publish the checkout directly using Wrangler login and retain release evidence', t => {
+  for (const name of Object.keys(targets)) {
+    const { directory, app, target } = fixture(t, name);
+    const calls = [], env = { SAFE: 'yes' }, recorded = [];
+    const evidence = withoutConsoleOutput(() => release(name, { publish: true, local: true,
+      directory, env, run: stubRun(calls, { status: ' M scripts/deploy.mjs' }),
+      readConfig: () => ({ ...mockConfig(target), account_id: 'a'.repeat(32) }),
+      record: (path, content) => recorded.push({ path, content }),
+    }));
+    assert.equal(calls.some(call => call.command === 'gh' || call.command === 'git' && ['fetch', 'merge-base', 'remote'].includes(call.args[0])), false);
+    const auth = calls.filter(call => call.args.includes('auth'));
+    assert.equal(auth.length, 1);
+    assert.equal(auth[0].cwd, app);
+    assert.deepEqual(auth[0].args.slice(1), ['auth', 'token', '--json']);
+    assert.deepEqual(auth[0].env, { SAFE: 'yes', CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), WRANGLER_WRITE_LOGS: 'false' });
+    assert.deepEqual(env, { SAFE: 'yes' });
+    const npmCalls = calls.filter(call => call.command === 'npm');
+    assert.deepEqual(npmCalls.map(call => call.args[1]), [...target.preflight, target.publish]);
+    assert.ok(npmCalls.every(call => call.env.CLOUDFLARE_API_TOKEN === 'private-local-test-token'));
+    assert.equal(evidence.local, true);
+    assert.equal(evidence.sourceDirty, true);
+    assert.equal(evidence.sourceSha, sourceSha);
+    assert.equal(evidence.workerVersion, deploymentVersion);
+    assert.match(evidence.artifactSha256, /^[a-f0-9]{64}$/);
+    assert.ok(recorded.every(item => !item.content.includes('private-local-test-token')));
+  }
+});
+
+test('local releases reuse explicit credentials and reject mismatched accounts before reading credentials', t => {
+  const { directory, target } = fixture(t, 'api');
+  const calls = [], env = { CLOUDFLARE_API_TOKEN: 'explicit-test-token' };
+  const evidence = withoutConsoleOutput(() => release('api', { publish: true, local: true,
+    directory, env, run: stubRun(calls), readConfig: () => mockConfig(target), record: () => {},
+  }));
+  assert.equal(calls.some(call => call.args.includes('auth')), false);
+  assert.equal(calls.find(call => call.command === 'npm').env.CLOUDFLARE_API_TOKEN, env.CLOUDFLARE_API_TOKEN);
+  assert.equal(evidence.sourceDirty, false);
+  for (const key of ['CLOUDFLARE_ACCOUNT_ID', 'CF_ACCOUNT_ID']) {
+    const rejected = [];
+    assert.throws(() => release('api', { publish: true, local: true, directory, env: { [key]: 'wrong-account' },
+      run: stubRun(rejected), readConfig: () => ({ ...mockConfig(target), account_id: 'a'.repeat(32) }),
+    }), /differs from the configured deployment account/);
+    assert.deepEqual(rejected, []);
+  }
+});
+
+test('failed local credentials and preflights stop publication without exposing credentials', t => {
+  const { directory, target } = fixture(t, 'api');
+  for (const credential of [{ type: 'global_key', token: 'private-rejected-token' }, { type: 'oauth', token: '' }]) {
+    const calls = [];
+    assert.throws(() => release('api', { publish: true, local: true, directory, env: {},
+      run: stubRun(calls, { credential }), readConfig: () => mockConfig(target),
+    }), error => error.message.includes('Cloudflare credentials are unavailable') && !error.message.includes('private-rejected-token'));
+    assert.equal(calls.some(call => call.command === 'npm'), false);
+  }
+  const calls = [];
+  assert.throws(() => release('api', { publish: true, local: true, directory, env: {},
+    run: stubRun(calls, { failOn: `npm run api:preflight --workspace ${target.workspace}` }),
+    readConfig: () => mockConfig(target),
+  }), /stub failed/);
+  assert.equal(calls.some(call => call.command === 'npm' && call.args[1] === target.publish), false);
 });
 
 test('local execute is rejected before checks or publishing', t => {
