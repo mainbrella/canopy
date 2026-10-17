@@ -2,26 +2,36 @@ use std::env;
 use std::process;
 use std::time::Duration;
 
+mod api;
 mod migration;
+mod permissions;
 
 const API_KEY_ME_URL: &str = "https://api.mainbrella.com/api-keys/me";
+
+#[derive(Debug, PartialEq, Eq)]
+enum Command {
+    NoArgs,
+    Help,
+    Whoami,
+    Migrate,
+    ReadEveryone(String),
+}
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    let command = match args.as_slice() {
-        [] => "help",
-        [arg] if arg == "--whoami" => "whoami",
-        [arg] if arg == "--migrate" => "migrate",
-        [arg] if arg == "-h" || arg == "--help" => {
-            print_help();
-            return;
-        }
-        [argument, ..] => {
-            eprintln!("error: unexpected argument '{argument}'\n\nUsage: canopy [OPTIONS]");
+    let command = match parse_args(&args) {
+        Ok(command) => command,
+        Err(error) => {
+            eprintln!("error: {error}\n\nUsage: canopy [OPTIONS]");
             process::exit(2);
         }
     };
+
+    if command == Command::Help {
+        print_help();
+        return;
+    }
 
     let api_key = env::var("MAINBRELLA_API_KEY").unwrap_or_default();
     if api_key.trim().is_empty() {
@@ -31,21 +41,49 @@ fn main() {
         process::exit(1);
     }
 
-    if command == "whoami" {
-        match fetch_whoami(API_KEY_ME_URL, api_key.trim()) {
+    match command {
+        Command::Whoami => match fetch_whoami(API_KEY_ME_URL, api_key.trim()) {
             Ok(json) => println!("{json}"),
             Err(error) => {
                 eprintln!("error: GET /api-keys/me failed: {error}");
                 process::exit(1);
             }
+        },
+        Command::Migrate => {
+            if let Err(error) = migration::run(std::path::Path::new("."), api_key.trim()) {
+                eprintln!("error: {error}");
+                process::exit(1);
+            }
         }
-    } else if command == "migrate" {
-        if let Err(error) = migration::run(std::path::Path::new("."), api_key.trim()) {
-            eprintln!("error: {error}");
-            process::exit(1);
+        Command::ReadEveryone(table) => {
+            if let Err(error) = permissions::run(std::path::Path::new("."), api_key.trim(), &table)
+            {
+                eprintln!("error: {error}");
+                process::exit(1);
+            }
         }
-    } else {
-        print_help();
+        Command::NoArgs => print_help(),
+        Command::Help => unreachable!(),
+    }
+}
+
+fn parse_args(args: &[String]) -> Result<Command, String> {
+    match args {
+        [] => Ok(Command::NoArgs),
+        [arg] if arg == "--whoami" => Ok(Command::Whoami),
+        [arg] if arg == "--migrate" => Ok(Command::Migrate),
+        [arg] if arg == "-h" || arg == "--help" => Ok(Command::Help),
+        [flag] if flag == "--read-everyone" => {
+            Err("--read-everyone requires a table name".to_owned())
+        }
+        [flag, table] if flag == "--read-everyone" => {
+            if table.is_empty() || table.starts_with('-') {
+                Err("--read-everyone requires a table name".to_owned())
+            } else {
+                Ok(Command::ReadEveryone(table.clone()))
+            }
+        }
+        [argument, ..] => Err(format!("unexpected argument '{argument}'")),
     }
 }
 
@@ -70,7 +108,7 @@ fn fetch_whoami(url: &str, api_key: &str) -> Result<String, ureq::Error> {
 
 fn print_help() {
     println!(
-        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n      --whoami   Call /api-keys/me and print the returned JSON\n      --migrate  Apply pending SQL files from ./migrations\n  -h, --help     Print this help message\n\nMigration config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
+        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n      --whoami                    Call /api-keys/me and print the returned JSON\n      --migrate                   Apply pending SQL files from ./migrations\n      --read-everyone <TABLE>      Allow public reads from a table\n  -h, --help                      Print this help message\n\nProject config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
     );
 }
 
@@ -80,6 +118,34 @@ mod tests {
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
     use std::thread::{self, JoinHandle};
+
+    #[test]
+    fn parses_read_everyone_and_preserves_existing_commands() {
+        assert_eq!(parse_args(&[]).unwrap(), Command::NoArgs);
+        assert_eq!(parse_args(&["--whoami".into()]).unwrap(), Command::Whoami);
+        assert_eq!(parse_args(&["--migrate".into()]).unwrap(), Command::Migrate);
+        assert_eq!(
+            parse_args(&["--read-everyone".into(), "boards".into()]).unwrap(),
+            Command::ReadEveryone("boards".into())
+        );
+        assert!(
+            parse_args(&["--read-everyone".into()])
+                .unwrap_err()
+                .contains("requires a table name")
+        );
+        assert!(
+            parse_args(&["--read-everyone".into(), "boards".into(), "extra".into()])
+                .unwrap_err()
+                .contains("unexpected argument")
+        );
+        for value in ["", "--migrate"] {
+            assert!(
+                parse_args(&["--read-everyone".into(), value.into()])
+                    .unwrap_err()
+                    .contains("requires a table name")
+            );
+        }
+    }
 
     fn mock_response(status: &str, headers: &str, body: &str) -> (String, JoinHandle<String>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();

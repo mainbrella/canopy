@@ -42,3 +42,22 @@ canopy --migrate
 The account key must own that project. A provisioned message-board starter
 already has sequence 1, so the CLI starts with `002_boards.sql` when it is
 pending. Keep the account key in the environment, outside `canopy.json`.
+
+To give a migrated table **Read: Everyone**, run from the same application
+directory:
+
+```sh
+canopy --read-everyone boards
+```
+
+This uses the project in `canopy.json` and your `MAINBRELLA_API_KEY`. The CLI
+reads the current table policy, then sets public reads through
+`PUT /bff/projects/{projectId}/policies/{table}`. Existing write permissions and
+the ownership column are preserved; new policies deny inserts, updates, and
+deletes. The table must already exist. Refresh the BFF Permissions screen to see
+its row with **Everyone** in the Read column.
+
+Public reads expose all rows and columns through browser keys with a `select`
+grant for that table. Browser access requires both that grant and the public
+read policy. Table names start with a letter, contain only letters, digits, and
+underscores, and are at most 63 characters; the `sqlite_` prefix is reserved.
