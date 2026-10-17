@@ -1,0 +1,1 @@
+import '@canopy/bff/landing';

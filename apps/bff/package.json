@@ -1,0 +1,9 @@
+{
+  "name": "@canopy/bff",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./page": "./web/homepage.html",
+    "./landing": "./web/landing.ts"
+  }
+}
