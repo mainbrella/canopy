@@ -37,9 +37,25 @@ Creating a board inserts its name, description, generated unique slug, and the
 signed-in user's `user_id` into `boards`. New boards appear in the message
 composer the next time it opens. Failed requests preserve the form for retry.
 
-Board creation also requires `migrations/003_board_owners.sql`, a `boards`
-insert grant on the browser key, and a board insert policy of `own` with
-`user_id` as the owner column.
+Configure the example's schema and board permissions with the Canopy CLI. From
+`examples/message-board`, with an installed `canopy` and the project owner's
+account key in `MAINBRELLA_API_KEY`, run:
+
+```sh
+canopy --migrate
+canopy --read-everyone boards
+canopy --own-rows boards --owner-column user_id
+canopy --browser-keys
+canopy --grant boards select --key 673cfd0a-65b7-4029-b823-fca7733e7a96
+canopy --grant boards insert --key 673cfd0a-65b7-4029-b823-fca7733e7a96
+```
+
+The key ID above belongs to this example's configured browser key. For another
+deployment, use the matching key ID from `--browser-keys`. `--own-rows` configures
+the table's ownership policy; `--grant` separately permits the browser key to
+perform each operation. Both are required for board creation. These commands
+are safe to rerun and preserve other key grants. Board schema and permission
+setup belong to this example and require no BFF backend migration.
 
 The composer requires `migrations/002_boards.sql` and
 `migrations/004_message_titles.sql` to be applied to the project.

@@ -9,7 +9,6 @@ const origin = 'https://mainbrella.com';
 const base = `/projects/${demoConfig.projectId}`;
 const data = `/bff/data/${demoConfig.projectId}/tables/messages`;
 const migration = readFileSync(new URL('../../backend/migrations/055_bff_public_demo.sql', import.meta.url), 'utf8');
-const boardCreationMigration = readFileSync(new URL('../../backend/migrations/056_bff_demo_board_creation.sql', import.meta.url), 'utf8');
 
 async function fixture(t: test.TestContext) {
   const f = await runtime(t);
@@ -80,47 +79,6 @@ test('fixed public demo issues real sessions, preserves RLS, and revokes only th
   await f.db.prepare('UPDATE bff_api_key_grants SET tables=? WHERE api_key_id=?').bind('{"messages":["select"]}', f.keyId).run();
   const reader = await f.login('alice');
   await f.browser(`${data}?id=eq.${own.id}`, 'PATCH', { user_id: own.user_id, body: 'Missing key grant' }, 403, { authorization: `Bearer ${reader.token}` });
-});
-
-test('public demo board-creation migration lets both users create owned boards with only the intended key', { timeout: 60_000 }, async t => {
-  const f = await fixture(t);
-  for (const [sequence, name] of [[2, 'boards'], [3, 'board_owners']] as const) {
-    const sql = readFileSync(new URL(`../../../examples/message-board/migrations/00${sequence}_${name}.sql`, import.meta.url), 'utf8');
-    await f.json(`${base}/migrations`, 'POST', { sequence, name, sql });
-  }
-  await f.json(`${base}/policies/boards`, 'PUT', { select: 'public', insert: 'own', ownerColumn: 'user_id' });
-  await f.json(`${base}/api-keys/${f.keyId}`, 'PATCH', { table: 'boards', operation: 'select' });
-  const otherKey = await f.json(`${base}/api-keys`, 'POST', { name: 'Other board reader', origins: [origin], tables: { boards: ['select'] } }, 201);
-  const before = (await f.db.prepare('SELECT * FROM bff_api_key_grants WHERE api_key_id=?').bind(f.keyId).first<any>())!;
-  const policiesBefore = await f.json(`${base}/policies`);
-  const boardsPath = `/bff/data/${demoConfig.projectId}/tables/boards`;
-  const alice = await f.login('alice');
-  await f.browser(boardsPath, 'POST', { slug: 'before-grant', name: 'Before grant' }, 403, { authorization: `Bearer ${alice.token}` });
-
-  await f.db.prepare(boardCreationMigration).run();
-  await f.db.prepare(boardCreationMigration).run();
-  const after = (await f.db.prepare('SELECT * FROM bff_api_key_grants WHERE api_key_id=?').bind(f.keyId).first<any>())!;
-  assert.deepEqual(JSON.parse(after.tables), { ...JSON.parse(before.tables), boards: ['select', 'insert'] });
-  assert.equal(after.origins, before.origins);
-  assert.equal(after.functions, before.functions);
-  assert.deepEqual(await f.json(`${base}/policies`), policiesBefore);
-  assert.deepEqual(JSON.parse((await f.db.prepare('SELECT tables FROM bff_api_key_grants WHERE api_key_id=?').bind(otherKey.key.id).first<any>())!.tables), { boards: ['select'] });
-
-  const bob = await f.login('bob');
-  for (const [userId, session] of [['alice', alice], ['bob', bob]] as const) {
-    const created = (await f.browser(boardsPath, 'POST', { slug: `${userId}-board`, name: `${userId}'s board`, description: 'New board', user_id: userId }, 201,
-      { authorization: `Bearer ${session.token}` })).data[0];
-    assert.equal(created.user_id, userId);
-  }
-  await f.browser(boardsPath, 'POST', { slug: 'anonymous-board', name: 'Anonymous' }, 403);
-  await f.browser(boardsPath, 'POST', { slug: 'forged-owner', name: 'Forged', user_id: 'alice' }, 403, { authorization: `Bearer ${bob.token}` });
-  await f.browser(boardsPath, 'POST', { slug: 'other-key', name: 'Other key' }, 403, { apikey: otherKey.token, authorization: `Bearer ${alice.token}` });
-
-  const otherProject = (await f.json('/projects', 'POST', { name: 'Unrelated project' }, 201)).project;
-  await f.db.prepare('UPDATE bff_api_key_grants SET project_id=?,tables=? WHERE api_key_id=?')
-    .bind(otherProject.id, '{"boards":["select"]}', f.keyId).run();
-  await f.db.prepare(boardCreationMigration).run();
-  assert.deepEqual(JSON.parse((await f.db.prepare('SELECT tables FROM bff_api_key_grants WHERE api_key_id=?').bind(f.keyId).first<any>())!.tables), { boards: ['select'] });
 });
 
 test('demo login rejects arbitrary identities, credentials, projects, and origins; preflight is scoped', { timeout: 60_000 }, async t => {

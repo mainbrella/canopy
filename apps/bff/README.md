@@ -42,7 +42,7 @@ and project deletion remain deferred. The landing page's SDK examples are illust
 1. Apply the backend’s pending migrations, including `050_bff.sql`,
    `051_bff_api_keys.sql`, `052_bff_shared_api_keys.sql`,
    `053_bff_table_policies.sql`, `054_bff_message_board.sql`, and
-   `055_bff_public_demo.sql` and `056_bff_demo_board_creation.sql`, using the normal migration
+   `055_bff_public_demo.sql`, using the normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
