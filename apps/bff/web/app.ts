@@ -2,6 +2,7 @@ import './app.css';
 import { deferred, navigation, type Execution, type Migration, type Project, type QueryResult, type SavedFunction, type Table, type TablePolicy } from './app-data.ts';
 import { createBffApi } from './api.ts';
 import { createMessageBoardDemo } from './message-board.ts';
+import { createAppConnection } from './connection.ts';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
 const formatValue = (value: unknown) => value === null ? 'NULL' : typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -26,6 +27,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
   let activeEditor: Editor | null = null, workspaceError = '';
   let policies: TablePolicy[] = [], users: Record<string, unknown>[] = [];
   const demo = createMessageBoardDemo(apiOrigin, api);
+  const connection = createAppConnection(apiOrigin, api);
   let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
   function hideWorkspace() {
@@ -46,7 +48,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
   const canEdit = () => !!project && project.state === 'ready' && !project.suspended && available;
 
   function clearData() {
-    demo.reset(); policies = []; users = [];
+    demo.reset(); connection.reset(); policies = []; users = [];
     tables = []; migrations = []; functions = []; executions = []; rows = []; truncated = false;
     usage = { day: '', queries: 0, invocations: 0 }; selectedTable = ''; sql = ''; sqlResult = null;
     editingName = ''; editingVersion = 0; source = ''; input = '{}'; access = 'none'; functionResult = undefined; workspaceError = '';
@@ -66,7 +68,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     return `<div class="bff-local-tabs">${items.map(([id, label]) => `<button type="button" class="bff-tab" data-action="tab" data-value="${id}" aria-pressed="${tab === id}" ${busy ? 'disabled' : ''}>${label}</button>`).join('')}</div>`;
   }
   function overview() {
-    return heading('Project overview', project ? project.name : 'No projects yet.') +
+    return heading('Project overview', project ? project.name : 'No projects yet.', project ? button('Connect app', 'open-connect') : '') +
       `<dl class="bff-metrics">${[['Tables', tables.length], [truncated ? 'Rows (first 50 tables)' : 'Rows', tables.reduce((sum, item) => sum + item.count, 0)], [migrations.length === 100 ? 'Migrations (latest 100)' : 'Migrations', migrations.length], ['Functions', functions.length]].map(([label, value]) => `<div><dt>${label}${label === 'Tables' && truncated ? ' (first 50)' : ''}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>` +
       (project ? `<dl class="bff-detail-list"><div><dt>Project ID</dt><dd><code>${escape(project.id)}</code></dd></div><div><dt>Status</dt><dd>${project.suspended ? 'Paused' : escape(project.state)}</dd></div></dl>` : button('Create project', 'create-project', '', true, !available)) +
       (migrations.some(item => item.name === 'message_board') ? `<div class="bff-toolbar">${button('Try message board and row permissions', 'open-permissions')}</div>` : '') +
@@ -120,6 +122,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     el<HTMLButtonElement>('bff-project-picker').disabled = busy || !projects.length;
     const renderers: Record<string, () => string> = {
       overview, database, permissions, auth: authentication, sql: sqlEditor, functions: functionView, logs: () => heading('Logs', 'Most recent 100 function executions. Inputs and results are not stored.') + executionTable(), settings,
+      connect: () => heading('Connect app', 'Read your project’s data from your frontend with a scoped public key.') + (project ? connection.render(project.id, tables, selectedTable, policies, button, table, busy, !canEdit()) : '<p class="bff-empty">Create a project to connect your frontend.</p>'),
       usage: () => heading('Usage', usage.day ? `${usage.day} · UTC` : 'No usage yet.') + table(['Resource', 'Used today', 'Daily limit'], [['Database statements', String(usage.queries), '10,000'], ['Function invocations', String(usage.invocations), '1,000']], 'Daily usage'),
     };
     const unavailable = deferred[section];
@@ -142,7 +145,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     project = latest.project; projects = projects.map(item => item.id === project!.id ? project! : item);
     if (!canEdit()) {
       tables = []; rows = []; migrations = []; functions = []; policies = []; users = []; demo.reset();
-      const [logs, counts] = await Promise.all([api<{ executions: Execution[] }>(`${base}/executions`), api<typeof usage>(`${base}/usage`)]);
+      const [logs, counts] = await Promise.all([api<{ executions: Execution[] }>(`${base}/executions`), api<typeof usage>(`${base}/usage`), connection.load(project.id)]);
       if (token === generation) { executions = logs.executions; usage = counts; }
       return;
     }
@@ -150,6 +153,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
       api<{ tables: Table[]; truncated: boolean }>(`${base}/schema`), api<{ migrations: Migration[] }>(`${base}/migrations`),
       api<{ functions: SavedFunction[] }>(`${base}/functions`), api<{ executions: Execution[] }>(`${base}/executions`),
       api<{ policies: TablePolicy[] }>(`${base}/policies`),
+      connection.load(project.id),
     ]);
     if (token !== generation) return;
     tables = schema.tables; truncated = schema.truncated; migrations = history.migrations; functions = saved.functions; executions = logs.executions;
@@ -185,6 +189,24 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (busy || !authenticated) return;
     if (name === 'tab') { tab = value; render(); return; }
     if (name === 'open-permissions') { location.hash = 'permissions'; return; }
+    if (name === 'open-connect') { location.hash = 'connect'; return; }
+    if (name === 'connect-enable-reads' && project && selectedTable && canEdit()) {
+      const projectId = project.id, tableName = selectedTable;
+      editor({ title: `Enable public reads for ${tableName}?`, fields: [], submit: 'Enable public reads', async save() {
+        await connection.enablePublicReads(projectId, tableName); dialog.close(); await refresh(); announce('Public reads enabled.');
+      } });
+      el('bff-editor-form').insertAdjacentHTML('afterbegin', '<p class="bff-dialog-note">Every row and column, including future additions, will be readable by anyone holding a browser key with read access to this table. Existing keys with read access will also gain access. Write permissions stay the same.</p>');
+      return;
+    }
+    if (name === 'connect-revoke' && project) {
+      const projectId = project.id;
+      editor({ title: `Revoke ${connection.keyName(value) || 'browser key'}?`, fields: [], submit: 'Revoke key', async save() {
+        await connection.revoke(projectId, value); dialog.close(); announce('Browser key revoked.');
+      } });
+      el('bff-editor-form').insertAdjacentHTML('afterbegin', '<p class="bff-dialog-note">Apps using this key will lose access. This cannot be undone.</p>');
+      el<HTMLFormElement>('bff-editor-form').querySelector('button')!.classList.add('bff-destructive');
+      return;
+    }
     if (name === 'demo-edit') { demo.edit(value); render(); el('bff-demo-body').focus(); return; }
     if (name === 'demo-cancel') { demo.cancelEdit(); render(); return; }
     if (name === 'demo-delete') {
@@ -243,6 +265,8 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (!project) return;
     await work(async () => {
       switch (name) {
+        case 'connect-copy-config': await connection.copy(project!.id, selectedTable, 'config'); announce('Frontend config copied.'); break;
+        case 'connect-copy-javascript': await connection.copy(project!.id, selectedTable, 'javascript'); announce('JavaScript copied.'); break;
         case 'demo-start': await demo.start(project!.id); break;
         case 'demo-stop': await demo.stop(); break;
         case 'demo-refresh': await demo.load(); break;
@@ -280,6 +304,13 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
   });
   document.addEventListener('submit', event => {
     const form = event.target as HTMLFormElement;
+    if (form.id === 'bff-connect-form') {
+      event.preventDefault();
+      if (!busy && authenticated && project && canEdit() && policies.some(policy => policy.table === selectedTable && policy.select === 'public')) {
+        void work(async () => { await connection.create(project!.id, selectedTable); announce('Browser key created. Copy your frontend code now.'); });
+      }
+      return;
+    }
     if (form.getAttribute('id') !== 'bff-editor-form' || !activeEditor || !authenticated) return;
     event.preventDefault(); if (busy) return;
     const values = Object.fromEntries(new FormData(form)) as Record<string, string>;
@@ -297,10 +328,13 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (target.id === 'bff-function-source') source = target.value;
     if (target.id === 'bff-function-input') input = target.value;
     if (target.id === 'bff-demo-body') demo.setDraft(target.value);
+    if (target.id === 'bff-connect-name') connection.setName(target.value);
+    if (target.id === 'bff-connect-origins') connection.setOrigins(target.value);
   });
   view.addEventListener('change', event => {
     const target = event.target as HTMLSelectElement;
     if (target.id === 'bff-table-select') { selectedTable = target.value; void work(() => loadRows()); }
+    if (target.id === 'bff-connect-table') { selectedTable = target.value; void work(() => loadRows()).then(() => el('bff-connect-table')?.focus()); }
     if (target.id === 'bff-function-access') access = target.value;
     if (target.id === 'bff-demo-user') void work(() => demo.switchUser(target.value));
   });

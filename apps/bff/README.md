@@ -173,6 +173,13 @@ and outputs are limited to 64 KiB; source is limited to 32 KiB.
 
 ## External browser Data API
 
+In the BFF workspace, open **Connect app** to select a table, explicitly enable
+public reads, and create a read-only browser key for your frontend's exact origins.
+Copy the generated configuration or complete JavaScript fetch example into your
+app. The full key is available only in the current workspace session; it cannot
+be retrieved after a reload or project switch. Existing browser keys and their
+origins and grants are listed on the same screen, where they can be revoked.
+
 For the first frontend app, run this from `apps/bff` after deploying the API and
 applying pending backend migrations. It reads the existing account key from the
 referenced environment file without printing it:

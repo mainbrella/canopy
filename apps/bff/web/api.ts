@@ -7,6 +7,8 @@ const messages: Record<string, string> = {
   project_paused: 'This project is paused. Resume it in Settings.',
   project_blocked: 'This project has been disabled by Mainbrella. Contact support.',
   project_limit: 'You have reached the limit of 5 projects.',
+  api_key_limit: 'This project has 20 browser keys. Revoke an unused key before creating another.',
+  table_policy_limit: 'This project has reached its limit of 100 table policies.',
   provision_in_progress: 'Database provisioning is already running. Wait a minute and retry.',
   migration_conflict: 'This migration number or name already exists with different SQL.',
   migration_out_of_order: 'Apply the next migration number in order.',

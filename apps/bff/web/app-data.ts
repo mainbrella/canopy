@@ -1,5 +1,5 @@
 export const navigation = [
-  { label: '', items: [['overview', 'Overview']] },
+  { label: '', items: [['overview', 'Overview'], ['connect', 'Connect app']] },
   { label: 'Build', items: [['database', 'Database'], ['sql', 'SQL editor'], ['auth', 'Authentication'], ['permissions', 'Permissions'], ['storage', 'Storage'], ['functions', 'Functions']] },
   { label: 'Run', items: [['realtime', 'Realtime & live objects'], ['automations', 'Automations'], ['notifications', 'Notifications'], ['search', 'Search & AI'], ['payments', 'Payments']] },
   { label: 'Manage', items: [['logs', 'Logs'], ['usage', 'Usage'], ['templates', 'Templates'], ['settings', 'Settings']] },
