@@ -5,7 +5,7 @@ import { runtime } from './system-test-helpers';
 
 test('browser Data API: scoped public reads, CORS, pinned functions, and revocation', { timeout: 60_000 }, async t => {
   const f = await runtime(t);
-  const project = (await f.json('/projects', 'POST', { name: 'Browser backend' }, 201)).project;
+  const project = (await f.json('/projects', 'POST', { name: 'Browser backend', template: 'empty' }, 201)).project;
   const base = `/projects/${project.id}`;
   await f.json(`${base}/provision`, 'POST');
   await f.json(`${base}/migrations`, 'POST', { sequence: 1, name: 'notes', sql: 'CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT, rank INTEGER); CREATE TABLE private_notes(secret TEXT);' });
@@ -101,7 +101,7 @@ test('browser Data API: scoped public reads, CORS, pinned functions, and revocat
 
   const otherOriginKey = await f.json(`${base}/api-keys`, 'POST', { ...grants, origins: ['https://another.example'] }, 201);
   assert.equal((await request(table, 'GET', undefined, otherOriginKey.token)).status, 403, 'An origin on another key does not authorize this key');
-  const other = (await f.json('/projects', 'POST', { name: 'Other backend' }, 201)).project;
+  const other = (await f.json('/projects', 'POST', { name: 'Other backend', template: 'empty' }, 201)).project;
   await json(`/data/${other.id}/tables/notes`, 'GET', undefined, 401);
   assert.equal((await f.request(`/projects/${other.id}/api-keys/${key.id}`, 'DELETE')).status, 404);
   await f.json(base, 'PATCH', { suspended: true });

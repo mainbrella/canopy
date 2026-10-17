@@ -16,10 +16,10 @@ test('real Workers runtime: project lifecycle, transactional migrations, and iso
   const f = await runtime(t);
   assert.deepEqual((await f.json('/projects')).projects, []);
   assert.equal((await f.request('/projects', 'GET', undefined, 'no-session')).status, 401);
-  assert.equal((await f.request('/projects', 'POST', { name: 'forbidden' }, 'owner', { origin: 'https://evil.example' })).status, 403);
-  const { project } = await f.json('/projects', 'POST', { name: 'My backend' }, 201);
+  assert.equal((await f.request('/projects', 'POST', { name: 'forbidden', template: 'empty' }, 'owner', { origin: 'https://evil.example' })).status, 403);
+  const { project } = await f.json('/projects', 'POST', { name: 'My backend', template: 'empty' }, 201);
   const base = `/projects/${project.id}`;
-  assert.equal((await f.json('/projects', 'POST', { name: 'My backend' })).project.id, project.id);
+  assert.equal((await f.json('/projects', 'POST', { name: 'My backend', template: 'empty' })).project.id, project.id);
   assert.equal(f.databases.size, 0, 'Creation does not implicitly seed or provision data');
   assert.equal((await f.request(base, 'GET', undefined, 'stranger')).status, 404);
   assert.equal((await f.request(`${base}/provision`, 'POST', undefined, 'stranger')).status, 404);
@@ -78,11 +78,11 @@ test('real Workers runtime: project lifecycle, transactional migrations, and iso
   await f.json(`${base}/functions/sleep_forever`, 'PUT', { source: 'export default async () => {await new Promise(resolve => setTimeout(resolve,10000));return 1}', expectedVersion: 0 }, 201);
   await f.json(`${base}/functions/sleep_forever/invoke`, 'POST', { input: null }, 408);
 
-  const other = (await f.json('/projects', 'POST', { name: 'Second backend' }, 201)).project;
+  const other = (await f.json('/projects', 'POST', { name: 'Second backend', template: 'empty' }, 201)).project;
   await f.json(`/projects/${other.id}/provision`, 'POST');
   assert.equal(f.databases.size, 2);
   assert.deepEqual((await f.json(`/projects/${other.id}/schema`)).tables, []);
-  const parallel = await Promise.all([1, 2].map(() => f.request('/projects', 'POST', { name: 'Parallel' }).then(async response => {
+  const parallel = await Promise.all([1, 2].map(() => f.request('/projects', 'POST', { name: 'Parallel', template: 'empty' }).then(async response => {
     assert.ok(response.status === 200 || response.status === 201); return response.json() as Promise<any>;
   })));
   assert.equal(parallel[0].project.id, parallel[1].project.id);
@@ -107,9 +107,9 @@ test('real Workers runtime: project lifecycle, transactional migrations, and iso
   f.redirectNextQuery();
   await f.json(`${base}/query`, 'POST', { sql: 'SELECT 1' }, 502);
   assert.ok(f.outboundTargets.every(origin => origin === 'https://api.cloudflare.com'), 'Neither customer egress nor provider redirects may reach another host');
-  await f.json('/projects', 'POST', { name: 'Fourth' }, 201);
-  await f.json('/projects', 'POST', { name: 'Fifth' }, 201);
-  await f.json('/projects', 'POST', { name: 'Sixth' }, 429);
+  await f.json('/projects', 'POST', { name: 'Fourth', template: 'empty' }, 201);
+  await f.json('/projects', 'POST', { name: 'Fifth', template: 'empty' }, 201);
+  await f.json('/projects', 'POST', { name: 'Sixth', template: 'empty' }, 429);
   const today = new Date().toISOString().slice(0, 10);
   await f.db.prepare('UPDATE bff_daily_usage SET invocations=? WHERE project_id=? AND day=?').bind(LIMITS.invocationsPerDay, project.id, today).run();
   await f.json(`${fnPath}/invoke`, 'POST', { input: null }, 429);

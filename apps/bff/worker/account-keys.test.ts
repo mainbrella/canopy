@@ -21,7 +21,7 @@ test('existing account keys authenticate BFF SQL, table data, functions, and pro
     assert.equal(response.status, status, await response.clone().text());
     return response.json() as Promise<any>;
   }
-  const project = (await json('/projects', 'POST', { name: 'Account key backend' }, 201)).project;
+  const project = (await json('/projects', 'POST', { name: 'Account key backend', template: 'empty' }, 201)).project;
   const base = `/projects/${project.id}`, table = `/data/${project.id}/tables/notes`;
   await json(`${base}/provision`, 'POST');
   await json(`${base}/migrations`, 'POST', { sequence: 1, name: 'notes', sql: 'CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT);' });
@@ -48,7 +48,7 @@ test('existing account keys authenticate BFF SQL, table data, functions, and pro
   assert.equal((await request(table, 'GET', undefined, { origin: 'https://app.example' })).status, 403, 'Account keys cannot use arbitrary browser origins');
   assert.equal((await request('/projects', 'GET', undefined, { cookie: 'mainbrella_session=owner', authorization: `Bearer mb_${'0'.repeat(64)}` })).status, 401);
   assert.equal((await request('/projects', 'GET', undefined, { authorization: 'Bearer invalid', cookie: 'mainbrella_session=owner' })).status, 401);
-  const strangerProject = (await f.request('/projects', 'POST', { name: 'Other account backend' }, 'stranger').then(response => response.json()) as any).project;
+  const strangerProject = (await f.request('/projects', 'POST', { name: 'Other account backend', template: 'empty' }, 'stranger').then(response => response.json()) as any).project;
   await json(`/projects/${strangerProject.id}`, 'GET', undefined, 404);
   await json(`/data/${strangerProject.id}/tables/notes`, 'GET', undefined, 404);
   const revoked = await f.mf.dispatchFetch(`https://api.mainbrella.com/api-keys?id=${key.id}`, { method: 'DELETE', headers: { cookie: 'mainbrella_session=owner', origin: 'https://mainbrella.com' } });

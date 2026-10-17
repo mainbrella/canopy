@@ -7,6 +7,9 @@ import { handleDataRequest } from './data-routes';
 import { body, enabled, readyProject } from './http';
 import { invokeFunction } from './invocation';
 import { managePolicies } from './policies';
+import { migrate } from './migrations';
+import { installMessageBoard } from './starter';
+import { manageSessions } from './sessions';
 import { statements } from './sql';
 
 const publicProject = ({ id, name, state, suspended, blocked, created_at }: Project) => ({ id, name, state, suspended: !!(suspended || blocked), created_at });
@@ -21,41 +24,15 @@ async function provision(env: Env, project: Project) {
     .bind(lease, now + 60_000, project.id, now).run();
   if (!acquired.meta.changes) throw new BffError('provision_in_progress', 409);
   try {
-    await new ProjectDatabase(env, project).provision();
+    const db = new ProjectDatabase(env, project);
+    await db.provision();
+    if (project.template === 'message_board') await installMessageBoard(env, project, db);
     await env.DB.prepare("UPDATE bff_projects SET state='ready',provision_lease=NULL,provision_until=0 WHERE id=? AND provision_lease=?").bind(project.id, lease).run();
     return publicProject({ ...project, state: 'ready' });
   } catch (error) {
     await env.DB.prepare("UPDATE bff_projects SET state='error',provision_lease=NULL,provision_until=0 WHERE id=? AND provision_lease=?").bind(project.id, lease).run();
     throw error;
   }
-}
-
-async function migrate(db: ProjectDatabase, input: ReturnType<typeof migrationInput.parse>) {
-  const sql = statements(input.sql, true);
-  const hash = await checksum(input.sql);
-  const existing = async () => (await db.query([{ sql: 'SELECT * FROM _bff_migrations WHERE sequence=? OR name=?', params: [input.sequence, input.name] }]))[0].results;
-  const check = (rows: Record<string, unknown>[]) => {
-    if (!rows.length) return false;
-    if (rows.length !== 1 || rows[0].sequence !== input.sequence || rows[0].name !== input.name || rows[0].checksum !== hash) throw new BffError('migration_conflict', 409);
-    return true;
-  };
-  if (check(await existing())) return { applied: false, checksum: hash };
-  try {
-    // CHECK(sequence > 0) aborts the *whole batch* on a stale/out-of-order
-    // sequence. The ledger insert and all DDL/backfills share one D1 transaction.
-    await db.query([
-      { sql: `INSERT INTO _bff_migrations (sequence,name,checksum,sql,applied_at)
-        SELECT CASE WHEN COALESCE(MAX(sequence),0)+1=? THEN ? ELSE 0 END,?,?,?,? FROM _bff_migrations`,
-        params: [input.sequence, input.sequence, input.name, hash, input.sql, new Date().toISOString()] },
-      ...sql.map(statement => ({ sql: statement })),
-    ]);
-  } catch (error) {
-    if (check(await existing())) return { applied: false, checksum: hash };
-    const [latest] = await db.query([{ sql: 'SELECT COALESCE(MAX(sequence),0) AS sequence FROM _bff_migrations' }]);
-    if (input.sequence !== Number(latest.results[0].sequence) + 1) throw new BffError('migration_out_of_order', 409);
-    throw error;
-  }
-  return { applied: true, checksum: hash };
 }
 
 export async function handleBffRequest(request: Request, env: Env): Promise<Response> {
@@ -86,9 +63,9 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       if (previous) return reply({ project: publicProject(previous) });
       const id = crypto.randomUUID(), created = new Date().toISOString();
       try {
-        const inserted = await env.DB.prepare(`INSERT INTO bff_projects(id,user_id,name,created_at)
-          SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM bff_projects WHERE user_id=?) < ?`)
-          .bind(id, user.id, input.name, created, user.id, LIMITS.projects).run();
+        const inserted = await env.DB.prepare(`INSERT INTO bff_projects(id,user_id,name,created_at,template)
+          SELECT ?,?,?,?,? WHERE (SELECT COUNT(*) FROM bff_projects WHERE user_id=?) < ?`)
+          .bind(id, user.id, input.name, created, input.template, user.id, LIMITS.projects).run();
         if (!inserted.meta.changes) throw new BffError('project_limit', 429);
       } catch (error) {
         const duplicate = await env.DB.prepare('SELECT * FROM bff_projects WHERE user_id=? AND name=?').bind(user.id, input.name).first<Project>();
@@ -97,7 +74,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       }
       return reply({ project: { id, name: input.name, state: 'pending', suspended: false, created_at: created } }, 201);
     }
-    const match = /^\/bff\/projects\/([a-f0-9-]{36})(?:\/(schema|query|migrations|functions|executions|usage|provision|api-keys|policies)(?:\/([a-zA-Z0-9_-]{1,63})(?:\/(invoke))?)?)?$/.exec(url.pathname);
+    const match = /^\/bff\/projects\/([a-f0-9-]{36})(?:\/(schema|query|migrations|functions|executions|usage|provision|api-keys|policies|sessions)(?:\/([a-zA-Z0-9_-]{1,63})(?:\/(invoke))?)?)?$/.exec(url.pathname);
     if (!match) throw new BffError('not_found', 404);
     const [, projectId, resource, functionName, invocation] = match;
     const project = await env.DB.prepare('SELECT * FROM bff_projects WHERE id=? AND user_id=?').bind(projectId, user.id).first<Project>();
@@ -110,7 +87,11 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
       await env.DB.prepare('UPDATE bff_projects SET suspended=? WHERE id=? AND user_id=?').bind(Number(input.suspended), projectId, user.id).run();
       return reply({ project: publicProject({ ...project, suspended: Number(input.suspended) }) });
     }
-    if ((functionName && !['functions', 'api-keys', 'policies'].includes(resource)) || (invocation && resource !== 'functions')) throw new BffError('not_found', 404);
+    if ((functionName && !['functions', 'api-keys', 'policies', 'sessions'].includes(resource)) || (invocation && resource !== 'functions')) throw new BffError('not_found', 404);
+    if (resource === 'sessions') {
+      const result = await manageSessions(request, env, project, functionName);
+      return reply(result.data, result.status);
+    }
     if (resource === 'policies') return reply(await managePolicies(request, env, project, functionName));
     if (resource === 'api-keys') {
       if (functionName && !/^[a-f0-9-]{36}$/.test(functionName)) throw new BffError('not_found', 404);

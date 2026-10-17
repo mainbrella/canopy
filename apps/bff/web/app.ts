@@ -1,6 +1,7 @@
 import './app.css';
-import { deferred, navigation, type Execution, type Migration, type Project, type QueryResult, type SavedFunction, type Table } from './app-data.ts';
+import { deferred, navigation, type Execution, type Migration, type Project, type QueryResult, type SavedFunction, type Table, type TablePolicy } from './app-data.ts';
 import { createBffApi } from './api.ts';
+import { createMessageBoardDemo } from './message-board.ts';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
 const formatValue = (value: unknown) => value === null ? 'NULL' : typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -23,6 +24,8 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
   let sql = '', sqlResult: QueryResult | null = null;
   let editingName = '', editingVersion = 0, source = '', access = 'none', input = '{}', functionResult: unknown;
   let activeEditor: Editor | null = null, workspaceError = '';
+  let policies: TablePolicy[] = [], users: Record<string, unknown>[] = [];
+  const demo = createMessageBoardDemo(apiOrigin, api);
   let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
   function hideWorkspace() {
@@ -43,6 +46,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
   const canEdit = () => !!project && project.state === 'ready' && !project.suspended && available;
 
   function clearData() {
+    demo.reset(); policies = []; users = [];
     tables = []; migrations = []; functions = []; executions = []; rows = []; truncated = false;
     usage = { day: '', queries: 0, invocations: 0 }; selectedTable = ''; sql = ''; sqlResult = null;
     editingName = ''; editingVersion = 0; source = ''; input = '{}'; access = 'none'; functionResult = undefined; workspaceError = '';
@@ -65,7 +69,18 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     return heading('Project overview', project ? project.name : 'No projects yet.') +
       `<dl class="bff-metrics">${[['Tables', tables.length], [truncated ? 'Rows (first 50 tables)' : 'Rows', tables.reduce((sum, item) => sum + item.count, 0)], [migrations.length === 100 ? 'Migrations (latest 100)' : 'Migrations', migrations.length], ['Functions', functions.length]].map(([label, value]) => `<div><dt>${label}${label === 'Tables' && truncated ? ' (first 50)' : ''}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>` +
       (project ? `<dl class="bff-detail-list"><div><dt>Project ID</dt><dd><code>${escape(project.id)}</code></dd></div><div><dt>Status</dt><dd>${project.suspended ? 'Paused' : escape(project.state)}</dd></div></dl>` : button('Create project', 'create-project', '', true, !available)) +
+      (migrations.some(item => item.name === 'message_board') ? `<div class="bff-toolbar">${button('Try message board and row permissions', 'open-permissions')}</div>` : '') +
       `<section class="bff-section"><h3>Recent function executions</h3>${executionTable()}</section>`;
+  }
+  function permissions() {
+    return heading('Permissions', 'Public reads and ownership rules are enforced by the Data API and function database calls.') +
+      table(['Table', 'Read', 'Insert', 'Update', 'Delete', 'Ownership column'], policies.map(policy => [escape(policy.table), policy.select === 'public' ? 'Everyone' : 'Denied',
+        ...[policy.insert, policy.update, policy.delete].map(value => value === 'own' ? 'Own rows' : 'Denied'), escape(policy.ownerColumn || '—')]), 'Table permissions', 'No table policies. Browser access is denied.') +
+      (migrations.some(item => item.name === 'message_board') ? demo.render(button, table, busy || !canEdit()) : '');
+  }
+  function authentication() {
+    return heading('Authentication', 'Project users. The owner can issue one-hour demo sessions through the API; public signup and password login are not configured.') +
+      table(['User ID', 'Name', 'Created'], users.map(user => [escape(user.id), escape(user.name), escape(user.created_at)]), 'Application users', 'No application users.');
   }
   function database() {
     const rowCount = tables.reduce((sum, item) => sum + item.count, 0);
@@ -104,7 +119,7 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     el<HTMLButtonElement>('bff-create-project').disabled = busy || !available;
     el<HTMLButtonElement>('bff-project-picker').disabled = busy || !projects.length;
     const renderers: Record<string, () => string> = {
-      overview, database, sql: sqlEditor, functions: functionView, logs: () => heading('Logs', 'Most recent 100 function executions. Inputs and results are not stored.') + executionTable(), settings,
+      overview, database, permissions, auth: authentication, sql: sqlEditor, functions: functionView, logs: () => heading('Logs', 'Most recent 100 function executions. Inputs and results are not stored.') + executionTable(), settings,
       usage: () => heading('Usage', usage.day ? `${usage.day} · UTC` : 'No usage yet.') + table(['Resource', 'Used today', 'Daily limit'], [['Database statements', String(usage.queries), '10,000'], ['Function invocations', String(usage.invocations), '1,000']], 'Daily usage'),
     };
     const unavailable = deferred[section];
@@ -126,17 +141,22 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (token !== generation) return;
     project = latest.project; projects = projects.map(item => item.id === project!.id ? project! : item);
     if (!canEdit()) {
-      tables = []; rows = []; migrations = []; functions = [];
+      tables = []; rows = []; migrations = []; functions = []; policies = []; users = []; demo.reset();
       const [logs, counts] = await Promise.all([api<{ executions: Execution[] }>(`${base}/executions`), api<typeof usage>(`${base}/usage`)]);
       if (token === generation) { executions = logs.executions; usage = counts; }
       return;
     }
-    const [schema, history, saved, logs] = await Promise.all([
+    const [schema, history, saved, logs, rules] = await Promise.all([
       api<{ tables: Table[]; truncated: boolean }>(`${base}/schema`), api<{ migrations: Migration[] }>(`${base}/migrations`),
       api<{ functions: SavedFunction[] }>(`${base}/functions`), api<{ executions: Execution[] }>(`${base}/executions`),
+      api<{ policies: TablePolicy[] }>(`${base}/policies`),
     ]);
     if (token !== generation) return;
     tables = schema.tables; truncated = schema.truncated; migrations = history.migrations; functions = saved.functions; executions = logs.executions;
+    policies = rules.policies; users = [];
+    if (tables.some(item => item.name === 'users' && ['id', 'name', 'created_at'].every(name => item.columns.some(column => column.name === name)))) {
+      users = (await api<{ result: QueryResult }>(`${base}/query`, 'POST', { sql: 'SELECT id,name,created_at FROM users LIMIT 100' })).result.results;
+    }
     if (!tables.some(item => item.name === selectedTable)) selectedTable = tables[0]?.name || '';
     await loadRows(token);
     if (token === generation) usage = await api<typeof usage>(`${base}/usage`);
@@ -164,6 +184,14 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (name === 'close-dialog') { if (!busy) dialog.close(); return; }
     if (busy || !authenticated) return;
     if (name === 'tab') { tab = value; render(); return; }
+    if (name === 'open-permissions') { location.hash = 'permissions'; return; }
+    if (name === 'demo-edit') { demo.edit(value); render(); el('bff-demo-body').focus(); return; }
+    if (name === 'demo-cancel') { demo.cancelEdit(); render(); return; }
+    if (name === 'demo-delete') {
+      editor({ title: 'Delete message?', fields: [], submit: 'Delete message', async save() {
+        await demo.remove(value); dialog.close();
+      } }); return;
+    }
     if (name === 'create-project') {
       editor({ title: 'Create project', fields: [{ name: 'name', label: 'Project name' }], submit: 'Create project', async save(values) {
         const response = await api<{ project: Project }>('/projects', 'POST', values);
@@ -215,6 +243,10 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (!project) return;
     await work(async () => {
       switch (name) {
+        case 'demo-start': await demo.start(project!.id); break;
+        case 'demo-stop': await demo.stop(); break;
+        case 'demo-refresh': await demo.load(); break;
+        case 'demo-submit': await demo.submit(); break;
         case 'refresh': await refresh(); break;
         case 'provision': project = (await api<{ project: Project }>(path('/provision'), 'POST')).project; await refresh(); break;
         case 'run-sql': {
@@ -264,11 +296,13 @@ export function initializeBff({ readSession, apiOrigin }: { readSession: () => P
     if (target.id === 'bff-sql') { sql = target.value; sqlResult = null; view.querySelector<HTMLButtonElement>('[data-action="run-sql"]')!.disabled = busy || !canEdit() || !sql.trim(); }
     if (target.id === 'bff-function-source') source = target.value;
     if (target.id === 'bff-function-input') input = target.value;
+    if (target.id === 'bff-demo-body') demo.setDraft(target.value);
   });
   view.addEventListener('change', event => {
     const target = event.target as HTMLSelectElement;
     if (target.id === 'bff-table-select') { selectedTable = target.value; void work(() => loadRows()); }
     if (target.id === 'bff-function-access') access = target.value;
+    if (target.id === 'bff-demo-user') void work(() => demo.switchUser(target.value));
   });
   nav.addEventListener('change', event => { const target = event.target as HTMLSelectElement; if (target.id === 'bff-section-select') location.hash = target.value; });
   function navigate() {

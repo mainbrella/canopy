@@ -1,27 +1,31 @@
 # BFF v0.0.1
 
 An owner-managed SQLite backend with isolated JavaScript functions. The workspace
-at `/bff/app/` starts with zero projects, tables, rows, migrations, functions, and
-executions. Nothing is seeded. Data persists after reload. The landing page’s
-broader SDK examples remain illustrative.
+at `/bff/app/` starts with no projects. Creating a project provisions a dedicated
+D1 database with a message-board starter: `users`, `messages`, Alice and Bob,
+two sample posts, four functions, and row ownership policies. Data persists after
+reload. Existing projects are unchanged; API callers can request
+`{ "name": "My backend", "template": "empty" }` for a database without the starter.
 
-The first release includes project creation, dedicated D1 provisioning, table and
-schema inspection, a SQL editor, ordered migrations, immutable function versions,
-function invocation, execution metadata, daily budgets, and project pause/resume.
-Existing navigation stays in place; authentication for application users, per-user
-row policies, storage, realtime, automations, notifications, search, payments,
-templates, backup management, client SDKs, staging environments,
-and project deletion are deferred. Their screens have empty states and no
-simulated actions. Management APIs accept the project owner’s Mainbrella session
-or existing account API key from `/api-keys/`, using the same authentication as Linux.
-External browser apps can use scoped project keys for anonymous reads of tables
-with an explicit public SELECT policy and published function versions through the Data API.
+The workspace includes schema inspection, SQL, ordered migrations, immutable
+function versions, execution metadata, daily budgets, pause/resume, and table
+permissions. In **Permissions**, start the message board demo and switch between
+Alice and Bob. Both can read all messages; posting uses the current user, and
+editing or deleting another user's message affects zero rows. The demo uses a
+scoped browser key and a real user session on the Data API. End the demo to revoke
+both credentials; switching projects or signing out also attempts cleanup.
+
+Management APIs accept the project owner's Mainbrella session or account API key
+from `/api-keys/`. Application user sessions are issued by the owner for testing;
+public signup and password login are not included. Storage, realtime, automations,
+notifications, search, payments, backup management, client SDKs, staging environments,
+and project deletion remain deferred. The landing page's SDK examples are illustrative.
 
 ## Setup
 
 1. Apply the backend’s pending migrations, including `050_bff.sql`,
-   `051_bff_api_keys.sql`, `052_bff_shared_api_keys.sql`, and
-   `053_bff_table_policies.sql`, using the normal migration
+   `051_bff_api_keys.sql`, `052_bff_shared_api_keys.sql`,
+   `053_bff_table_policies.sql`, and `054_bff_message_board.sql`, using the normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
@@ -33,8 +37,8 @@ with an explicit public SELECT policy and published function versions through th
    `BFF_ENABLED=true`. Staging defaults to disabled and needs its own credentials
    and explicit enablement. Missing credentials or loader fail closed.
 4. Run `npm run dev:backend` and `npm run dev:web`, sign in, and open `/bff/app/`.
-   Create a project, apply a migration, insert rows or run SQL, then save and run
-   a function. Local provisioning creates **real remote D1 databases** using the
+   Create a project and open Permissions to try the message board. You can also
+   apply migrations, run SQL, and save or invoke functions. Local provisioning creates **real remote D1 databases** using the
    configured account; there is no in-memory development substitute in the app.
 
 Configure your Wrangler login and BFF secrets once from the repository root:
@@ -87,8 +91,14 @@ the database UUID; it is never accepted from the browser or customer code.
 
 `050_bff.sql` adds only control-plane tables to the host’s `DB`: projects, function
 source versions, daily usage, execution metadata, and a database deletion outbox. Every project has a separate
-D1 database. Its sole initial table is the hidden `_bff_migrations` ledger; there
-are no application tables or data. The trusted gateway accesses customer D1 via
+D1 database. Provisioning installs the hidden `_bff_migrations` ledger and, by
+default, migration 1 (`message_board`). The starter creates public user profiles
+(`id`, `name`, `created_at`) and messages (`id`, `user_id`, `body`, `created_at`).
+Message IDs and timestamps have database defaults; bodies must contain 1–2000
+characters. The next application migration is sequence 2. An explicitly empty
+project starts with only the ledger and its first migration is sequence 1.
+Starter provisioning is retryable and never overwrites committed seed data,
+policies, or function versions. The trusted gateway accesses customer D1 via
 Cloudflare’s account API, so it can provision databases without redeploying static
 bindings. Account credentials remain in the gateway.
 
@@ -215,8 +225,9 @@ and budgets still apply. An explicit invalid Bearer credential never falls back
 to a browser session. Account keys are powerful server credentials; public
 browser apps should use scoped keys.
 
-All tables deny anonymous access by default, including tables with existing
-browser key grants. For an existing table, explicitly allow public reads using
+Tables without an explicit policy deny browser access, including tables with
+existing browser key grants. The starter explicitly enables reads of `users` and
+`messages`. For an existing table, explicitly allow public reads using
 the owner API before creating or using its browser key:
 
 ```sh
@@ -228,16 +239,19 @@ curl -X PUT "https://api.mainbrella.com/bff/projects/$PROJECT_ID/policies/notes"
 
 Both a `select` key grant and a `select: public` table policy are required.
 `GET /bff/projects/{id}/policies` lists policies. `PUT .../policies/{table}` accepts
-`{ "select": "public" }` or `{ "select": "none" }` for an existing table, with
+`{ "select": "public" }` or `{ "select": "none" }`, plus optional `insert`,
+`update`, and `delete` (`none` or `own`, default `none`) and `ownerColumn`.
+Any `own` operation requires an existing ownership column. There are
 at most 100 policies per project. `DELETE .../policies/{table}` revokes public
 access and is idempotent. Listing and revocation remain available while paused
 or BFF is disabled. Policies are keyed by table name and cover all rows and
 columns, including data/columns added later. Deleting a project deletes its policies.
 
 Published functions invoked with a browser key receive an anonymous database
-capability. Every call checks the live key's table grant and current table policy.
-They cannot read private tables or write, even if the saved function has `write`
-database access or the key has a legacy write grant. Owner-authenticated
+capability unless a valid project user session is also supplied. Every call checks the live key's table grant and current table policy.
+Anonymous callers cannot read private tables or write, even if the saved function
+has `write` database access or the key has a legacy write grant. Authenticated
+application users can write only where an own-row policy and key grant allow it. Owner-authenticated
 invocations retain administrative database capabilities. Revoking a policy or key
 blocks subsequent database calls, including calls from a running function; it
 does not cancel provider requests already in flight.
@@ -317,9 +331,9 @@ control, not a substitute for the key's permissions.
 | Endpoint | Access | Body / query |
 | --- | --- | --- |
 | `GET /bff/data/{id}/tables/{table}` | Owner, or public SELECT policy + `select` key grant | Optional `select`, `limit`, `offset`, `order`, and column filters |
-| `POST /bff/data/{id}/tables/{table}` | Owner account key | One JSON row; no query parameters |
-| `PATCH /bff/data/{id}/tables/{table}?id=eq.one` | Owner account key | JSON object of changed columns; at least one filter |
-| `DELETE /bff/data/{id}/tables/{table}?id=eq.one` | Owner account key | At least one filter |
+| `POST /bff/data/{id}/tables/{table}` | Owner, or user session + key grant + own-row policy | One JSON row; no query parameters |
+| `PATCH /bff/data/{id}/tables/{table}?id=eq.one` | Owner, or user session + key grant + own-row policy | JSON object of changed columns; at least one filter |
+| `DELETE /bff/data/{id}/tables/{table}?id=eq.one` | Owner, or user session + key grant + own-row policy | At least one filter |
 
 Table responses are `{ data: [...], meta: {...} }`; insertion returns 201. Insert
 and update return the affected rows. Delete returns empty `data` and an affected
@@ -332,16 +346,72 @@ when paginating. Duplicate parameters, SQL expressions, joins, and other filter
 operators are rejected. Row and function request bodies are limited to 64 KiB;
 table results use the existing 2 MiB provider-response bound.
 
-Anonymous policy enforcement currently supports public SELECT or no access.
-Per-user authentication, user-specific row predicates, and public write policies
-are not implemented. Public-read policies expose **every row and column** to
-anyone holding an authorized browser key; use them only for deliberately public
-data. Function inputs are untrusted and provide no authenticated end-user identity.
+Anonymous access supports public SELECT or no access. Public-read policies expose
+**every row and column** to anyone holding an authorized browser key; use them for
+public data. Own-row write policies compare `ownerColumn` with a trusted session
+identity. Raw function input and client filters cannot supply that identity.
+
 Function grants pin immutable versions, so saving a new version does not change
 what an existing key runs. Create a replacement key to change grants or origins.
 Keys cannot use the owner SQL, schema, migration, provisioning, or function-source
 APIs. Raw SQL stays in the owner SQL editor/API. This is a limited Supabase-style
 REST surface, not full PostgREST or Supabase SDK compatibility.
+
+## Message board user sessions
+
+An owner can issue a one-hour session for a row in the project's `users` table:
+
+```js
+// Trusted server or signed-in owner; never expose the account key to an app.
+const { session, token: userToken } = await fetch(
+  `${api}/bff/projects/${projectId}/sessions`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accountKey}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'alice' }),
+  },
+).then(response => response.json());
+```
+
+The token is returned once; only its SHA-256 hash is stored. `GET .../sessions`
+lists active session metadata; `DELETE .../sessions/{sessionId}` revokes a session.
+There are at most 100 active sessions per project. Listing and revocation work
+while paused or disabled. Deleting a project cascades its sessions. These are
+owner-issued demo identities, not a public login endpoint.
+
+Create a scoped browser key granting `users: ['select']` and
+`messages: ['select', 'insert', 'update', 'delete']`, with your app's exact origin.
+Use the browser key and user session together:
+
+```js
+const base = `${api}/bff/data/${projectId}`;
+const headers = {
+  apikey: publicKey,
+  authorization: `Bearer ${userToken}`,
+  'content-type': 'application/json',
+};
+await fetch(`${base}/tables/messages`, {
+  method: 'POST', headers, body: JSON.stringify({ body: 'Hello from Alice' }),
+}); // user_id is filled from the authenticated session
+await fetch(`${base}/tables/messages?id=eq.welcome`, {
+  method: 'PATCH', headers, body: JSON.stringify({ body: 'Edited by Alice' }),
+});
+await fetch(`${base}/tables/messages?id=eq.welcome`, { method: 'DELETE', headers });
+```
+
+An explicit different `user_id` or ownership transfer returns 403. UPDATE and
+DELETE append the ownership predicate to the original filters atomically; a
+request targeting another user's row succeeds with no affected rows. Missing
+filters are rejected. Key grants and live policies apply in addition to the user
+session, including inside functions. Expired, revoked, cross-project, or deleted-user
+sessions are rejected; a failed user credential never falls back to anonymous access.
+Revocation blocks subsequent calls but does not cancel provider queries already in flight.
+
+The starter publishes `list_messages`, `post_message`, `edit_message`, and
+`delete_message` at version 1. Grant these versions in the browser key to invoke
+them. They receive the verified identity as `ctx.user.id` and access tables through
+the same policy enforcement as direct requests. `ctx.user` is null for anonymous
+and owner invocations; use a user session for the three writing functions. Owner
+SQL and owner database capabilities retain administrative access.
 
 ## Budgets and operations
 
@@ -369,7 +439,7 @@ provisioning and continues even when BFF is disabled. Keep the D1 token configur
 until the deletion outbox is empty. Revoked credentials retain pending cleanup
 records for retry; they do not silently discard resource identifiers.
 
-Application-user authorization, billing, automatic abuse detection, and production qualification
+Public application-user signup/login, billing, automatic abuse detection, and production qualification
 of account quotas are separate release work. Treat the fixed budgets as resource
 limits, not billing controls.
 
@@ -380,11 +450,11 @@ composes its existing page and browser exports. Endpoints live under `/bff`:
 `config`, `projects`, and `projects/{id}/{provision,schema,query,migrations,functions,executions,usage}`.
 Functions add `/{name}` and `/{name}/invoke`. Project PATCH pauses/resumes it.
 Projects also expose owner-managed `api-keys`, `api-keys/{keyId}`, `policies`, and
-`policies/{table}`. The separate
+`policies/{table}`, plus `sessions` and `sessions/{sessionId}`. The separate
 browser Data API lives under `/bff/data/{projectId}` with `tables/{table}` and
 `functions/{functionName}/invoke`. Both entry points use the same project budgets,
 pause/block checks, and function runtime. The generated API document describes
-request and response schemas and the cookie, account-key, and scoped-key authentication schemes.
+request and response schemas and the cookie, account-key, scoped-key, and project-user session authentication schemes.
 
 Run `npm test -w @canopy/bff`, `npm run type-check -w @canopy/bff`,
 `npm run test:openapi -w @canopy/backend`, `npm run type-check -w @canopy/backend`,

@@ -12,6 +12,7 @@ const endpointMethods: Record<string, string[]> = {
   '/bff/projects/{projectId}/functions/{functionName}/invoke': ['post'],
   '/bff/projects/{projectId}/executions': ['get'], '/bff/projects/{projectId}/usage': ['get'],
   '/bff/projects/{projectId}/api-keys': ['get', 'post'], '/bff/projects/{projectId}/api-keys/{keyId}': ['delete'],
+  '/bff/projects/{projectId}/sessions': ['get', 'post'], '/bff/projects/{projectId}/sessions/{sessionId}': ['delete'],
   '/bff/projects/{projectId}/policies': ['get'], '/bff/projects/{projectId}/policies/{table}': ['put', 'delete'],
   '/bff/data/{projectId}/tables/{table}': ['get', 'post', 'patch', 'delete'],
   '/bff/data/{projectId}/functions/{functionName}/invoke': ['post'],
@@ -111,8 +112,9 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   const { paths, components } = await document();
   const table = paths['/bff/data/{projectId}/tables/{table}'];
   for (const method of ['get', 'post', 'patch', 'delete']) {
-    assert.deepEqual(table[method].security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }]);
-    assert.match(table[method].description, /per-user row policies are not implemented/);
+    assert.deepEqual(table[method].security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }, { bffApiKey: [], bffUserSession: [] }]);
+    assert.match(table[method].description, /ownership predicate/);
+    assert.match(table[method].description, /bff_us_/);
     assert.match(table[method].description, /select=public/);
   }
   assert.equal(components.securitySchemes.bffApiKey.name, 'apikey');
@@ -122,11 +124,14 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   assert.deepEqual(paths['/bff/projects/{projectId}/api-keys'].post.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
   assert.deepEqual(paths['/bff/projects/{projectId}/query'].post.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
   const invoke = paths['/bff/data/{projectId}/functions/{functionName}/invoke'].post;
-  assert.deepEqual(invoke.security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }]);
+  assert.deepEqual(invoke.security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }, { bffApiKey: [], bffUserSession: [] }]);
   assert.equal(invoke.requestBody.content['application/json'].schema.properties.version, undefined);
   const policy = paths['/bff/projects/{projectId}/policies/{table}'];
   assert.deepEqual(policy.put.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
   assert.deepEqual(policy.put.requestBody.content['application/json'].schema.properties.select.enum, ['none', 'public']);
+  assert.deepEqual(policy.put.requestBody.content['application/json'].schema.properties.update.enum, ['none', 'own']);
+  assert.equal(paths['/bff/projects'].post.requestBody.content['application/json'].schema.properties.template.default, 'message_board');
+  assert.ok(paths['/bff/projects/{projectId}/sessions'].post.responses['201']);
   assert.ok(policy.delete.responses['200']);
 });
 

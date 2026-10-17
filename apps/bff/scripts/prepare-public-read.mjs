@@ -21,7 +21,7 @@ export async function preparePublicRead({
     if (!response.ok) throw new Error(`BFF setup failed (${response.status}): ${result.error || 'request_failed'}`);
     return result;
   }
-  const { project } = await owner('/projects', 'POST', { name: projectName });
+  const { project } = await owner('/projects', 'POST', { name: projectName, template: 'empty' });
   const base = `/projects/${project.id}`;
   await owner(`${base}/provision`, 'POST');
   await owner(`${base}/migrations`, 'POST', {

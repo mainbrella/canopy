@@ -5,7 +5,7 @@ import { runtime } from './system-test-helpers';
 
 test('public SELECT policies deny by default and apply to direct reads and every function database call', { timeout: 30_000 }, async t => {
   const f = await runtime(t);
-  const project = (await f.json('/projects', 'POST', { name: 'Public read example' }, 201)).project;
+  const project = (await f.json('/projects', 'POST', { name: 'Public read example', template: 'empty' }, 201)).project;
   const base = `/projects/${project.id}`, data = `/data/${project.id}`;
   await f.json(`${base}/provision`, 'POST');
   await f.json(`${base}/migrations`, 'POST', { sequence: 1, name: 'example', sql: "CREATE TABLE products(id TEXT PRIMARY KEY, name TEXT); INSERT INTO products VALUES('one','Coffee'),('two','Tea'); CREATE TABLE private_notes(secret TEXT); INSERT INTO private_notes VALUES('private'); CREATE TABLE spare(id TEXT);" });
@@ -75,7 +75,7 @@ test('public SELECT policies deny by default and apply to direct reads and every
   // A public table still needs a key grant; policy cannot widen a restricted key.
   await f.json(`${base}/policies/spare`, 'PUT', { select: 'public' });
   await browser('/tables/spare', 'GET', undefined, 403);
-  for (let i = 0; i < LIMITS.tablePolicies - 1; i++) await f.db.prepare("INSERT INTO bff_table_policies VALUES(?,?,'none',?)").bind(project.id, `policy${i}`, new Date().toISOString()).run();
+  for (let i = 0; i < LIMITS.tablePolicies - 1; i++) await f.db.prepare("INSERT INTO bff_table_policies(project_id,table_name,select_access,updated_at) VALUES(?,?,'none',?)").bind(project.id, `policy${i}`, new Date().toISOString()).run();
   await f.json(`${base}/policies/products`, 'PUT', { select: 'public' }, 429);
   await f.json(`${base}/policies/spare`, 'PUT', { select: 'none' });
   await f.db.prepare("DELETE FROM users WHERE id='owner'").run();

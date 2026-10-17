@@ -10,7 +10,7 @@ export const LIMITS = {
 } as const;
 export const nameInput = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/);
 export const scalar = z.union([z.string().max(16_384), z.number().finite(), z.null()]);
-export const projectInput = z.object({ name: z.string().trim().min(1).max(80) }).strict();
+export const projectInput = z.object({ name: z.string().trim().min(1).max(80), template: z.enum(['message_board', 'empty']).default('message_board') }).strict();
 export const projectPatch = z.object({ suspended: z.boolean() }).strict();
 export const queryInput = z.object({ sql: z.string().min(1).max(LIMITS.sqlBytes), params: z.array(scalar).max(100).default([]) }).strict();
 export const migrationInput = z.object({
@@ -26,9 +26,17 @@ export const invokeInput = z.object({ input: z.json(), version: z.number().int()
 export const filterInput = z.record(nameInput, scalar).refine(value => Object.keys(value).length <= 50);
 export const tableNameInput = nameInput.refine(name => !/^sqlite_/i.test(name));
 export const tableOperation = z.enum(['select', 'insert', 'update', 'delete']);
-export const tablePolicyInput = z.object({ select: z.enum(['none', 'public']) }).strict();
-export type TablePolicy = { table: string; select: 'none' | 'public'; updated_at: string };
-export type DatabasePrincipal = { role: 'owner' } | { role: 'anon'; keyId: string };
+export const tablePolicyInput = z.object({
+  select: z.enum(['none', 'public']),
+  insert: z.enum(['none', 'own']).default('none'),
+  update: z.enum(['none', 'own']).default('none'),
+  delete: z.enum(['none', 'own']).default('none'),
+  ownerColumn: tableNameInput.nullable().default(null),
+}).strict().refine(value => ![value.insert, value.update, value.delete].includes('own') || value.ownerColumn !== null);
+export type TablePolicy = z.infer<typeof tablePolicyInput> & { table: string; updated_at: string };
+export const sessionInput = z.object({ userId: z.string().min(1).max(128) }).strict();
+export type DatabasePrincipal = { role: 'owner' } | { role: 'anon'; keyId: string }
+  | { role: 'user'; keyId: string; userId: string; sessionId: string };
 export const apiKeyInput = z.object({
   name: z.string().trim().min(1).max(80),
   origins: z.array(z.string().max(2048).refine(value => {
@@ -66,6 +74,7 @@ export async function checksum(source: string): Promise<string> {
 export type Project = {
   id: string; user_id: string; name: string; database_id: string | null;
   state: 'pending' | 'ready' | 'error'; suspended: number; blocked: number; created_at: string;
+  template: 'message_board' | 'empty' | null;
 };
 export type FunctionVersion = {
   project_id: string; name: string; version: number; source: string; checksum: string;

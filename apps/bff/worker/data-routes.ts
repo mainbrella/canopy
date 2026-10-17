@@ -1,13 +1,13 @@
 import { authCorsHeaders, authJson } from '../../backend/worker/app/auth-core';
 import { apiKeyIdentity, recordApiKeyUse } from '../../backend/worker/app/api-keys';
 import { publicApiKey } from './api-keys';
-import { BffError, clientInvokeInput, LIMITS, parse, type ApiKeyRecord, type FunctionVersion, type Project, type SqlQuery } from './contracts';
+import { BffError, checksum, clientInvokeInput, LIMITS, parse, type ApiKeyRecord, type DatabasePrincipal, type FunctionVersion, type Project } from './contracts';
 import { ProjectDatabase } from './database';
 import { body, enabled, readyProject } from './http';
 import { invokeFunction } from './invocation';
-import { authorizeTable } from './policies';
+import { authorizedQuery } from './policies';
 import { identifier } from './sql';
-import { deleteQuery, insertQuery, selectQuery, tableParameters, updateQuery } from './table-queries';
+import { tableParameters } from './table-queries';
 
 export async function handleDataRequest(request: Request, env: Env): Promise<Response> {
   const cors: Record<string, string> = { vary: 'Origin' };
@@ -38,10 +38,12 @@ export async function handleDataRequest(request: Request, env: Env): Promise<Res
     }
     if (!methods.includes(request.method)) throw new BffError('method_not_allowed', 405);
     const authorization = request.headers.get('authorization');
-    const bearer = authorization ? /^Bearer ((?:mb_|bff_pk_)[a-f0-9]{64})$/i.exec(authorization)?.[1] : undefined;
+    const bearer = authorization ? /^Bearer ((?:mb_|bff_pk_|bff_us_)[a-f0-9]{64})$/i.exec(authorization)?.[1] : undefined;
     const apiKey = request.headers.get('apikey');
-    if ((authorization && !bearer) || (bearer && apiKey && bearer !== apiKey)) throw new BffError('unauthorized', 401);
-    const token = bearer || apiKey;
+    const sessionToken = bearer?.startsWith('bff_us_') ? bearer : undefined;
+    if ((authorization && !bearer) || (!sessionToken && bearer && apiKey && bearer !== apiKey)
+      || (sessionToken && !apiKey?.startsWith('bff_pk_'))) throw new BffError('unauthorized', 401);
+    const token = sessionToken ? apiKey : bearer || apiKey;
     if (!token) throw new BffError('unauthorized', 401);
     const identity = await apiKeyIdentity(env, token);
     if (!identity) throw new BffError('unauthorized', 401);
@@ -54,6 +56,13 @@ export async function handleDataRequest(request: Request, env: Env): Promise<Res
     const project = await env.DB.prepare('SELECT * FROM bff_projects WHERE id=? AND user_id=?').bind(projectId, identity.id).first<Project>();
     if (!project) throw new BffError('not_found', 404);
     readyProject(env, project);
+    let principal: DatabasePrincipal = key ? { role: 'anon', keyId: key.id } : { role: 'owner' };
+    if (sessionToken && key) {
+      const session = await env.DB.prepare('SELECT id,user_id FROM bff_user_sessions WHERE project_id=? AND token_hash=? AND expires_at>?')
+        .bind(projectId, await checksum(sessionToken), new Date().toISOString()).first<{ id: string; user_id: string }>();
+      if (!session) throw new BffError('unauthorized', 401);
+      principal = { role: 'user', keyId: key.id, userId: session.user_id, sessionId: session.id };
+    }
     await recordApiKeyUse(env, identity.key_id);
     if (resource === 'functions') {
       if (key && !Object.hasOwn(key.functions, name)) throw new BffError('permission_denied', 403);
@@ -62,19 +71,14 @@ export async function handleDataRequest(request: Request, env: Env): Promise<Res
       const fn = await env.DB.prepare(`SELECT * FROM bff_function_versions WHERE project_id=? AND name=? ${key ? 'AND version=?' : ''} ORDER BY version DESC LIMIT 1`)
         .bind(projectId, name, ...(key ? [key.functions[name]] : [])).first<FunctionVersion>();
       if (!fn) throw new BffError('not_found', 404);
-      return reply(await invokeFunction(env, project, fn, input.input, key ? { role: 'anon', keyId: key.id } : { role: 'owner' }));
+      return reply(await invokeFunction(env, project, fn, input.input, principal));
     }
     const operation = { GET: 'select', POST: 'insert', PATCH: 'update', DELETE: 'delete' }[request.method] as 'select' | 'insert' | 'update' | 'delete';
     if (key && (!Object.hasOwn(key.tables, name) || !key.tables[name].includes(operation))) throw new BffError('permission_denied', 403);
-    await authorizeTable(env, project, key ? { role: 'anon', keyId: key.id } : { role: 'owner' }, name, operation);
     const query = tableParameters(url.searchParams, request.method === 'GET');
-    let compiled: SqlQuery;
-    if (request.method === 'GET') compiled = selectQuery(name, query.filters, query.limit, query.offset, query.select, query.order);
-    else if (request.method === 'DELETE') compiled = deleteQuery(name, query.filters);
-    else if (request.method === 'POST') {
-      if (url.search) throw new BffError('invalid_request');
-      compiled = insertQuery(name, await body(request, LIMITS.inputBytes));
-    } else compiled = updateQuery(name, query.filters, await body(request, LIMITS.inputBytes));
+    if (request.method === 'POST' && url.search) throw new BffError('invalid_request');
+    const row = ['POST', 'PATCH'].includes(request.method) ? await body(request, LIMITS.inputBytes) : undefined;
+    const compiled = await authorizedQuery(env, project, principal, name, operation, { ...query, row });
     const [result] = await new ProjectDatabase(env, project).query([compiled]);
     return reply({ data: result.results, meta: result.meta ?? {} }, request.method === 'POST' ? 201 : 200);
   } catch (error) {
