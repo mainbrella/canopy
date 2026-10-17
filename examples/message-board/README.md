@@ -33,8 +33,13 @@ the fixed public demo project or users must also match that backend allowlist.
 
 **+ Create new Board** below **My messages** opens a modal for a required name
 (up to 80 characters) and an optional description (up to 2000 characters).
-Creating a board inserts its name, description, generated unique slug, and the
-signed-in user's `user_id` into `boards`. New boards appear in the message
+Creating a board inserts its name, description, slug, and the signed-in user's
+`user_id` into `boards`. Slugs are the trimmed name lowercased with whitespace
+replaced by hyphens, for example `Product Plans` becomes `product-plans`.
+Names must produce a slug containing only `a–z`, numbers, and hyphens, starting
+and ending with a letter or number. The database enforces unique slugs;
+duplicates return an error without adding a suffix or retrying.
+New boards appear in the message
 composer the next time it opens. Failed requests preserve the form for retry.
 
 Configure the example's schema and board permissions with the Canopy CLI. From

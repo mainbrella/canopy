@@ -13,10 +13,10 @@ const alice: DemoSession = { token: `bff_us_${'a'.repeat(64)}`, session: {
 const bob: DemoSession = { token: `bff_us_${'b'.repeat(64)}`, session: { ...alice.session, id: 'bob-session', user_id: 'bob' } };
 const general: Board = { id: 'general', slug: 'general', name: 'General', description: 'General discussion.', created_at: rows[0].created_at };
 
-test('board creation inserts trimmed fields and the logged-in owner, with valid distinct slugs', async () => {
-  const slugs = new Set<string>();
+test('board creation inserts trimmed fields and the logged-in owner, with slugs derived only from the name', async () => {
   for (const session of [alice, bob]) {
-    for (const name of ['  Café & plans  ', '会議', 'a'.repeat(80), 'Café & plans']) {
+    for (const [name, slug] of [['  Product Plans  ', 'product-plans'], ['Release   Notes', 'release-notes'],
+      ['Web-Dev 2026', 'web-dev-2026'], ['a'.repeat(80), 'a'.repeat(80)]]) {
       const api = createDemoApi(liveBoardConfig, async (input, init) => {
         assert.ok(String(input).endsWith('/tables/boards'));
         assert.equal(init?.method, 'POST');
@@ -29,10 +29,7 @@ test('board creation inserts trimmed fields and the logged-in owner, with valid 
         assert.equal(data.name, name.trim());
         assert.equal(data.description, 'Discuss plans.');
         assert.equal(data.user_id, session.session.user_id);
-        assert.match(data.slug, /^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/);
-        assert.ok(data.slug.length <= 80);
-        assert.ok(!slugs.has(data.slug));
-        slugs.add(data.slug);
+        assert.equal(data.slug, slug);
         return Response.json({ data: [{ ...general, ...data, id: 'new-board' }] }, { status: 201 });
       });
       const created = await api.createBoard(session, name, '  Discuss plans.  ');
@@ -42,10 +39,25 @@ test('board creation inserts trimmed fields and the logged-in owner, with valid 
   }
 });
 
+test('duplicate board slugs return the database error without appending a suffix or retrying', async () => {
+  let inserts = 0;
+  const api = createDemoApi(liveBoardConfig, async (_input, init) => {
+    inserts++;
+    assert.equal(JSON.parse(String(init?.body)).slug, 'general');
+    return Response.json({ error: 'database_query_failed' }, { status: 502 });
+  });
+  await assert.rejects(api.createBoard(alice, 'General', ''), error =>
+    error instanceof DemoApiError && error.message === 'database_query_failed' && error.status === 502);
+  assert.equal(inserts, 1);
+});
+
 test('board creation validates limits and confirms the inserted row and its owner', async () => {
   const noRequest = createDemoApi(liveBoardConfig, async () => { throw new Error('Invalid input must not make a request'); });
   for (const name of [' \n ', 'x'.repeat(81)]) {
     await assert.rejects(noRequest.createBoard(alice, name, ''), /board name of 1–80/);
+  }
+  for (const name of ['Café & plans', '会議', '-leading', 'trailing-', 'has/slash']) {
+    await assert.rejects(noRequest.createBoard(alice, name, ''), /Use letters/);
   }
   await assert.rejects(noRequest.createBoard(alice, 'Valid', 'x'.repeat(2001)), /at most 2000/);
   for (const description of ['', 'x'.repeat(2000)]) {

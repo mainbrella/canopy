@@ -138,10 +138,12 @@ export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetch
       const cleanDescription = description.trim();
       if (!cleanName || cleanName.length > 80) throw new DemoApiError('Enter a board name of 1–80 characters.');
       if (cleanDescription.length > 2000) throw new DemoApiError('Enter a description of at most 2000 characters.');
-      // Keep slugs valid for all names and allow boards with the same name.
-      const prefix = cleanName.normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-').slice(0, 47).replace(/^-+|-+$/g, '') || 'board';
-      const slug = `${prefix}-${crypto.randomUUID().replace(/-/g, '')}`;
+      const slug = cleanName.toLowerCase().replace(/\s+/g, '-');
+      if (!/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) {
+        throw new DemoApiError('Use letters (a–z), numbers, spaces, or hyphens in the board name, starting and ending with a letter or number.');
+      }
+      // The boards table's UNIQUE constraint rejects existing slugs. Do not
+      // change the slug or retry the insert when the database returns an error.
       const payload = await requestJson(tableUrl(config, 'boards'), {
         method: 'POST', headers: { ...headers(session), 'content-type': 'application/json' },
         body: JSON.stringify({ slug, name: cleanName, description: cleanDescription, user_id: session.session.user_id }),
