@@ -159,7 +159,7 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
           html = html.replace('</body>', `${cookieDialog}  </body>`);
         }
         // Reading product previews and the blog does not require a cookie decision. Measurement still requires consent.
-        if (context.path.startsWith('/blog/') || context.path.startsWith('/bff/')) {
+        if (context.path.startsWith('/blog/') || context.path === '/bff/' || context.path === '/bff/index.html') {
           html = html.replace('id="cookie-consent"', 'id="cookie-consent" data-consent-prompt="optional"');
         }
         // A separate static deployment bundles its own copy of shared images.

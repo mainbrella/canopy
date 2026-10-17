@@ -2,11 +2,15 @@ import './app.css';
 import { createSampleTables, functionSource, navigation, sampleLogs, type Row } from './app-data.ts';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
-const badge = (text: string, tone = '') => `<span class="bff-state ${tone ? `bff-state-${tone}` : ''}">${escape(text)}</span>`;
+const badge = (text: string, tone = '') => {
+  if (text === 'Disabled' || text === 'Invited') tone = '';
+  if (text === 'Suspended') tone = 'error';
+  return `<span class="bff-state ${tone ? `bff-state-${tone}` : ''}">${escape(text)}</span>`;
+};
 const button = (text: string, action: string, value = '', primary = false) => `<button type="button" class="${primary ? 'button button-small' : 'dashboard-retry'}" data-action="${action}" data-value="${escape(value)}">${escape(text)}</button>`;
 const mono = (text: string) => `<code>${escape(text)}</code>`;
 const sub = (text: string) => `<span class="bff-cell-detail">${escape(text)}</span>`;
-const table = (headers: string[], rows: string[][], caption: string) => rows.length ? `<div class="bff-table-scroll" tabindex="0" role="region" aria-label="${escape(caption)}"><table class="bff-table"><caption class="visually-hidden">${escape(caption)}</caption><thead><tr>${headers.map(h => `<th scope="col">${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="bff-empty">No matching results.</p>';
+const table = (headers: string[], rows: string[][], caption: string, className = '') => rows.length ? `<div class="bff-table-scroll ${className}" tabindex="0" role="region" aria-label="${escape(caption)}"><table class="bff-table"><caption class="visually-hidden">${escape(caption)}</caption><thead><tr>${headers.map(h => `<th scope="col">${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="bff-empty">No matching results.</p>';
 const heading = (title: string, description: string, actions = '') => `<div class="bff-section-heading"><div><h2 id="bff-view-title" tabindex="-1">${escape(title)}</h2><p class="bff-muted">${escape(description)}</p></div><div class="bff-actions">${actions}</div></div>`;
 type EditorField = { name: string; label: string; value?: string; type?: string; options?: string[]; required?: boolean; hint?: string };
 type Editor = { title: string; fields: EditorField[]; submit?: string; note?: string; save: (values: Row) => void };
@@ -28,9 +32,8 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
   let environment: Environment = 'production';
   const environments = { production: createSampleTables(), staging: createSampleTables(true) };
   const drafts: Record<string, Row> = {};
-  const removedUsers = new Set<string>();
-  const invitedUsers: Row[] = [];
-  const localFiles: Row[] = [];
+  const invitedUsers: Record<Environment, Row[]> = { production: [], staging: [] };
+  const localFiles: Record<Environment, Row[]> = { production: [], staging: [] };
   let section = 'overview';
   let tab = '';
   let selectedTable = 'trips';
@@ -72,7 +75,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
 
   function overview() {
     const numbers = stats();
-    return heading('Project overview', `${draft('project', 'name', 'Trailhead')} · ${environment === 'production' ? 'Production' : 'Staging'} · Sample snapshot: October 16, 2026`, button('API & SDK', 'connect')) +
+    return heading('Project overview', `${draft('project', 'name', 'Trailhead')} · ${environment === 'production' ? 'Production' : 'Staging'} · Sample snapshot: October 16, 2026`) +
       `<dl class="bff-metrics">${['API requests · 24h', 'Registered users', 'File storage', 'Success rate · 24h'].map((label, i) => `<div><dt>${label}</dt><dd>${numbers[i]}</dd></div>`).join('')}</dl>
       <div class="bff-overview-columns"><section><div class="bff-subheading"><h3>API requests</h3><span class="bff-muted">Last 24 hours · UTC</span></div>
       <div class="bff-chart" role="img" aria-label="Sample API requests per hour, rising from 2,100 to a peak of 8,400, then ending at 5,200.">${[24, 21, 18, 16, 17, 24, 34, 43, 58, 67, 62, 71, 86, 93, 78, 88, 100, 92, 79, 68, 72, 63, 66, 62].map(height => `<span style="--bar:${height}%"></span>`).join('')}</div><div class="bff-chart-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div></section>
@@ -82,7 +85,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
         ['10:40', `${badge('Retrying', 'warning')} Trip reminder delivery failed`, 'send-trip-reminder'],
         ['09:18', 'Migration 012_add_trip_visibility applied', 'maya@example.com'],
         ['Yesterday', 'join-trip deployed · version 8', 'maya@example.com'],
-      ], 'Recent sample project activity')}</section>
+      ], 'Recent sample project activity', 'bff-activity-table')}</section>
       <section class="bff-section"><h3>Project connection</h3><div class="bff-connection-row"><code>${projectURL()}</code>${button('Copy URL', 'copy-url')}${button('Client example', 'connect')}</div></section>`;
   }
 
@@ -103,7 +106,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
     html += `<div class="bff-toolbar"><label for="bff-table-select">Table</label><select id="bff-table-select">${tables().map(item => `<option value="${escape(item.name)}" ${item.name === selectedTable ? 'selected' : ''}>${escape(item.name)} (${item.count.toLocaleString()})</option>`).join('')}</select><span class="bff-muted">${selected.count.toLocaleString()} rows</span><a class="text-link" href="#permissions">Row policies</a></div>`;
     if (tab === 'schema') return html + table(['Column', 'Type', 'Constraints'], selected.columns.map((column, i) => [mono(column), column.endsWith('_bytes') ? 'INTEGER' : 'TEXT', i === 0 ? badge('Primary key') : column.endsWith('_id') ? `Foreign key${sub(column === 'trip_id' ? 'trips.id' : 'profiles.id')}` : '—']), `${selectedTable} schema`) + `<div class="bff-toolbar">${button('Add column', 'add-column')}${button('Indexes', 'indexes')}${button('Relationships', 'relationships')}</div>`;
     const rows = selected.rows.filter(row => Object.values(row).some(value => value.toLowerCase().includes(search.toLowerCase())));
-    return html + `<div class="bff-toolbar"><label class="visually-hidden" for="bff-row-search">Filter rows</label><input id="bff-row-search" type="search" placeholder="Filter sample rows…" value="${escape(search)}" /><div class="bff-actions">${button('Insert row', 'insert-row')}${button('Import CSV', 'import-csv')}${button('Export', 'export')}</div></div>` + table([...selected.columns, ''], dataRows(rows, selected.columns, true), `${selectedTable} sample rows`) + `<p class="bff-footnote">Showing ${rows.length} sample rows of ${selected.count.toLocaleString()}. All edits stay in this preview.</p>`;
+    return html + `<div class="bff-toolbar"><label class="visually-hidden" for="bff-row-search">Filter rows</label><input id="bff-row-search" type="search" placeholder="Filter sample rows…" value="${escape(search)}" /><div class="bff-actions">${button('Insert row', 'insert-row')}${button('Import CSV', 'import-csv')}${button('Export', 'export')}</div></div>` + table([...selected.columns, ''], dataRows(rows, selected.columns, true), `${selectedTable} sample rows`, 'bff-data-table') + `<p class="bff-footnote">Showing ${rows.length} sample rows of ${selected.count.toLocaleString()}. All edits stay in this preview.</p>`;
   }
 
   function sqlEditor() {
@@ -111,11 +114,11 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
     return heading('SQL editor', 'Write queries and inspect sample results.', button('Query examples', 'sql-examples')) +
       `<label for="bff-sql" class="bff-editor-label">Query · SQLite</label><textarea id="bff-sql" class="bff-code-editor" rows="7" spellcheck="false">${escape(sql)}</textarea><div class="bff-toolbar">${button('Preview results', 'run-sql', '', true)}${button('Save query', 'save-query')}<span class="bff-muted">SQL is not executed in this preview.</span></div>` +
       (sqlResults ? `<div class="bff-subheading"><h3>Sample results</h3><span class="bff-muted">Fixed fixture · ${selected.rows.length} rows</span></div>${table(['id', 'title', 'destination', 'status'], dataRows(selected.rows, ['id', 'title', 'destination', 'status']), 'SQL sample results')}<p class="bff-footnote">These rows demonstrate the result view and do not depend on the query above.</p>` : '<p class="bff-empty">Preview results to see the result table.</p>') +
-      `<section class="bff-section"><h3>Saved queries</h3><div class="bff-toolbar">${button('Upcoming trips', 'load-query', 'upcoming')}${button('Members per trip', 'load-query', 'members')}${button('Daily signups', 'load-query', 'signups')}</div></section>`;
+      `<section class="bff-section"><h3>Saved queries</h3><div class="bff-toolbar">${button('Upcoming trips', 'load-query', 'upcoming')}${button('Members per trip', 'load-query', 'members')}${button('Daily signups', 'load-query', 'signups')}${draft('query', 'name', '') ? button(draft('query', 'name', ''), 'load-query', 'custom') : ''}</div></section>`;
   }
 
   function authentication() {
-    let html = heading('Authentication', `${environment === 'production' ? '1,284' : '3'} registered users · 218 active this week`, button('Invite user', 'invite-user', '', true));
+    let html = heading('Authentication', `${environment === 'production' ? '1,284 registered users · 218' : '3 registered users · 3'} active this week`, button('Invite user', 'invite-user', '', true));
     html += tabs([['users', 'Users'], ['providers', 'Sign-in methods'], ['sessions', 'Sessions']], 'users');
     if (tab === 'providers') return html + table(['Provider', 'Status', 'Configuration', ''], [
       ['Email & password', badge(draft('provider-email', 'status', 'Enabled'), 'good'), 'Email verification required', button('Configure', 'provider', 'email')],
@@ -129,7 +132,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
       ['Theo Williams', 'Trailhead iOS · iPhone', 'Today, 10:38', button('Inspect', 'session', 'Theo Williams')],
       ['Ava Patel', 'Chrome · Android', 'Today, 10:31', button('Inspect', 'session', 'Ava Patel')],
     ], 'Sample user sessions');
-    const users = [...tables().find(item => item.name === 'profiles')!.rows, ...invitedUsers].filter(row => !removedUsers.has(row.id) && Object.values(row).join(' ').toLowerCase().includes(search.toLowerCase()));
+    const users = [...tables().find(item => item.name === 'profiles')!.rows, ...invitedUsers[environment]].filter(row => Object.values(row).join(' ').toLowerCase().includes(search.toLowerCase()));
     return html + `<div class="bff-toolbar"><label class="visually-hidden" for="bff-user-search">Search users</label><input id="bff-user-search" type="search" placeholder="Search by name or email…" value="${escape(search)}" /></div>` + table(['User', 'Provider', 'Status', 'Last sign-in', ''], users.map((row, i) => [`${escape(row.name)}${sub(row.email)}`, ['Email', 'Google', 'Apple'][i % 3], badge(row.status || 'Verified', 'good'), escape(row.last_sign_in || 'Never'), button('Manage', 'manage-user', row.id)]), 'Project users');
   }
 
@@ -151,7 +154,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
       { name: 'mount-tam/sunrise.webp', type: 'Image · WebP', size: '842 KB', owner: 'theo@example.com' },
       { name: 'big-sur/coastal-trail.mp4', type: 'Video · MP4', size: '24.6 MB', owner: 'maya@example.com' },
     ] : selectedBucket === 'avatars' ? [{ name: 'usr_maya/avatar.webp', type: 'Image · WebP', size: '42 KB', owner: 'maya@example.com' }, { name: 'usr_ava/avatar.webp', type: 'Image · WebP', size: '38 KB', owner: 'ava@example.com' }] : [{ name: 'trips-2026-10-16.csv', type: 'CSV export', size: '182 KB', owner: 'system' }];
-    files.push(...localFiles.filter(file => file.bucket === selectedBucket));
+    files.push(...localFiles[environment].filter(file => file.bucket === selectedBucket));
     return heading('Storage', 'Buckets, files, media, and access rules.', button('New bucket', 'new-bucket', '', true)) +
       table(['Bucket', 'Access', 'Size', 'Files', ''], buckets.map(([name, access, size, count]) => [mono(name), badge(access), size, count, button(selectedBucket === name ? 'Selected' : 'Browse', 'bucket', name)]), 'Storage buckets') +
       `<section class="bff-section"><div class="bff-subheading"><h3>${escape(selectedBucket)}</h3><div class="bff-actions">${button('Bucket settings', 'bucket-settings')}${button('Upload file', 'upload-file')}</div></div>${table(['File', 'Type', 'Size', 'Uploaded by', ''], files.map(file => [escape(file.name), escape(file.type), escape(file.size), escape(file.owner), button('Details', 'file', file.name)]), 'Sample stored files')}</section>`;
@@ -248,10 +251,14 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
 
   function render(focus = false) {
     if (!authenticated) return;
-    nav.innerHTML = navigation.map(group => `<div class="bff-nav-group">${group.label ? `<p>${group.label}</p>` : ''}${group.items.map(([id, label]) => `<a href="#${id}" ${section === id ? 'aria-current="page"' : ''}>${escape(label)}</a>`).join('')}</div>`).join('');
+    const focused = document.activeElement instanceof HTMLElement && view.contains(document.activeElement) ? document.activeElement : null;
+    nav.innerHTML = `<label class="bff-mobile-nav" for="bff-section-select">Workspace</label><select class="bff-mobile-nav" id="bff-section-select">${navigation.map(group => `${group.label ? `<optgroup label="${group.label}">` : ''}${group.items.map(([id, label]) => `<option value="${id}" ${section === id ? 'selected' : ''}>${escape(label)}</option>`).join('')}${group.label ? '</optgroup>' : ''}`).join('')}</select>` + navigation.map(group => `<div class="bff-nav-group">${group.label ? `<p>${group.label}</p>` : ''}${group.items.map(([id, label]) => `<a href="#${id}" ${section === id ? 'aria-current="page"' : ''}>${escape(label)}</a>`).join('')}</div>`).join('');
     view.innerHTML = renderers[section]();
     el('bff-project-name').textContent = draft('project', 'name', 'Trailhead');
-    if (focus) el('bff-view-title').focus({ preventScroll: true });
+    el('bff-project-description').textContent = draft('project', 'description', 'Collaborative trip planning');
+    if (focus) el('bff-view-title').focus();
+    else if (focused?.id) el(focused.id)?.focus({ preventScroll: true });
+    else if (focused?.dataset.action) Array.from(view.querySelectorAll<HTMLElement>('[data-action]')).find(item => item.dataset.action === focused.dataset.action && item.dataset.value === focused.dataset.value)?.focus({ preventScroll: true });
   }
 
   function openDialog(title: string, body: string) {
@@ -316,6 +323,8 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
     switch (name) {
       case 'close-dialog': dialog.close(); return;
       case 'connect': connection(); return;
+      case 'projects': openDialog('Projects', `<div class="bff-project-list"><strong>${escape(draft('project', 'name', 'Trailhead'))}</strong><p class="bff-muted">Collaborative trip planning · 2 environments</p><div class="bff-toolbar">${button('Production', 'select-environment', 'production')}${button('Staging', 'select-environment', 'staging')}</div></div><div class="bff-toolbar">${button('New project', 'create-project')}</div>`); return;
+      case 'select-environment': dialog.close(); selectEnvironment(value as Environment); return;
       case 'tab': tab = value; search = ''; render(); return;
       case 'copy-url': void copy(projectURL()); return;
       case 'copy-key': void copy('bff_pk_sample_trailhead_not_a_real_key'); return;
@@ -337,7 +346,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
       case 'usage-report': download('trailhead-sample-usage.json', JSON.stringify({ sample: true, period: usagePeriod, estimatedCost: usagePeriod === 'day' ? 0.74 : 8.42 }, null, 2)); return;
       case 'run-sql': sqlResults = true; render(); return;
       case 'save-query': settingsEditor('query', 'Save query', [{ name: 'name', label: 'Query name', value: 'Upcoming trips' }, { name: 'sql', label: 'SQL', value: sql, type: 'textarea' }], 'Saved in memory for this preview only.'); return;
-      case 'load-query': sql = value === 'upcoming' ? "SELECT * FROM trips WHERE starts_at >= '2026-10-16' LIMIT 6;" : value === 'members' ? 'SELECT trip_id, COUNT(*) AS members\nFROM trip_members GROUP BY trip_id;' : 'SELECT date(created_at), COUNT(*)\nFROM profiles GROUP BY date(created_at);'; sqlResults = false; render(); return;
+      case 'load-query': sql = value === 'custom' ? draft('query', 'sql', sql) : value === 'upcoming' ? "SELECT * FROM trips WHERE starts_at >= '2026-10-16' LIMIT 6;" : value === 'members' ? 'SELECT trip_id, COUNT(*) AS members\nFROM trip_members GROUP BY trip_id;' : 'SELECT date(created_at), COUNT(*)\nFROM profiles GROUP BY date(created_at);'; sqlResults = false; render(); return;
       case 'sql-examples': inspect('Query examples', "-- Upcoming trips\nSELECT * FROM trips WHERE status = 'published';\n\n-- Members per trip\nSELECT trip_id, COUNT(*) FROM trip_members\nGROUP BY trip_id;"); return;
       case 'import-csv': case 'import-schema': editor({ title: name === 'import-csv' ? 'Import CSV' : 'Import schema', fields: [{ name: 'source', label: name === 'import-csv' ? 'CSV content' : 'SQLite schema', type: 'textarea', value: name === 'import-csv' ? 'id,title,status\ntrip_039,Lost Coast weekend,draft' : 'CREATE TABLE packing_items (id TEXT PRIMARY KEY, trip_id TEXT, name TEXT);' }], submit: 'Review import', note: 'Preview the import step. No data is imported or SQL executed.', save(values) { inspect('Import review', values.source, 'Source received for preview. A real import would validate and apply this content.'); } }); return;
       case 'migration': inspect('Migration SQL', value === '012' ? "ALTER TABLE trips ADD COLUMN visibility TEXT NOT NULL DEFAULT 'members';\nCREATE INDEX idx_trips_visibility ON trips(visibility);" : value === '011' ? 'CREATE INDEX idx_trip_members_trip_id ON trip_members(trip_id);' : 'CREATE TABLE invitations (id TEXT PRIMARY KEY, trip_id TEXT, email TEXT, status TEXT, expires_at TEXT);'); return;
@@ -346,8 +355,8 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
       case 'relationships': inspect('Database relationships', { 'trips.organizer_id': 'profiles.id', 'trip_members.trip_id': 'trips.id', 'trip_members.user_id': 'profiles.id', 'messages.trip_id': 'trips.id', 'messages.user_id': 'profiles.id' }); return;
       case 'restore': editor({ title: 'Restore database', fields: [{ name: 'confirmation', label: 'Type Trailhead to review this restore' }], submit: 'Review restore', note: `Restore point: ${value}, 03:00 UTC. A real restore would replace current database data.`, save(values) { if (values.confirmation !== 'Trailhead') throw new Error('Enter Trailhead to continue.'); inspect('Restore review', { project: 'Trailhead', environment, restorePoint: value, status: 'Preview only; no data changed' }); } }); return;
       case 'backup-settings': settingsEditor('backups', 'Recovery settings', [{ name: 'schedule', label: 'Export schedule', value: 'Daily at 03:00 UTC' }, { name: 'retention', label: 'Retention', options: ['7 days', '14 days', '30 days'], value: '30 days' }]); return;
-      case 'invite-user': editor({ title: 'Invite application user', fields: [{ name: 'name', label: 'Name' }, { name: 'email', label: 'Email', type: 'email' }], submit: 'Add sample invitation', note: 'No invitation email will be sent.', save(values) { invitedUsers.push({ ...values, id: `invited_${invitedUsers.length}`, status: 'Invited' }); announce('Sample user invitation added. No email sent.'); } }); return;
-      case 'manage-user': { const user = [...tables().find(item => item.name === 'profiles')!.rows, ...invitedUsers].find(item => item.id === value)!; editor({ title: `Manage ${user.name}`, fields: [{ name: 'name', label: 'Name', value: user.name }, { name: 'role', label: 'Role', options: ['member', 'organizer', 'admin'], value: user.role || 'member' }, { name: 'status', label: 'Account status', options: ['Verified', 'Suspended', 'Invited'], value: user.status || 'Verified' }], save(values) { Object.assign(user, values); announce('Sample user updated.'); } }); return; }
+      case 'invite-user': editor({ title: 'Invite application user', fields: [{ name: 'name', label: 'Name' }, { name: 'email', label: 'Email', type: 'email' }], submit: 'Add sample invitation', note: 'No invitation email will be sent.', save(values) { invitedUsers[environment].push({ ...values, id: `invited_${invitedUsers[environment].length}`, status: 'Invited' }); announce('Sample user invitation added. No email sent.'); } }); return;
+      case 'manage-user': { const user = [...tables().find(item => item.name === 'profiles')!.rows, ...invitedUsers[environment]].find(item => item.id === value)!; editor({ title: `Manage ${user.name}`, fields: [{ name: 'name', label: 'Name', value: user.name }, { name: 'role', label: 'Role', options: ['member', 'organizer', 'admin'], value: user.role || 'member' }, { name: 'status', label: 'Account status', options: ['Verified', 'Suspended', 'Invited'], value: user.status || 'Verified' }], save(values) { Object.assign(user, values); announce('Sample user updated.'); } }); return; }
       case 'provider': settingsEditor(`provider-${value}`, `${value[0].toUpperCase() + value.slice(1)} sign-in`, [{ name: 'status', label: 'Status', options: ['Enabled', 'Disabled'], value: value === 'passkeys' || value === 'anonymous' ? 'Disabled' : 'Enabled' }, { name: 'client', label: 'Sample client ID', value: `sample-${value}-client`, required: false }], 'Configuration preview. Do not enter real OAuth credentials.'); return;
       case 'auth-settings': settingsEditor('auth-settings', 'Authentication settings', [{ name: 'url', label: 'Site URL', type: 'url', value: 'https://trailhead.example.com' }, { name: 'lifetime', label: 'Session lifetime', options: ['1 day', '7 days', '30 days'], value: '7 days' }, { name: 'mfa', label: 'Multi-factor authentication', options: ['Optional · TOTP', 'Required · TOTP', 'Disabled'], value: 'Optional · TOTP' }, { name: 'redirects', label: 'Allowed redirect URLs', type: 'textarea', value: 'https://trailhead.example.com/auth/callback\ntrailhead://auth/callback' }]); return;
       case 'session': inspect(`${value} session`, { user: value, session: 'sess_sample_7e21', created: '2026-10-15T18:20:00Z', expires: '2026-10-22T18:20:00Z', mfa: true }); return;
@@ -356,11 +365,11 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
       case 'bucket': selectedBucket = value; render(); return;
       case 'new-bucket': settingsEditor('new-bucket', 'Create bucket', [{ name: 'name', label: 'Bucket name', value: 'trip-documents' }, { name: 'access', label: 'Access', options: ['Private', 'Public'] }, { name: 'limit', label: 'Maximum file size (MB)', type: 'number', value: '25' }], 'Bucket configuration draft; no storage is provisioned.'); return;
       case 'bucket-settings': settingsEditor(`bucket-${selectedBucket}`, `${selectedBucket} settings`, [{ name: 'access', label: 'Access', options: ['Private', 'Public'], value: selectedBucket === 'avatars' ? 'Public' : 'Private' }, { name: 'limit', label: 'Maximum file size (MB)', type: 'number', value: '25' }, { name: 'types', label: 'Allowed file types', value: 'image/*, video/mp4, application/pdf, application/gpx+xml' }, { name: 'image', label: 'Image transformations', options: ['Enabled', 'Disabled'], value: 'Enabled' }]); return;
-      case 'upload-file': editor({ title: `Upload to ${selectedBucket}`, fields: [{ name: 'name', label: 'File', type: 'file' }], submit: 'Add sample file', note: 'Only the filename is used. No file contents are read or uploaded.', save(values) { const name = values.name.split(/[\\/]/).pop()!; localFiles.push({ bucket: selectedBucket, name, type: 'Sample upload', size: '—', owner: 'You' }); announce('Sample file added. Nothing uploaded.'); } }); return;
+      case 'upload-file': editor({ title: `Upload to ${selectedBucket}`, fields: [{ name: 'name', label: 'File', type: 'file' }], submit: 'Add sample file', note: 'Only the filename is used. No file contents are read or uploaded.', save(values) { const name = values.name.split(/[\\/]/).pop()!; localFiles[environment].push({ bucket: selectedBucket, name, type: 'Sample upload', size: '—', owner: 'You' }); announce('Sample file added. Nothing uploaded.'); } }); return;
       case 'file': inspect('File details', { bucket: selectedBucket, path: value, access: selectedBucket === 'avatars' ? 'Public' : 'Signed URL required', contentType: value.endsWith('.mp4') ? 'video/mp4' : value.endsWith('.gpx') ? 'application/gpx+xml' : 'image/webp', cacheControl: 'max-age=3600', uploadedAt: '2026-10-16T10:39:54Z', signedUrl: `${projectURL()}/storage/${selectedBucket}/${value}?token=sample_not_valid` }); return;
-      case 'function': selectedFunction = value; source = value === 'join-trip' ? functionSource : `export default async function handler(input, ctx) {\n  // ${value} · illustrative function source\n  const user = ctx.auth.requireUser();\n  return { ok: true, userId: user.id };\n}`; functionResult = false; render(); return;
+      case 'function': selectedFunction = value; source = draft(`function-${value}`, 'source', value === 'join-trip' ? functionSource : `export default async function handler(input, ctx) {\n  // ${value} · illustrative function source\n  const user = ctx.auth.requireUser();\n  return { ok: true, userId: user.id };\n}`); functionResult = false; render(); return;
       case 'test-function': functionResult = true; render(); return;
-      case 'save-function': saveDraft(`function-${selectedFunction}`, { status: 'Draft saved in preview' }); announce('Function draft saved locally. No code executed.'); render(); return;
+      case 'save-function': saveDraft(`function-${selectedFunction}`, { status: 'Draft saved in preview', source }); announce('Function draft saved locally. No code executed.'); render(); return;
       case 'new-function': settingsEditor('new-function', 'Create function', [{ name: 'name', label: 'Function name', value: 'publish-trip' }, { name: 'trigger', label: 'Trigger', options: ['Authenticated RPC', 'HTTP endpoint', 'Database change', 'Storage upload', 'Schedule'] }, { name: 'source', label: 'TypeScript source', type: 'textarea', value: 'export default async function handler(input, ctx) {\n  return { ok: true };\n}' }], 'Function draft only; no runtime is created.'); return;
       case 'secrets': section = 'settings'; tab = 'secrets'; location.hash = 'settings'; render(true); return;
       case 'channel': case 'object': inspect(name === 'object' ? 'Live object inspector' : 'Channel inspector', { id: value, class: 'TripRoom', connections: value === 'trip_038' ? 8 : 6, presence: [{ user: 'usr_maya', status: 'online' }, { user: 'usr_ava', status: 'typing' }], state: { tripId: value, messages: 164, updatedAt: '2026-10-16T10:42:18Z' }, authorization: 'Trip members only' }); return;
@@ -405,13 +414,14 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
   document.addEventListener('submit', event => {
     const form = event.target as HTMLFormElement;
     if (!authenticated) return;
-    if (form.id === 'bff-search-form') {
+    if (form.getAttribute('id') === 'bff-search-form') {
       event.preventDefault();
       searchQuery = String(new FormData(form).get('query') || '');
       searchComplete = true;
       render();
     }
-    if (form.id !== 'bff-editor-form' || !activeEditor) return;
+    // A row's `name="id"` input shadows the form.id DOM property.
+    if (form.getAttribute('id') !== 'bff-editor-form' || !activeEditor) return;
     event.preventDefault();
     const values: Row = {};
     for (const [name, value] of new FormData(form)) values[name] = typeof value === 'string' ? value.trim() : value.name;
@@ -436,7 +446,7 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
     render();
     const next = el<HTMLInputElement>(target.id);
     next.focus();
-    if (next.type !== 'search') next.setSelectionRange(position, position);
+    if (position !== null) next.setSelectionRange(position, position);
   });
   view.addEventListener('change', event => {
     const target = event.target as HTMLSelectElement;
@@ -446,18 +456,28 @@ export function initializeBff({ readSession }: { readSession: () => Promise<{ us
     else return;
     render();
   });
-  el('bff-environment').addEventListener('change', event => {
-    environment = (event.target as HTMLSelectElement).value as Environment;
-    search = ''; sqlResults = false; functionResult = false;
-    render(); announce(`Switched to ${environment} sample data.`);
+  nav.addEventListener('change', event => {
+    const target = event.target as HTMLSelectElement;
+    if (target.id === 'bff-section-select') location.hash = target.value;
   });
-  function navigate() {
+  function selectEnvironment(next: Environment) {
+    environment = next;
+    el<HTMLSelectElement>('bff-environment').value = next;
+    search = ''; sqlResults = false; functionResult = false;
+    selectedFunction = 'join-trip';
+    source = draft('function-join-trip', 'source', functionSource);
+    render(); announce(`Switched to ${environment} sample data.`);
+  }
+  el('bff-environment').addEventListener('change', event => {
+    selectEnvironment((event.target as HTMLSelectElement).value as Environment);
+  });
+  function navigate(focus = false) {
     const requested = location.hash.slice(1);
     const next = Object.hasOwn(renderers, requested) ? requested : 'overview';
     if (next !== section) { section = next; tab = ''; search = ''; }
-    render(authenticated);
+    render(focus);
   }
-  window.addEventListener('hashchange', navigate);
+  window.addEventListener('hashchange', () => navigate(true));
   dialog.addEventListener('click', event => {
     if (event.target === dialog) {
       const rect = dialog.getBoundingClientRect();

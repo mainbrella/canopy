@@ -75,7 +75,7 @@ test('every page entry includes one working consent dialog before tracking can l
     assert.match(html, /src="\/src\/acquisition\.ts"/, path);
     assert.match(html, /data-consent="accepted"/, path);
     assert.match(html, /data-consent="rejected"/, path);
-    const optionalConsent = path.startsWith('/blog/') || path.startsWith('/bff/');
+    const optionalConsent = path.startsWith('/blog/') || path === '/bff/' || path === '/bff/index.html';
     if (optionalConsent) {
       assert.match(html, /data-consent-prompt="optional"/, path);
       assert.match(html, /data-cookie-settings[^>]*>Cookie settings<\/button>/, path);

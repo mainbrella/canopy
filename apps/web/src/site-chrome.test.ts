@@ -52,6 +52,21 @@ test('BFF composes its product-owned homepage with shared chrome and preview nav
   }
 });
 
+test('BFF workspace uses authenticated app chrome and its own route entry', async () => {
+  const html = await transform('bff/app/index.html', '/bff/app/index.html');
+  assert.match(html, /<title>BFF · Mainbrella<\/title>/);
+  assert.match(html, /href="\/bff\/app\/" aria-current="page">BFF<\/a>/);
+  assert.match(html, /href="\/voice\/app\/">Voice<\/a>/);
+  assert.match(html, /src="\/src\/bff-app.ts"/);
+  assert.match(html, /id="bff-content" hidden/);
+  assert.match(html, /name="robots" content="noindex"/);
+  assert.match(html, /Changes last until you reload; no services are connected/);
+  assert.doesNotMatch(html, /<!-- (?:bff-app|app-header) -->|data-consent-prompt="optional"/);
+
+  const dashboard = await transform('dashboard/index.html', '/dashboard/index.html');
+  assert.match(dashboard, /href="\/bff\/app\/">BFF<\/a>/);
+});
+
 test('article CSS is inlined in source order after critical shared styles', async () => {
   const html = await transform('blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html', '/blog/we-ran-the-same-broken-app-on-three-cloud-sandboxes/index.html');
   const critical = html.indexOf('<style data-critical-css>');

@@ -17,7 +17,7 @@ export function createSampleTables(staging = false): SampleTable[] {
     { id: 'trip_034', title: 'Redwood grove walk', destination: 'Oakland, CA', starts_at: '2026-10-11', organizer_id: 'usr_jules', status: 'completed' },
     { id: 'trip_033', title: 'A quiet weekend in Yosemite', destination: 'Yosemite, CA', starts_at: '2026-10-03', organizer_id: 'usr_theo', status: 'completed' },
   ];
-  return [
+  const tables: SampleTable[] = [
     { name: 'trips', count: staging ? 2 : 38, columns: Object.keys(trips[0]), rows: staging ? trips.slice(0, 2).map(row => ({ ...row, status: 'draft' })) : trips },
     { name: 'profiles', count: staging ? 3 : 1284, columns: ['id', 'name', 'email', 'role', 'last_sign_in'], rows: [
       { id: 'usr_maya', name: 'Maya Chen', email: 'maya@example.com', role: 'organizer', last_sign_in: 'Today, 10:42' },
@@ -46,6 +46,7 @@ export function createSampleTables(staging = false): SampleTable[] {
       { id: 'inv_063', trip_id: 'trip_037', email: 'ava@example.com', status: 'accepted', expires_at: '2026-10-21' },
     ] },
   ];
+  return staging ? tables.map(table => ({ ...table, rows: table.rows.slice(0, table.count) })) : tables;
 }
 
 export const sampleLogs = [
