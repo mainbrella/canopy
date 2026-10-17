@@ -142,7 +142,10 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
           html = html.replace('<!-- bff-app -->', await readFile(new URL(import.meta.resolve('@canopy/bff/app-page')), 'utf8'));
         }
         if (html.includes('<!-- bff-demo -->')) {
-          html = html.replace('<!-- bff-demo -->', await readFile(new URL(import.meta.resolve('@canopy/bff/demo-page')), 'utf8'));
+          const page = await readFile(new URL(import.meta.resolve('@canopy/example-message-board/page')), 'utf8');
+          html = html.replace('<!-- bff-demo -->', page
+            .replace('src="/src/main.tsx"', 'src="/src/bff-demo.ts"')
+            .replace('<!-- message-board-cookie-settings -->', '<button class="cookie-settings" type="button" data-cookie-settings aria-haspopup="dialog" aria-controls="cookie-consent">Cookie settings</button>'));
         }
         // Unsubscribe and the isolated Repo Rodeo fixture run without shared chrome or a cookie dialog.
         if (/^\/(?:unsubscribe|repo-rodeo-bug)\/(?:index\.html)?$/.test(context.path)) return html;

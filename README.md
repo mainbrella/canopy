@@ -14,6 +14,7 @@ not necessarily require a separate deployment.
 | `@canopy/linux` | [apps/linux](apps/linux) | Compute API, runtime, images, workspaces, SDKs, and browser behavior |
 | `@canopy/bff` | [apps/bff](apps/bff) | BFF marketing homepage, styles, and browser interactions |
 | `@canopy/voice` | [apps/voice](apps/voice) | Voice API, receptionist runtime, providers, usage meters, and browser behavior |
+| `@canopy/example-message-board` | [examples/message-board](examples/message-board) | Independent React example consuming the BFF HTTP API |
 
 The three original source histories were imported with `git subtree add` without squashing.
 [The import manifest](migration/imports.json) records exact origins, source commits,
@@ -39,7 +40,14 @@ apps/
   linux/      # compute API, runtime, images, files, terminals, workspaces
 packages/
   platform/   # shared wallet implementation and typed product charging API
+examples/
+  message-board/ # standalone React frontend consuming BFF over HTTP
 ```
+
+Examples are complete applications built with the platform. They own their
+frontend dependencies, development servers, tests, and builds. Keep their API
+clients independent of service internals. The message board also supplies its
+HTML and browser entry to the existing site at `/bff/demo/`.
 
 Backend owns accounts, sessions, API keys, shared project identity and ownership,
 the wallet, funding, payment integrations, ledger, and common storage accounting.

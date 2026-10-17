@@ -16,13 +16,13 @@
     "deploy:site": "node scripts/deploy-site.mjs",
     "deploy:builder": "npm run build:builder && wrangler deploy --config wrangler.builder.jsonc",
     "deploy:redirect": "wrangler deploy --config wrangler.redirect.jsonc",
-    "test": "tsx --test src/*.test.ts scripts/*.test.mjs && npm run test:web -w @canopy/voice && npm run test:web -w @canopy/vibe && npm run test:web -w @canopy/linux",
+    "test": "tsx --test src/*.test.ts scripts/*.test.mjs && npm run test:web -w @canopy/voice && npm run test:web -w @canopy/vibe && npm run test:web -w @canopy/linux && npm test -w @canopy/example-message-board",
     "docs:sync": "node scripts/sync-agent-docs.mjs",
     "docs:check": "node scripts/sync-agent-docs.mjs --check",
     "acquisition:link": "node scripts/acquisition-link.mjs",
     "doctor": "node scripts/mainbrella-doctor.mjs",
     "verify:agent": "node scripts/mainbrella-verify.mjs",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && npm run type-check -w @canopy/example-message-board",
     "type-check:builder": "tsc --noEmit -p tsconfig.builder.json"
   },
   "devDependencies": {
@@ -30,7 +30,8 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^7.1.4",
-    "wrangler": "^4.128.0"
+    "wrangler": "^4.128.0",
+    "@vitejs/plugin-react": "~5.1.4"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.17.0",
@@ -38,6 +39,7 @@
     "@canopy/voice": "*",
     "@canopy/vibe": "*",
     "@canopy/linux": "*",
-    "@canopy/bff": "*"
+    "@canopy/bff": "*",
+    "@canopy/example-message-board": "*"
   }
 }

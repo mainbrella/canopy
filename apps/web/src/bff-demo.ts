@@ -1,3 +1,1 @@
-import { initializeDemo } from '@canopy/bff/demo';
-
-initializeDemo();
+import '@canopy/example-message-board/web';

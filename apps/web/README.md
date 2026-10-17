@@ -7,6 +7,11 @@ session/configuration and compose those public exports. Product HTML and CSS
 remain inputs to the existing site/builder builds. See the root
 [product boundaries](../../README.md#product-boundaries).
 
+The public `/bff/demo/` route composes the standalone React application in
+[`examples/message-board`](../../examples/message-board) through its package
+exports. Its client tests and type checks run with the site's checks. Use
+`npm run dev:message-board` from the root to work on that example independently.
+
 ```sh
 npm ci
 npm run dev       # One Vite development server for the site and /build/

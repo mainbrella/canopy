@@ -24,9 +24,28 @@ test('BFF is a browser product composed through its public web exports', () => {
   assert.equal(importViolation('apps/web/src/bff-app.ts', '@canopy/bff/web'), null);
   assert.equal(importViolation('apps/web/src/bff-app.ts', '@canopy/bff/app-page'), null);
   assert.ok(importViolation('apps/backend/worker/index.ts', '@canopy/bff/landing'));
+  assert.ok(importViolation('apps/web/src/bff.ts', '@canopy/bff/demo'));
+  assert.ok(importViolation('apps/web/src/bff.ts', '@canopy/bff/demo-page'));
   assert.ok(importViolation('apps/web/src/bff.ts', '../../bff/web/landing.ts'));
   assert.ok(importViolation('apps/bff/web/landing.ts', '../../web/src/auth.ts'));
   assert.ok(importViolation('apps/bff/web/landing.ts', '@canopy/voice/web'));
+});
+
+test('message board example stays independent and hosts compose its two public exports', () => {
+  const example = 'examples/message-board/src/main.tsx';
+  assert.equal(importViolation(example, './components/message-board.tsx'), null);
+  assert.ok(importViolation(example, '../../../apps/bff/worker/routes.ts'));
+  assert.ok(importViolation(example, '../../../apps/web/src/auth.ts'));
+  assert.ok(importViolation(example, '@canopy/bff/routes'));
+  assert.ok(importViolation(example, '@canopy/backend/worker/app/router'));
+  assert.ok(importViolation(example, '@canopy/voice/web'));
+
+  assert.equal(importViolation('apps/web/src/bff-demo.ts', '@canopy/example-message-board/web'), null);
+  assert.equal(importViolation('apps/web/src/bff-demo.ts', '@canopy/example-message-board/page'), null);
+  assert.ok(importViolation('apps/web/src/bff-demo.ts', '@canopy/example-message-board'));
+  assert.ok(importViolation('apps/web/src/bff-demo.ts', '@canopy/example-message-board/src/main.tsx'));
+  assert.ok(importViolation('apps/web/src/bff-demo.ts', '../../../examples/message-board/src/main.tsx'));
+  assert.ok(importViolation('apps/backend/worker/index.ts', '@canopy/example-message-board/page'));
 });
 
 test('current production sources respect the product boundary', () => {

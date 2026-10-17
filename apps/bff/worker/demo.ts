@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { authJson } from '../../backend/worker/app/auth-core';
 import { recordApiKeyUse } from '../../backend/worker/app/api-keys';
-import { demoConfig, demoUsers } from '../demo-config';
+import { demoConfig, demoUsers } from './demo-config';
 import { BffError, checksum, parse, type Project } from './contracts';
 import { body } from './http';
 import { issueUserSession } from './sessions';

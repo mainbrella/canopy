@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDemoApi, DemoApiError, fetchPublicMessages, liveBoardConfig, type DemoSession, type Message } from './demo-data.ts';
+import { createDemoApi, DemoApiError, fetchPublicMessages, liveBoardConfig, type DemoSession, type Message } from './api.ts';
 
 const rows: Message[] = [
   { id: 'welcome', user_id: 'alice', body: 'Welcome to the BFF message board.', created_at: '2026-10-15T18:30:00.000Z' },

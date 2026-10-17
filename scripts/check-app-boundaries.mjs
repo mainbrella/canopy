@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -22,7 +22,7 @@ const products = {
       'apps/backend/worker/app/openapi-shared',
       'apps/backend/worker/shared/bounded-body.js',
     ]),
-    hostExports: { backend: new Set(['routes', 'openapi', 'maintenance']), web: new Set(['landing', 'page', 'app-page', 'demo-page', 'demo', 'web']) },
+    hostExports: { backend: new Set(['routes', 'openapi', 'maintenance']), web: new Set(['landing', 'page', 'app-page', 'web']) },
   },
   voice: {
     name: 'Voice',
@@ -71,6 +71,17 @@ export function importViolation(file, specifier) {
   const target = specifier.startsWith('.')
     ? relative(root, resolve(root, dirname(file), specifier)).replaceAll('\\', '/')
     : specifier;
+  if (file.startsWith('examples/message-board/')) {
+    if (target.startsWith('apps/')) return 'The message board example must call host services through HTTP';
+    if (specifier.startsWith('@canopy/')) return 'The message board example must not depend on Canopy internals';
+  }
+  if (!file.startsWith('examples/message-board/') && target.startsWith('examples/message-board/')) {
+    return 'Hosts must use the message board package exports';
+  }
+  if (specifier === '@canopy/example-message-board' || specifier.startsWith('@canopy/example-message-board/')) {
+    const host = file.startsWith('apps/web/') ? specifier.slice('@canopy/example-message-board/'.length) : '';
+    return ['web', 'page'].includes(host) ? null : 'Use the supported message board export for this host';
+  }
   if (file.startsWith('packages/platform/') && (target.startsWith('apps/')
     || specifier.startsWith('@canopy/') && !specifier.startsWith('@canopy/platform/'))) return 'Platform must not depend on product or host implementations';
   if (!file.startsWith('packages/platform/') && target.startsWith('packages/platform/')) return 'Use platform package exports';
@@ -108,18 +119,21 @@ export function importViolation(file, specifier) {
 
 function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    if (entry.isDirectory() && ['dist', 'node_modules'].includes(entry.name)) return [];
     const path = join(directory, entry.name);
-    return entry.isDirectory() ? sourceFiles(path) : /\.(?:ts|js|mjs)$/.test(path) ? [path] : [];
+    return entry.isDirectory() ? sourceFiles(path) : /\.(?:tsx|ts|js|mjs)$/.test(path) ? [path] : [];
   });
 }
 
 export function checkAppBoundaries() {
   const failures = [];
-  for (const directory of ['packages/platform', 'apps/bff/web', 'apps/bff/worker', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
-    for (const path of sourceFiles(join(root, directory))) {
+  for (const directory of ['packages/platform', 'apps/bff/web', 'apps/bff/worker', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src', 'examples/message-board/src']) {
+    const absoluteDirectory = join(root, directory);
+    if (!existsSync(absoluteDirectory)) continue;
+    for (const path of sourceFiles(absoluteDirectory)) {
       const file = relative(root, path).replaceAll('\\', '/');
       // Integration fixtures deliberately exercise the real shared host.
-      if (/\.test\.(?:ts|mjs)$/.test(file) || /-test-helpers\.(?:ts|mjs)$/.test(file) || file.includes('/fixtures/')) continue;
+      if (/\.test\.(?:tsx|ts|jsx|js|mjs)$/.test(file) || /-test-helpers\.(?:tsx|ts|jsx|js|mjs)$/.test(file) || file.includes('/fixtures/')) continue;
       const source = readFileSync(path, 'utf8');
       for (const match of source.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(['"])([^'"]+)\1/g)) {
         const violation = importViolation(file, match[2]);

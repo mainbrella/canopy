@@ -23,10 +23,16 @@ original author, so a non-owner edit displays the backend's `permission_denied`
 response and keeps the draft. **Log out** revokes the session and returns to the
 login form; reloading also starts at login.
 
+Its React frontend, API client, styles, and tests live in
+[`examples/message-board`](../../examples/message-board). Run
+`npm run dev:message-board` from the repository root to develop it independently.
+The website composes that workspace into the existing `/bff/demo/` route; BFF
+owns only the backend behavior and fixed public-demo allowlist.
+
 Management APIs accept the project owner's Mainbrella session or account API key
 from `/api-keys/`. General application user sessions are issued by the owner for testing;
 public signup and password login are not included. The public demo is an explicit
-exception restricted to the project, browser key, and two users in `demo-config.ts`.
+exception restricted to the project, browser key, and two users in `worker/demo-config.ts`.
 Storage, realtime, automations,
 notifications, search, payments, backup management, client SDKs, staging environments,
 and project deletion remain deferred. The landing page's SDK examples are illustrative.

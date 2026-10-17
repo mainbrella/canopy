@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { demoConfig } from '../demo-config';
+import { demoConfig } from './demo-config';
 import { checksum } from './contracts';
 import { runtime } from './system-test-helpers';
 

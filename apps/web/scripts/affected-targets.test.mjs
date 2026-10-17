@@ -45,6 +45,9 @@ test('repository paths select only web-owned checks and known backend contracts'
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/bff/web/homepage.html']), ['site']);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/bff/web/landing.css']), ['site']);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['apps/bff/README.md']), []);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['examples/message-board/src/main.tsx']), ['site']);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['examples/message-board/package.json']), ['site']);
+  assert.deepEqual(affectedTargetsForRepositoryPaths(['examples/message-board/README.md']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['README.md']), []);
   assert.deepEqual(affectedTargetsForRepositoryPaths(['package.json']), ['site', 'builder']);
 });

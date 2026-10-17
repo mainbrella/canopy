@@ -49,6 +49,8 @@ export function affectedTargetsForRepositoryPaths(paths) {
       if (backendPathAffectsWeb(path.slice('apps/backend/'.length))) selected.add('site');
     } else if (path.startsWith('apps/bff/')) {
       if (path !== 'apps/bff/README.md') selected.add('site');
+    } else if (path.startsWith('examples/message-board/')) {
+      if (path !== 'examples/message-board/README.md') selected.add('site');
     } else if (path.startsWith('apps/vibe/')) {
       if (!['apps/vibe/README.md', 'apps/vibe/AGENTS.md'].includes(path)) {
         for (const target of ALL_TARGETS) selected.add(target);

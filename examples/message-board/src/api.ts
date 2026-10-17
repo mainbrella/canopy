@@ -1,3 +1,5 @@
+import { demoConfig, demoUsers, type DemoUser } from './config.ts';
+
 export type Message = {
   id: string;
   user_id: string;
@@ -145,7 +147,5 @@ function isMessage(value: unknown): value is Message {
     && typeof value.created_at === 'string'
     && Number.isFinite(Date.parse(value.created_at));
 }
-import { demoConfig, demoUsers, type DemoUser } from '../demo-config.ts';
 
-export type { DemoUser } from '../demo-config.ts';
-
+export type { DemoUser } from './config.ts';

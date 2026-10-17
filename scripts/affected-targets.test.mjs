@@ -41,6 +41,19 @@ test('BFF worker and configuration changes run the API host checks', () => {
   }
 });
 
+test('message board implementation selects the public site while its README selects docs only', () => {
+  for (const path of ['examples/message-board/src/main.tsx', 'examples/message-board/index.html',
+    'examples/message-board/package.json']) {
+    const result = affectedTargets([path]);
+    assert.equal(result.site, true, path);
+    assert.equal(result.docs, false, path);
+    assert.equal(result.backend_full, false, path);
+  }
+  const docs = affectedTargets(['examples/message-board/README.md']);
+  assert.equal(docs.docs, true);
+  assert.equal(docs.site, false);
+});
+
 test('Voice browser changes select the site and worker changes select their API host', () => {
   const browser = affectedTargets(['apps/voice/web/voice-api.ts']);
   assert.equal(browser.site, true);

@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { agentDocsPlugin } from "./scripts/agent-docs-plugin.ts";
 import { blogPaginationPlugin } from "./scripts/blog-pagination-plugin.ts";
 import { siteChromePlugin } from "./scripts/site-chrome-plugin.ts";
+import react from '@vitejs/plugin-react';
 
 const publicPages = ['docs', 'docs/containers', 'docs/execute', 'docs/files', 'docs/images',
   'docs/ssh', 'docs/authentication', 'docs/limits', 'docs/errors', 'docs/api-reference',
@@ -26,8 +27,19 @@ async function homepageScript() {
 export default defineConfig({
   base: "/",
   publicDir: "public",
+  server: {
+    proxy: {
+      '/message-board-api': {
+        target: 'https://api.mainbrella.com',
+        changeOrigin: true,
+        headers: { origin: 'https://mainbrella.com' },
+        rewrite: path => path.replace(/^\/message-board-api/, ''),
+      },
+    },
+  },
   plugins: [
     siteChromePlugin(),
+    react(),
     {
       name: 'staging-noindex',
       configResolved(config) { staging = config.mode === 'staging'; },
