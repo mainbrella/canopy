@@ -156,6 +156,7 @@ button, input, select { font: inherit; }
   .toolbar { flex-wrap: wrap; gap: 8px; padding: 10px; }
   .search-field { flex-basis: 100%; }
   .user-control, .sort-control { flex: 1; }
+  .sort-control { flex: 1.5; }
   .user-control select, .sort-control select { width: 100%; max-width: none; }
   .refresh-button { min-width: 96px; }
   .message-list { padding-inline: 14px; }
