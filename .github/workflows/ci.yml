@@ -1,9 +1,8 @@
 name: Canopy checks
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    tags: ['v-*']
 
 permissions:
   contents: read
