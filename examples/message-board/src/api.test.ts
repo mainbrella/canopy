@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createDemoApi, DemoApiError, fetchPublicMessages, liveBoardConfig, type Board, type DemoSession, type Message } from './api.ts';
 
 const rows: Message[] = [
-  { id: 'welcome', user_id: 'alice', body: 'Welcome to the BFF message board.', created_at: '2026-10-15T18:30:00.000Z' },
-  { id: 'hello', user_id: 'bob', body: 'Glad to be here.', created_at: '2026-10-15T19:00:00.000Z' },
+  { id: 'welcome', user_id: 'alice', title: 'Welcome', body: 'Welcome to the BFF message board.', created_at: '2026-10-15T18:30:00.000Z' },
+  { id: 'hello', user_id: 'bob', title: 'Hello', body: 'Glad to be here.', created_at: '2026-10-15T19:00:00.000Z' },
 ];
 
 const alice: DemoSession = { token: `bff_us_${'a'.repeat(64)}`, session: {
@@ -36,8 +36,8 @@ test('board selection loads every page with the session and validates board data
   }
 });
 
-test('posting inserts only the selected board, authenticated author, and plain body, and uses the returned row', async () => {
-  const posted = { ...rows[0], id: 'new-message', board_id: general.id, body: 'Saved by the backend' };
+test('posting inserts the selected board, authenticated author, title, and plain body, and uses the returned row', async () => {
+  const posted = { ...rows[0], id: 'new-message', board_id: general.id, title: 'A title', body: 'Saved by the backend' };
   const api = createDemoApi(liveBoardConfig, async (input, init) => {
     assert.equal(String(input), 'https://api.mainbrella.com/bff/data/90da3093-84b6-4cd7-a39a-a8afc39403b8/tables/messages');
     assert.equal(init?.method, 'POST');
@@ -45,25 +45,35 @@ test('posting inserts only the selected board, authenticated author, and plain b
     assert.equal(new Headers(init?.headers).get('authorization'), `Bearer ${alice.token}`);
     assert.equal(new Headers(init?.headers).get('apikey'), liveBoardConfig.publicKey);
     assert.equal(new Headers(init?.headers).get('content-type'), 'application/json');
-    assert.deepEqual(JSON.parse(String(init?.body)), { board_id: general.id, user_id: 'alice', body: 'Plain text\nwith a second line' });
+    assert.deepEqual(JSON.parse(String(init?.body)), { board_id: general.id, user_id: 'alice', title: 'A title', body: 'Plain text\nwith a second line' });
     return Response.json({ data: [posted] }, { status: 201 });
   });
-  assert.deepEqual(await api.create(alice, general.id, '  Plain text\nwith a second line  '), posted);
+  assert.deepEqual(await api.create(alice, general.id, '  A title  ', '  Plain text\nwith a second line  '), posted);
+  const longTitle = 't'.repeat(200);
+  const acceptsMaximum = createDemoApi(liveBoardConfig, async (_input, init) => {
+    assert.equal(JSON.parse(String(init?.body)).title, longTitle);
+    return Response.json({ data: [{ ...posted, title: longTitle }] }, { status: 201 });
+  });
+  assert.equal((await acceptsMaximum.create(alice, general.id, longTitle, 'Body')).title, longTitle);
 });
 
 test('posting rejects blank and oversized input without requests and requires a confirmed row for the chosen board and author', async () => {
   const noRequest = createDemoApi(liveBoardConfig, async () => { throw new Error('Invalid input must not make a request'); });
-  await assert.rejects(noRequest.create(alice, ' ', 'A body'), /Choose a board/);
-  await assert.rejects(noRequest.create(alice, general.id, ' \n '), /1–2000/);
-  await assert.rejects(noRequest.create(alice, general.id, 'x'.repeat(2001)), /1–2000/);
-  const posted = { ...rows[0], board_id: general.id };
+  await assert.rejects(noRequest.create(alice, ' ', 'A title', 'A body'), /Choose a board/);
+  await assert.rejects(noRequest.create(alice, general.id, ' \n ', 'A body'), /title of 1–200/);
+  await assert.rejects(noRequest.create(alice, general.id, 'x'.repeat(201), 'A body'), /title of 1–200/);
+  await assert.rejects(noRequest.create(alice, general.id, 'A title', ' \n '), /1–2000/);
+  await assert.rejects(noRequest.create(alice, general.id, 'A title', 'x'.repeat(2001)), /1–2000/);
+  const posted = { ...rows[0], board_id: general.id, title: 'A title' };
   for (const data of [[], [posted, posted], [{ ...posted, board_id: 'other' }], [{ ...posted, user_id: 'bob' }]]) {
     const unconfirmed = createDemoApi(liveBoardConfig, async () => Response.json({ data }, { status: 201 }));
-    await assert.rejects(unconfirmed.create(alice, general.id, 'My body'), /did not confirm/);
+    await assert.rejects(unconfirmed.create(alice, general.id, 'A title', 'My body'), /did not confirm/);
   }
+  const wrongTitle = createDemoApi(liveBoardConfig, async () => Response.json({ data: [{ ...posted, title: 'Different title' }] }, { status: 201 }));
+  await assert.rejects(wrongTitle.create(alice, general.id, 'A title', 'My body'), /did not confirm/);
   for (const status of [401, 403]) {
     const rejected = createDemoApi(liveBoardConfig, async () => Response.json({ error: status === 401 ? 'unauthorized' : 'permission_denied' }, { status }));
-    await assert.rejects(rejected.create(alice, general.id, 'My body'), error => error instanceof DemoApiError && error.status === status);
+    await assert.rejects(rejected.create(alice, general.id, 'A title', 'My body'), error => error instanceof DemoApiError && error.status === status);
     await assert.rejects(rejected.listBoards(alice), error => error instanceof DemoApiError && error.status === status);
   }
 });

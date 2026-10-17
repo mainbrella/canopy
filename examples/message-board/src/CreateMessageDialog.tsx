@@ -3,7 +3,7 @@ import { DemoApiError, type Board, type DemoSession, type Message } from './api.
 
 type CreateApi = {
   listBoards(session: DemoSession): Promise<Board[]>;
-  create(session: DemoSession, boardId: string, body: string): Promise<Message>;
+  create(session: DemoSession, boardId: string, title: string, body: string): Promise<Message>;
 };
 
 type Props = {
@@ -86,14 +86,14 @@ export function CreateMessageDialog({ api, session, open, onClose, onCreated }: 
     if (boardsLoading || boardsError || !boards.some(board => board.id === selectedBoard)) return;
     const cleanTitle = title.trim();
     const cleanBody = body.trim();
-    if (!cleanTitle) { setError('Enter a title.'); return; }
+    if (!cleanTitle || cleanTitle.length > 200) { setError('Enter a title of 1–200 characters.'); return; }
     if (!selectedBoard) { setError('Choose a board.'); return; }
     if (!cleanBody || cleanBody.length > 2000) { setError('Enter a message of 1–2000 characters.'); return; }
     savingRef.current = true;
     setSaving(true);
     setError('');
     try {
-      const message = await api.create(session, selectedBoard, cleanBody);
+      const message = await api.create(session, selectedBoard, cleanTitle, cleanBody);
       setTitle('');
       setBody('');
       onCreated(message);
@@ -112,7 +112,7 @@ export function CreateMessageDialog({ api, session, open, onClose, onCreated }: 
 
   const selected = boards.find(board => board.id === selectedBoard);
   const canPost = !boardsLoading && !boardsError && boards.some(board => board.id === selectedBoard)
-    && Boolean(title.trim()) && Boolean(body.trim());
+    && title.trim().length > 0 && title.trim().length <= 200 && Boolean(body.trim());
 
   return <dialog ref={dialog} className="create-dialog" aria-labelledby="create-dialog-title"
     onCancel={event => { if (savingRef.current) event.preventDefault(); }}
@@ -140,7 +140,7 @@ export function CreateMessageDialog({ api, session, open, onClose, onCreated }: 
           {!boardsLoading && !boardsError && boards.length === 0 && <p className="create-state" role="status">There are no boards to post to yet.</p>}
           <label className="create-field" htmlFor="create-title">
             <span>Title <span className="required-mark">(required)</span></span>
-            <input id="create-title" name="title" type="text" required value={title} disabled={saving}
+            <input id="create-title" name="title" type="text" required maxLength={200} value={title} disabled={saving}
               onChange={event => setTitle(event.target.value)} placeholder="Give your message a title" />
           </label>
           <label className="create-field" htmlFor="create-body">

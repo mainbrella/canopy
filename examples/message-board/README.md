@@ -17,11 +17,11 @@ Open the URL printed by Vite. Choose Alice or Bob to log in, read and search
 messages, create a post, and edit a post. **Create** opens a full-screen composer
 with boards loaded from the `boards` table and labeled `board/:slug`. Title and
 plain-text body are required; only the selected `board_id`, session's `user_id`,
-and trimmed body are inserted into `messages` by the current composer. Apply
-`migrations/004_message_titles.sql` after the existing migrations to add a
+trimmed title, and trimmed body are inserted into `messages`. Apply
+`migrations/004_message_titles.sql` after the existing migrations to add the
 stored title column. Existing messages are titled from the first 200 characters
-of their trimmed body; inserts that omit a title receive `Untitled` until the
-composer is updated to send titles.
+of their trimmed body; inserts from older clients that omit a title receive
+`Untitled`.
 The backend enforces ownership; editing another
 user's post shows its denial and preserves the draft. Sessions stay in memory,
 and logging out revokes the current session.
@@ -31,7 +31,8 @@ These are deliberately public browser values. Backend allowlists and session
 issuance remain in `apps/bff/worker`; this example is an API consumer. Changes to
 the fixed public demo project or users must also match that backend allowlist.
 
-The composer requires `migrations/002_boards.sql` to be applied to the project.
+The composer requires `migrations/002_boards.sql` and
+`migrations/004_message_titles.sql` to be applied to the project.
 Its browser key needs `boards: ['select']` and
 `messages: ['select', 'insert', 'update']` table grants. The `boards` policy must
 allow public selects; the `messages` policy must allow public selects and

@@ -4,6 +4,7 @@ export type Message = {
   id: string;
   board_id?: string;
   user_id: string;
+  title: string;
   body: string;
   created_at: string;
 };
@@ -131,16 +132,19 @@ export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetch
         if (payload.data.length < 100) return boards;
       }
     },
-    async create(session: DemoSession, boardId: string, body: string): Promise<Message> {
+    async create(session: DemoSession, boardId: string, title: string, body: string): Promise<Message> {
+      const cleanTitle = title.trim();
       const text = body.trim();
       if (!boardId.trim()) throw new DemoApiError('Choose a board for your message.');
+      if (!cleanTitle || cleanTitle.length > 200) throw new DemoApiError('Enter a title of 1–200 characters.');
       if (!text || text.length > 2000) throw new DemoApiError('Enter a message of 1–2000 characters.');
       const payload = await requestJson(tableUrl(config), {
         method: 'POST', headers: { ...headers(session), 'content-type': 'application/json' },
-        body: JSON.stringify({ board_id: boardId, user_id: session.session.user_id, body: text }),
+        body: JSON.stringify({ board_id: boardId, user_id: session.session.user_id, title: cleanTitle, body: text }),
       }, fetcher);
       const rows = messagesFrom(payload);
-      if (rows.length !== 1 || rows[0].board_id !== boardId || rows[0].user_id !== session.session.user_id) {
+      if (rows.length !== 1 || rows[0].board_id !== boardId || rows[0].user_id !== session.session.user_id
+        || rows[0].title !== cleanTitle) {
         throw new DemoApiError('The demo did not confirm the posted message. Refresh messages before trying again.');
       }
       return rows[0];
@@ -179,6 +183,7 @@ function isMessage(value: unknown): value is Message {
   return isRecord(value)
     && typeof value.id === 'string'
     && typeof value.user_id === 'string'
+    && typeof value.title === 'string'
     && typeof value.body === 'string'
     && typeof value.created_at === 'string'
     && Number.isFinite(Date.parse(value.created_at));
