@@ -99,7 +99,7 @@ export default defineConfig({
             return;
           }
           const match = request.url?.match(/^\/([^?]*[^/?])(\?.*)?$/);
-          const routes = ['pricing', 'balance', 'about', 'privacy', 'terms', 'login', 'profile', 'dashboard', 'build', 'voice', 'voice/app', 'projects', 'projects/code', 'api-keys', 'run', ...publicPages];
+          const routes = ['pricing', 'balance', 'about', 'privacy', 'terms', 'login', 'profile', 'dashboard', 'build', 'voice', 'voice/app', 'bff/app', 'projects', 'projects/code', 'api-keys', 'run', ...publicPages];
           if (!match || !routes.includes(match[1])) {
             next();
             return;
@@ -130,6 +130,7 @@ export default defineConfig({
         dashboard: fileURLToPath(new URL("./dashboard/index.html", import.meta.url)),
         voice: fileURLToPath(new URL("./voice/index.html", import.meta.url)),
         voiceApp: fileURLToPath(new URL("./voice/app/index.html", import.meta.url)),
+        bffApp: fileURLToPath(new URL("./bff/app/index.html", import.meta.url)),
         balance: fileURLToPath(new URL("./balance/index.html", import.meta.url)),
         projects: fileURLToPath(new URL("./projects/index.html", import.meta.url)),
         projectCode: fileURLToPath(new URL("./projects/code/index.html", import.meta.url)),

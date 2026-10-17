@@ -4,6 +4,8 @@
   "type": "module",
   "exports": {
     "./page": "./web/homepage.html",
-    "./landing": "./web/landing.ts"
+    "./landing": "./web/landing.ts",
+    "./app-page": "./web/app.html",
+    "./web": "./web/app.ts"
   }
 }

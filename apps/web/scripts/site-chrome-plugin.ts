@@ -115,7 +115,7 @@ const cookieDialog = `    <dialog class="cookie-consent" id="cookie-consent" ari
 function appChrome(path: string) {
   const pages: [string, string][] = [
     ['Overview', '/dashboard/'], ['Build', '/build/'], ['Ad Hoc', '/dashboard/?view=ad-hoc'],
-    ['Production', '/dashboard/?view=production'], ['Projects', '/projects/'], ['Voice', '/voice/app/'],
+    ['Production', '/dashboard/?view=production'], ['Projects', '/projects/'], ['Voice', '/voice/app/'], ['BFF', '/bff/app/'],
   ];
   return `<header class="site-header app-header wrap">
     <a class="brand" href="/" aria-label="Mainbrella home"><img src="/images/logo.png" alt="" width="44" height="44" /><span>mainbrella</span></a>
@@ -137,6 +137,9 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
       async handler(html, context) {
         if (html.includes('<!-- bff-homepage -->')) {
           html = html.replace('<!-- bff-homepage -->', await readFile(new URL(import.meta.resolve('@canopy/bff/page')), 'utf8'));
+        }
+        if (html.includes('<!-- bff-app -->')) {
+          html = html.replace('<!-- bff-app -->', await readFile(new URL(import.meta.resolve('@canopy/bff/app-page')), 'utf8'));
         }
         // Unsubscribe and the isolated Repo Rodeo fixture run without shared chrome or a cookie dialog.
         if (/^\/(?:unsubscribe|repo-rodeo-bug)\/(?:index\.html)?$/.test(context.path)) return html;

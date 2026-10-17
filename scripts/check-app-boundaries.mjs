@@ -17,7 +17,7 @@ const products = {
   bff: {
     name: 'BFF',
     platformModules: new Set(),
-    hostExports: { web: new Set(['landing', 'page']) },
+    hostExports: { web: new Set(['landing', 'page', 'app-page', 'web']) },
   },
   voice: {
     name: 'Voice',
