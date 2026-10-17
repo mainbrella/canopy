@@ -31,9 +31,19 @@ These are deliberately public browser values. Backend allowlists and session
 issuance remain in `apps/bff/worker`; this example is an API consumer. Changes to
 the fixed public demo project or users must also match that backend allowlist.
 
+**+ Create new Board** below **My messages** opens a modal for a required name
+(up to 80 characters) and an optional description (up to 2000 characters).
+Creating a board inserts its name, description, generated unique slug, and the
+signed-in user's `user_id` into `boards`. New boards appear in the message
+composer the next time it opens. Failed requests preserve the form for retry.
+
+Board creation also requires `migrations/003_board_owners.sql`, a `boards`
+insert grant on the browser key, and a board insert policy of `own` with
+`user_id` as the owner column.
+
 The composer requires `migrations/002_boards.sql` and
 `migrations/004_message_titles.sql` to be applied to the project.
-Its browser key needs `boards: ['select']` and
+Its browser key needs `boards: ['select', 'insert']` and
 `messages: ['select', 'insert', 'update']` table grants. The `boards` policy must
 allow public selects; the `messages` policy must allow public selects and
 own-row inserts/updates with `user_id` as the owner column. These permissions

@@ -11,6 +11,7 @@ export type Message = {
 
 export type Board = {
   id: string;
+  user_id?: string | null;
   slug: string;
   name: string;
   description: string;
@@ -131,6 +132,26 @@ export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetch
         boards.push(...payload.data);
         if (payload.data.length < 100) return boards;
       }
+    },
+    async createBoard(session: DemoSession, name: string, description: string): Promise<Board> {
+      const cleanName = name.trim();
+      const cleanDescription = description.trim();
+      if (!cleanName || cleanName.length > 80) throw new DemoApiError('Enter a board name of 1–80 characters.');
+      if (cleanDescription.length > 2000) throw new DemoApiError('Enter a description of at most 2000 characters.');
+      // Keep slugs valid for all names and allow boards with the same name.
+      const prefix = cleanName.normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').slice(0, 47).replace(/^-+|-+$/g, '') || 'board';
+      const slug = `${prefix}-${crypto.randomUUID().replace(/-/g, '')}`;
+      const payload = await requestJson(tableUrl(config, 'boards'), {
+        method: 'POST', headers: { ...headers(session), 'content-type': 'application/json' },
+        body: JSON.stringify({ slug, name: cleanName, description: cleanDescription, user_id: session.session.user_id }),
+      }, fetcher);
+      if (!isRecord(payload) || !Array.isArray(payload.data) || payload.data.length !== 1
+        || !isBoard(payload.data[0]) || payload.data[0].user_id !== session.session.user_id
+        || payload.data[0].slug !== slug || payload.data[0].name !== cleanName || payload.data[0].description !== cleanDescription) {
+        throw new DemoApiError('The demo did not confirm the new board. Refresh boards before trying again.');
+      }
+      return payload.data[0];
     },
     async create(session: DemoSession, boardId: string, title: string, body: string): Promise<Message> {
       const cleanTitle = title.trim();

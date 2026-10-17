@@ -6,7 +6,7 @@ import { App } from './App.tsx';
 test('the example starts at login without requesting data or exposing an authenticated board', () => {
   const unexpected = async () => { throw new Error('Rendering must not call the API'); };
   const html = renderToStaticMarkup(<App api={{ login: unexpected, logout: unexpected, list: unexpected,
-    listBoards: unexpected, create: unexpected, update: unexpected }} />);
+    listBoards: unexpected, createBoard: unexpected, create: unexpected, update: unexpected }} />);
   assert.match(html, /<h1>Message board<\/h1>/);
   assert.match(html, /id="login-panel"/);
   assert.match(html, /<label[^>]*for="login-user"/);

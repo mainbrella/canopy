@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createDemoApi, type DemoSession, type Message } from './api.ts';
 import type { DemoUser } from './config.ts';
 import { CreateMessageDialog } from './CreateMessageDialog.tsx';
+import { CreateBoardDialog } from './CreateBoardDialog.tsx';
 
 type BoardApi = ReturnType<typeof createDemoApi>;
 const defaultApi = createDemoApi();
@@ -107,6 +108,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
 }
 
 function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; session: DemoSession; createOpen: boolean; onCloseCreate: () => void }) {
+  const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -229,6 +231,8 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
 
   return <div className="board-layout">
     <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />
+    {createBoardOpen && <CreateBoardDialog api={api} session={session} onClose={() => setCreateBoardOpen(false)}
+      onCreated={board => { setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); }} />}
     <aside className="board-navigation">
       <nav className="board-nav" aria-label="Message views">
         <button className="board-nav-item" type="button" aria-pressed={view === 'all'} onClick={() => setView('all')}>
@@ -240,6 +244,11 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
           My messages
         </button>
       </nav>
+      <button id="create-board-button" className="board-nav-item create-board-button" type="button"
+        onClick={() => setCreateBoardOpen(true)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        Create new Board
+      </button>
       <a className="back-link board-back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>
     </aside>
     <div className="board-feed">

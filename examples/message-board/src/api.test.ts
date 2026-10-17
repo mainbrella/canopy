@@ -13,6 +13,65 @@ const alice: DemoSession = { token: `bff_us_${'a'.repeat(64)}`, session: {
 const bob: DemoSession = { token: `bff_us_${'b'.repeat(64)}`, session: { ...alice.session, id: 'bob-session', user_id: 'bob' } };
 const general: Board = { id: 'general', slug: 'general', name: 'General', description: 'General discussion.', created_at: rows[0].created_at };
 
+test('board creation inserts trimmed fields and the logged-in owner, with valid distinct slugs', async () => {
+  const slugs = new Set<string>();
+  for (const session of [alice, bob]) {
+    for (const name of ['  Café & plans  ', '会議', 'a'.repeat(80), 'Café & plans']) {
+      const api = createDemoApi(liveBoardConfig, async (input, init) => {
+        assert.ok(String(input).endsWith('/tables/boards'));
+        assert.equal(init?.method, 'POST');
+        assert.equal(init?.credentials, 'omit');
+        assert.equal(new Headers(init?.headers).get('authorization'), `Bearer ${session.token}`);
+        assert.equal(new Headers(init?.headers).get('apikey'), liveBoardConfig.publicKey);
+        assert.equal(new Headers(init?.headers).get('content-type'), 'application/json');
+        const data = JSON.parse(String(init?.body));
+        assert.deepEqual(Object.keys(data).sort(), ['description', 'name', 'slug', 'user_id']);
+        assert.equal(data.name, name.trim());
+        assert.equal(data.description, 'Discuss plans.');
+        assert.equal(data.user_id, session.session.user_id);
+        assert.match(data.slug, /^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/);
+        assert.ok(data.slug.length <= 80);
+        assert.ok(!slugs.has(data.slug));
+        slugs.add(data.slug);
+        return Response.json({ data: [{ ...general, ...data, id: 'new-board' }] }, { status: 201 });
+      });
+      const created = await api.createBoard(session, name, '  Discuss plans.  ');
+      assert.equal(created.id, 'new-board');
+      assert.equal(created.user_id, session.session.user_id);
+    }
+  }
+});
+
+test('board creation validates limits and confirms the inserted row and its owner', async () => {
+  const noRequest = createDemoApi(liveBoardConfig, async () => { throw new Error('Invalid input must not make a request'); });
+  for (const name of [' \n ', 'x'.repeat(81)]) {
+    await assert.rejects(noRequest.createBoard(alice, name, ''), /board name of 1–80/);
+  }
+  await assert.rejects(noRequest.createBoard(alice, 'Valid', 'x'.repeat(2001)), /at most 2000/);
+  for (const description of ['', 'x'.repeat(2000)]) {
+    const api = createDemoApi(liveBoardConfig, async (_input, init) =>
+      Response.json({ data: [{ ...general, ...JSON.parse(String(init?.body)) }] }));
+    assert.equal((await api.createBoard(alice, 'Valid', description)).description, description);
+  }
+  for (const invalid of ['empty', 'multiple', 'owner', 'name', 'description', 'slug', 'malformed']) {
+    const api = createDemoApi(liveBoardConfig, async (_input, init) => {
+      const board = { ...general, ...JSON.parse(String(init?.body)) };
+      const data = invalid === 'empty' ? [] : invalid === 'multiple' ? [board, board]
+        : invalid === 'owner' ? [{ ...board, user_id: 'bob' }]
+          : invalid === 'name' ? [{ ...board, name: 'Wrong name' }]
+            : invalid === 'description' ? [{ ...board, description: 'Wrong description' }]
+              : invalid === 'slug' ? [{ ...board, slug: 'wrong-slug' }]
+                : [{ ...board, created_at: 'invalid' }];
+      return Response.json({ data }, { status: 201 });
+    });
+    await assert.rejects(api.createBoard(alice, 'My board', 'Description'), /did not confirm/);
+  }
+  for (const status of [401, 403]) {
+    const api = createDemoApi(liveBoardConfig, async () => Response.json({ error: 'permission_denied' }, { status }));
+    await assert.rejects(api.createBoard(alice, 'My board', ''), error => error instanceof DemoApiError && error.status === status);
+  }
+});
+
 test('board selection loads every page with the session and validates board data', async () => {
   const firstPage = Array.from({ length: 100 }, (_, index) => ({ ...general, id: `board-${index}`, slug: `board-${index}` }));
   const calls: string[] = [];
