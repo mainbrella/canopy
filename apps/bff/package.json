@@ -1,11 +1,29 @@
 {
   "name": "@canopy/bff",
   "private": true,
+  "version": "0.0.1",
   "type": "module",
   "exports": {
     "./page": "./web/homepage.html",
     "./landing": "./web/landing.ts",
     "./app-page": "./web/app.html",
-    "./web": "./web/app.ts"
+    "./web": "./web/app.ts",
+    "./routes": "./worker/routes.ts",
+    "./openapi": "./worker/openapi.ts",
+    "./maintenance": "./worker/maintenance.ts"
+  },
+  "scripts": {
+    "test": "tsx --test worker/*.test.ts web/*.test.ts",
+    "type-check": "tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.web.json"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.1",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20261006.1-alpha",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   }
 }

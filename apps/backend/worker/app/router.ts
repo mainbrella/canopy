@@ -1,5 +1,6 @@
 import { handleBuildRequest, handleGithubBuildRequest, handleProjectGithubRequest } from '@canopy/vibe/routes';
 import { handleVoiceRequest } from '@canopy/voice/routes';
+import { handleBffRequest } from '@canopy/bff/routes';
 import { handleStorageBillingRequest } from './storage-billing';
 import { handleDomainsRequest } from './domains';
 import { handleRepoLaunchRequest } from "./repo-launches";
@@ -47,6 +48,7 @@ async function handleLegacyRequest(
   ctx?: ExecutionContext,
 ): Promise<Response> {
   const url = new URL(request.url);
+  if (url.pathname.startsWith('/bff/')) return handleBffRequest(request, env);
   if (url.pathname.startsWith('/voice/')) return handleVoiceRequest(request, env, ctx);
   if (url.pathname === '/pools' || url.pathname.startsWith('/pools/')) return handlePoolsRequest(request, env);
   if (url.pathname === '/secrets' || url.pathname.startsWith('/secrets/')) return handleSecretsRequest(request, env);

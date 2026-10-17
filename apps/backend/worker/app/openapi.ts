@@ -39,6 +39,7 @@ import { registerAcquisitionRoutes } from './openapi-acquisition';
 import { forward, type LegacyHandler } from "./openapi-shared";
 import { registerSecurityInfrastructureRoutes } from './openapi-security-infrastructure';
 import { registerVoiceRoutes, registerVoiceTelnyxRoutes, registerVoiceNumberSearchRoutes } from '@canopy/voice/openapi';
+import { registerBffRoutes } from '@canopy/bff/openapi';
 import { isStaging, publicApiOrigin, publicWebOrigin } from '../lib/deployment-environment';
 
 // Independent service documents keep infrastructure routes off the customer API.
@@ -80,7 +81,7 @@ export function createOpenAPIApp(handler: LegacyHandler) {
       openapi: "3.1.0",
       info: { title: "Mainbrella API", version: "1.0.0", description: "Account, billing, container, image build, and WebSocket API. Admin and marketing endpoints retain this origin and are forwarded to independently deployed Workers." },
       servers: [{ url: "https://api.mainbrella.com" }, { url: "http://localhost:8787", description: "Local development" }],
-      tags: ["Operations", "Authentication", "API Keys", "Projects", "Domains", "Subscriptions", "Billing", "Containers", "Private Services", "Secrets", "Images", "Internal", "Admin", "Marketing", "Acquisition", "Build", "Voice"].map(name => ({ name })),
+      tags: ["Operations", "Authentication", "API Keys", "Projects", "Domains", "Subscriptions", "Billing", "Containers", "Private Services", "Secrets", "Images", "Internal", "Admin", "Marketing", "Acquisition", "Build", "Voice", "BFF"].map(name => ({ name })),
     },
   });
   const securitySchemes = {
@@ -106,6 +107,7 @@ export function createOpenAPIApp(handler: LegacyHandler) {
   registerVoiceRoutes(api, handler);
   registerVoiceTelnyxRoutes(api, handler);
   registerVoiceNumberSearchRoutes(api, handler);
+  registerBffRoutes(api, handler);
   registerAcquisitionRoutes(api, handler);
   registerOperationsRoutes(api, handler);
   registerAdminRoutes(api, handler);

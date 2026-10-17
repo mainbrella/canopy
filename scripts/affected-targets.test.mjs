@@ -22,7 +22,7 @@ test('shared backend changes select public consumers and SDK checks', () => {
 });
 
 test('BFF homepage changes select the site without backend or builder work', () => {
-  for (const path of ['apps/bff/web/homepage.html', 'apps/bff/web/landing.ts', 'apps/bff/web/landing.css', 'apps/bff/package.json']) {
+  for (const path of ['apps/bff/web/homepage.html', 'apps/bff/web/landing.ts', 'apps/bff/web/landing.css']) {
     const result = affectedTargets([path]);
     assert.equal(result.site, true, path);
     assert.equal(result.builder, false, path);
@@ -31,6 +31,14 @@ test('BFF homepage changes select the site without backend or builder work', () 
   const docs = affectedTargets(['apps/bff/README.md']);
   assert.equal(docs.docs, true);
   assert.equal(docs.site, false);
+});
+
+test('BFF worker and configuration changes run the API host checks', () => {
+  for (const path of ['apps/bff/worker/routes.ts', 'apps/bff/package.json', 'apps/bff/tsconfig.worker.json']) {
+    const result = affectedTargets([path]);
+    assert.equal(result.backend_full, true, path);
+    assert.equal(result.docs, true, path);
+  }
 });
 
 test('Voice browser changes select the site and worker changes select their API host', () => {

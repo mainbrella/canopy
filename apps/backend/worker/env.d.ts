@@ -1,6 +1,10 @@
 // Legacy application modules support these optional integrations. Keep their
 // declarations separate from Wrangler's generated deployment bindings.
 interface Env {
+  BFF_ENABLED?: string;
+  BFF_LOADER?: WorkerLoader;
+  BFF_CLOUDFLARE_ACCOUNT_ID?: string;
+  BFF_CLOUDFLARE_API_TOKEN?: string;
   DEPLOYMENT_ENVIRONMENT?: 'production' | 'staging';
   EMAIL_DELIVERY_ENABLED?: string;
   VOICE_ENABLED?: string;

@@ -40,7 +40,7 @@
     "deploy:api": "wrangler deploy --config wrangler.jsonc",
     "deploy:previews": "wrangler deploy --config wrangler.previews.jsonc",
     "test:containers": "npm run test:containers -w @canopy/linux && node --test scripts/*.test.mjs experiments/*.test.mjs",
-    "test:api": "tsx --test worker/app/*.test.ts worker/durable-objects/*.test.ts worker/*.test.ts scripts/*.test.ts && npm run test:worker -w @canopy/voice && npm run test:worker -w @canopy/vibe && npm run test:worker -w @canopy/linux",
+    "test:api": "tsx --test worker/app/*.test.ts worker/durable-objects/*.test.ts worker/*.test.ts scripts/*.test.ts && npm test -w @canopy/bff && npm run test:worker -w @canopy/voice && npm run test:worker -w @canopy/vibe && npm run test:worker -w @canopy/linux",
     "test:projects": "node --test ../linux/containers/project-ingress.test.mjs && tsx --test ../linux/worker/app/project-hosting.test.ts ../linux/worker/app/project-hosting.integration.test.ts ../linux/worker/project-gateway.test.ts worker/app/projects.test.ts",
     "test:plans": "npm run test:containers && tsx --test worker/app/entitlements.test.ts worker/app/subscription.test.ts worker/app/subscription-webhook.test.ts ../linux/worker/app/containers.test.ts ../linux/worker/app/container-entitlements.integration.test.ts ../linux/worker/app/ssh.test.ts ../linux/worker/app/terminal.test.ts",
     "check:containers": "node --check ../linux/containers/user-container.js && node --check ../linux/containers/user-container-core.js && node --check ../linux/containers/terminal.js && node --check ../linux/containers/files.js && node --check ../linux/containers/filesystem.js && node --check ../linux/containers/filesystem-contract.js && node --check ../linux/containers/observations.js && node --check ../linux/containers/webhooks.js && node --check ../linux/containers/webhook-contract.js && node --check ../linux/containers/process-supervisor.js && node --check ../linux/containers/executions.js && node --check ../linux/containers/previews.js && node --check ../linux/containers/preview-contract.js && node --check experiments/runtime-probe-worker.js && node --check experiments/network-probe.js && node --check experiments/network-probe-worker.js && node --check ../linux/containers/code-contexts.js && node --check ../linux/containers/code-kernel.js && node --check ../linux/containers/code-contract.js && node --check ../linux/containers/file-transfers.js && node --check ../linux/containers/file-transfer-contract.js",
@@ -73,6 +73,7 @@
     "hono": "^4.13.13",
     "zod": "^4.6.5",
     "@canopy/voice": "*",
+    "@canopy/bff": "*",
     "@canopy/vibe": "*",
     "@canopy/linux": "*",
     "@canopy/platform": "*"

@@ -16,16 +16,15 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <!-- app-header -->
     <main id="main" class="dashboard-main bff-main" aria-busy="true">
-      <div class="bff-app-heading"><h1>BFF</h1><span class="bff-tag">Preview</span></div>
+      <div class="bff-app-heading"><h1>BFF</h1><span class="bff-tag">v0.0.1</span></div>
       <p id="bff-loading" class="dashboard-status" role="status">Checking your session…</p>
       <p id="bff-error" class="dashboard-error" role="alert" hidden></p>
       <button id="bff-retry" class="dashboard-retry" type="button" hidden>Retry</button>
       <div id="bff-signin" hidden><p class="dashboard-status">Sign in to explore your BFF workspace.</p><a class="button button-small" href="/login/?returnTo=%2Fbff%2Fapp%2F">Sign in</a></div>
       <div id="bff-content" hidden>
-        <p class="bff-preview-notice"><strong>Sample project.</strong> Explore a backend already in use. Changes last until you reload; no services are connected.</p>
         <div class="bff-project-bar">
-          <div class="bff-project-identity"><span class="bff-project-mark" aria-hidden="true">T</span><div><button class="bff-project-picker" type="button" data-action="projects" aria-haspopup="dialog"><span id="bff-project-name">Trailhead</span> <span aria-hidden="true">⌄</span></button><p id="bff-project-description">Collaborative trip planning</p></div></div>
-          <div class="bff-project-controls"><label for="bff-environment" class="visually-hidden">Environment</label><select id="bff-environment"><option value="production">Production</option><option value="staging">Staging</option></select><button type="button" class="dashboard-retry" data-action="connect">Connect</button><button type="button" class="dashboard-retry" data-action="create-project">New project</button></div>
+          <div class="bff-project-identity"><span id="bff-project-mark" class="bff-project-mark" aria-hidden="true">B</span><div><button id="bff-project-picker" class="bff-project-picker" type="button" data-action="projects" aria-haspopup="dialog"><span id="bff-project-name">No project</span> <span aria-hidden="true">⌄</span></button><p id="bff-project-description">Create your first project</p></div></div>
+          <div class="bff-project-controls"><span class="bff-muted">Production</span><button type="button" class="dashboard-retry" data-action="refresh">Refresh</button><button id="bff-create-project" type="button" class="dashboard-retry" data-action="create-project">New project</button></div>
         </div>
         <div class="bff-workspace">
           <nav id="bff-navigation" class="bff-sidebar" aria-label="BFF workspace"></nav>

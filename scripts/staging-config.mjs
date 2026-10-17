@@ -20,7 +20,7 @@ const SOURCE_KEYS = new Set([
   'workers_dev', 'preview_urls', 'r2_buckets', 'cache', 'ai', 'version_metadata',
   'workflows', 'triggers', 'vars', 'send_email', 'services', 'd1_databases',
   'ratelimits', 'durable_objects', 'exports', 'observability', 'routes',
-  'containers', 'assets',
+  'containers', 'assets', 'worker_loaders',
 ]);
 const SOURCE_D1 = {
   api: ['DB', 'PREVIEW_ROUTES'], admin: ['DB'], marketing: ['DB'],
@@ -104,6 +104,10 @@ function assertSupportedSourceConfig(target, configuration) {
     }
   }
   const workflows = configuration.workflows ?? [];
+  const loaders = configuration.worker_loaders ?? [];
+  if (!isDeepStrictEqual(loaders, target === 'api' ? [{ binding: 'BFF_LOADER' }] : [])) {
+    unsupported(target, 'worker loader bindings');
+  }
   exactNames(target, 'workflow bindings', workflows.map(item => item.binding), target === 'api' ? ['BUILD_WORKFLOW'] : []);
   if (workflows.some(item => item.name !== 'mainbrella-build' || item.class_name !== 'BuildWorkflow'
     || !isDeepStrictEqual(Object.keys(item).sort(), ['binding', 'name', 'class_name'].sort()))) {
@@ -208,6 +212,7 @@ function stageVars(configuration) {
     NAMECOM_ENABLED: 'false',
     VOICE_ENABLED: 'false',
     BUILD_ENABLED: 'true',
+    BFF_ENABLED: 'false',
     PREVIEWS_ENABLED: 'true',
     PROJECT_HOSTING_ENABLED: 'false',
     ACQUISITION_ENABLED: 'true',

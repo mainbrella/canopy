@@ -60,7 +60,8 @@ test('BFF workspace uses authenticated app chrome and its own route entry', asyn
   assert.match(html, /src="\/src\/bff-app.ts"/);
   assert.match(html, /id="bff-content" hidden/);
   assert.match(html, /name="robots" content="noindex"/);
-  assert.match(html, /Changes last until you reload; no services are connected/);
+  assert.match(html, /v0\.0\.1/);
+  assert.doesNotMatch(html, /Sample project|Trailhead|no services are connected/);
   assert.doesNotMatch(html, /<!-- (?:bff-app|app-header) -->|data-consent-prompt="optional"/);
 
   const dashboard = await transform('dashboard/index.html', '/dashboard/index.html');

@@ -31,7 +31,8 @@ export function affectedTargets(paths) {
       } else service.services.forEach(name => services.add(name));
     } else if (path.startsWith('apps/bff/')) {
       if (path === 'apps/bff/README.md') selected.docs = true;
-      else selected.site = true;
+      else if (path.startsWith('apps/bff/web/')) selected.site = true;
+      else selected.backend_full = selected.sdk = selected.site = selected.builder = selected.raindrop_ui = selected.docs = true;
     } else if (path.startsWith('apps/voice/')) {
       const local = path.slice('apps/voice/'.length);
       if (local === 'README.md') selected.docs = true;

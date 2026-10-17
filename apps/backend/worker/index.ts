@@ -11,6 +11,7 @@ import { handleApplicationGateway } from '@canopy/linux/gateway';
 import { reconcileAcquisitionBilling } from './lib/acquisition-billing';
 import { cleanupDeletedBuildGit, cleanupStorageOrphans, buildStorageExpiration } from '@canopy/vibe/maintenance';
 import { reconcileBuildTurns } from '@canopy/vibe/routes';
+import { cleanupBffDatabases } from '@canopy/bff/maintenance';
 
 export { AppState };
 export { ReceptionistCall } from '@canopy/voice/call';
@@ -26,6 +27,7 @@ export default {
     return handleRequest(request, env, ctx);
   },
   scheduled(_event, env, ctx) {
+    ctx.waitUntil(cleanupBffDatabases(env).catch(() => { console.error('bff_database_cleanup_failed'); }));
     ctx.waitUntil(settleReportedVoiceUsage(env).catch(() => { console.error('voice_billing_reconciliation_failed'); }));
     ctx.waitUntil(reconcileDomainOrders(env).catch(() => { console.error('domain_reconciliation_failed'); }));
     ctx.waitUntil((async () => {

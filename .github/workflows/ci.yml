@@ -62,6 +62,7 @@ jobs:
       - run: npm run test:openapi -w @canopy/backend
       - run: npm run type-check -w @canopy/backend
       - run: npm run type-check -w @canopy/voice
+      - run: npm run type-check -w @canopy/bff
       - run: npm run type-check -w @canopy/vibe
       - run: npm run type-check -w @canopy/linux
       - run: git diff --exit-code -- apps/backend/cloudflare-configuration.d.ts

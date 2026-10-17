@@ -16,8 +16,12 @@ const platformModules = new Set([
 const products = {
   bff: {
     name: 'BFF',
-    platformModules: new Set(),
-    hostExports: { web: new Set(['landing', 'page', 'app-page', 'web']) },
+    platformModules: new Set([
+      'apps/backend/worker/app/auth-core',
+      'apps/backend/worker/app/openapi-shared',
+      'apps/backend/worker/shared/bounded-body.js',
+    ]),
+    hostExports: { backend: new Set(['routes', 'openapi', 'maintenance']), web: new Set(['landing', 'page', 'app-page', 'web']) },
   },
   voice: {
     name: 'Voice',
@@ -110,7 +114,7 @@ function sourceFiles(directory) {
 
 export function checkAppBoundaries() {
   const failures = [];
-  for (const directory of ['packages/platform', 'apps/bff/web', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
+  for (const directory of ['packages/platform', 'apps/bff/web', 'apps/bff/worker', 'apps/voice/worker', 'apps/voice/web', 'apps/vibe/worker', 'apps/vibe/web', 'apps/linux/worker', 'apps/linux/web', 'apps/linux/containers', 'apps/linux/sdk', 'apps/backend/worker', 'apps/web/src']) {
     for (const path of sourceFiles(join(root, directory))) {
       const file = relative(root, path).replaceAll('\\', '/');
       // Integration fixtures deliberately exercise the real shared host.

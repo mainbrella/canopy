@@ -5,6 +5,12 @@ import { handleRequest } from "./router";
 import { serviceForPath } from "../shared/service-routing";
 
 const endpointMethods: Record<string, string[]> = {
+  '/bff/config': ['get'], '/bff/projects': ['get', 'post'], '/bff/projects/{projectId}': ['get', 'patch'],
+  '/bff/projects/{projectId}/provision': ['post'], '/bff/projects/{projectId}/schema': ['get'],
+  '/bff/projects/{projectId}/query': ['post'], '/bff/projects/{projectId}/migrations': ['get', 'post'],
+  '/bff/projects/{projectId}/functions': ['get'], '/bff/projects/{projectId}/functions/{functionName}': ['get', 'put'],
+  '/bff/projects/{projectId}/functions/{functionName}/invoke': ['post'],
+  '/bff/projects/{projectId}/executions': ['get'], '/bff/projects/{projectId}/usage': ['get'],
   '/pools': ['get', 'post'], '/pools/{poolId}': ['get', 'patch', 'delete'], '/pools/{poolId}/acquire': ['post'],
   '/secrets': ['get', 'post'], '/secrets/{secretId}': ['put', 'delete'],
   '/containers/stop': ['post'], '/containers/resume': ['post'], '/containers/fork': ['post'],
