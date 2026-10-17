@@ -61,3 +61,19 @@ Public reads expose all rows and columns through browser keys with a `select`
 grant for that table. Browser access requires both that grant and the public
 read policy. Table names start with a letter, contain only letters, digits, and
 underscores, and are at most 63 characters; the `sqlite_` prefix is reserved.
+
+List browser keys to find the key ID you want to update, then add a select grant
+for the table:
+
+```sh
+canopy --browser-keys
+canopy --grant-select boards --key <KEY_ID>
+```
+
+The listing includes key IDs, names, safe prefixes, allowed origins, table
+operation grants, and function pins. It never returns key tokens. The grant
+command adds the table's `select` operation to the specified key while
+preserving its other grants and settings; it does not rotate the token. Run
+`--read-everyone boards` as well to enable the public table policy. The additive
+grant command requires a BFF deployment that supports
+`PATCH /bff/projects/{projectId}/api-keys/{keyId}`.

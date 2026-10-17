@@ -98,7 +98,7 @@ fn run_with_origin(
     Ok(())
 }
 
-fn validate_table(table: &str) -> Result<(), String> {
+pub(crate) fn validate_table(table: &str) -> Result<(), String> {
     let bytes = table.as_bytes();
     let valid = !bytes.is_empty()
         && bytes.len() <= 63

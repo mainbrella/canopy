@@ -3,6 +3,7 @@ use std::process;
 use std::time::Duration;
 
 mod api;
+mod browser_keys;
 mod migration;
 mod permissions;
 
@@ -15,6 +16,8 @@ enum Command {
     Whoami,
     Migrate,
     ReadEveryone(String),
+    BrowserKeys,
+    GrantSelect { table: String, key_id: String },
 }
 
 fn main() {
@@ -62,6 +65,26 @@ fn main() {
                 process::exit(1);
             }
         }
+        Command::BrowserKeys => match browser_keys::list(std::path::Path::new("."), api_key.trim())
+        {
+            Ok(listing) => println!("{listing}"),
+            Err(error) => {
+                eprintln!("error: {error}");
+                process::exit(1);
+            }
+        },
+        Command::GrantSelect { table, key_id } => match browser_keys::grant_select(
+            std::path::Path::new("."),
+            api_key.trim(),
+            &table,
+            &key_id,
+        ) {
+            Ok(message) => println!("{message}"),
+            Err(error) => {
+                eprintln!("error: {error}");
+                process::exit(1);
+            }
+        },
         Command::NoArgs => print_help(),
         Command::Help => unreachable!(),
     }
@@ -72,6 +95,7 @@ fn parse_args(args: &[String]) -> Result<Command, String> {
         [] => Ok(Command::NoArgs),
         [arg] if arg == "--whoami" => Ok(Command::Whoami),
         [arg] if arg == "--migrate" => Ok(Command::Migrate),
+        [arg] if arg == "--browser-keys" => Ok(Command::BrowserKeys),
         [arg] if arg == "-h" || arg == "--help" => Ok(Command::Help),
         [flag] if flag == "--read-everyone" => {
             Err("--read-everyone requires a table name".to_owned())
@@ -81,6 +105,43 @@ fn parse_args(args: &[String]) -> Result<Command, String> {
                 Err("--read-everyone requires a table name".to_owned())
             } else {
                 Ok(Command::ReadEveryone(table.clone()))
+            }
+        }
+        [flag] if flag == "--grant-select" => {
+            Err("--grant-select requires a table name followed by --key <KEY_ID>".to_owned())
+        }
+        [flag, table] if flag == "--grant-select" => {
+            if table.is_empty() || table.starts_with('-') {
+                Err("--grant-select requires a table name followed by --key <KEY_ID>".to_owned())
+            } else {
+                Err("--grant-select requires --key <KEY_ID>".to_owned())
+            }
+        }
+        [flag, table, key_flag] if flag == "--grant-select" => {
+            if table.is_empty() || table.starts_with('-') {
+                Err("--grant-select requires a table name".to_owned())
+            } else if key_flag == "--key" {
+                Err("--grant-select --key requires a browser key ID".to_owned())
+            } else {
+                Err("--grant-select requires --key <KEY_ID>".to_owned())
+            }
+        }
+        [flag, table, key_flag, key_id] if flag == "--grant-select" => {
+            if table.is_empty() || table.starts_with('-') {
+                Err("--grant-select requires a table name".to_owned())
+            } else if key_flag != "--key" || key_id.is_empty() || key_id.starts_with('-') {
+                Err("expected --grant-select <TABLE> --key <KEY_ID>".to_owned())
+            } else if let Err(error) = permissions::validate_table(table) {
+                Err(error)
+            } else if !api::is_lowercase_uuid(key_id) {
+                Err(format!(
+                    "invalid browser key ID '{key_id}': expected a lowercase UUID"
+                ))
+            } else {
+                Ok(Command::GrantSelect {
+                    table: table.clone(),
+                    key_id: key_id.clone(),
+                })
             }
         }
         [argument, ..] => Err(format!("unexpected argument '{argument}'")),
@@ -108,7 +169,7 @@ fn fetch_whoami(url: &str, api_key: &str) -> Result<String, ureq::Error> {
 
 fn print_help() {
     println!(
-        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n      --whoami                    Call /api-keys/me and print the returned JSON\n      --migrate                   Apply pending SQL files from ./migrations\n      --read-everyone <TABLE>      Allow public reads from a table\n  -h, --help                      Print this help message\n\nProject config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
+        "Canopy CLI\n\nUsage: canopy [OPTIONS]\n\nOptions:\n  --whoami                         Call /api-keys/me and print the returned JSON\n  --migrate                        Apply pending SQL files from ./migrations\n  --read-everyone <TABLE>           Allow public reads from a table\n  --browser-keys                    List browser keys and their grants\n  --grant-select <TABLE> --key <KEY_ID>\n                                    Add a table SELECT grant to an existing browser key\n  -h, --help                        Print this help message\n\nProject config:\n  ./canopy.json  Must contain a lowercase UUID projectId\n\nEnvironment:\n  MAINBRELLA_API_KEY  API key required to run canopy"
     );
 }
 
@@ -124,6 +185,10 @@ mod tests {
         assert_eq!(parse_args(&[]).unwrap(), Command::NoArgs);
         assert_eq!(parse_args(&["--whoami".into()]).unwrap(), Command::Whoami);
         assert_eq!(parse_args(&["--migrate".into()]).unwrap(), Command::Migrate);
+        assert_eq!(
+            parse_args(&["--browser-keys".into()]).unwrap(),
+            Command::BrowserKeys
+        );
         assert_eq!(
             parse_args(&["--read-everyone".into(), "boards".into()]).unwrap(),
             Command::ReadEveryone("boards".into())
@@ -144,6 +209,52 @@ mod tests {
                     .unwrap_err()
                     .contains("requires a table name")
             );
+        }
+        assert_eq!(
+            parse_args(&[
+                "--grant-select".into(),
+                "boards".into(),
+                "--key".into(),
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9".into(),
+            ])
+            .unwrap(),
+            Command::GrantSelect {
+                table: "boards".into(),
+                key_id: "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9".into(),
+            }
+        );
+        for invalid in [
+            vec!["--grant-select"],
+            vec!["--grant-select", "boards"],
+            vec![
+                "--grant-select",
+                "--key",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+            ],
+            vec!["--grant-select", "boards", "--key"],
+            vec![
+                "--grant-select",
+                "boards",
+                "wrong",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+            ],
+            vec!["--grant-select", "boards", "--key", "not-a-uuid"],
+            vec![
+                "--grant-select",
+                "bad-name",
+                "--key",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+            ],
+            vec![
+                "--grant-select",
+                "boards",
+                "--key",
+                "c88a1cb6-7aaa-4c30-8c4a-d4f2288421e9",
+                "extra",
+            ],
+        ] {
+            let args = invalid.into_iter().map(String::from).collect::<Vec<_>>();
+            assert!(parse_args(&args).is_err(), "accepted {args:?}");
         }
     }
 

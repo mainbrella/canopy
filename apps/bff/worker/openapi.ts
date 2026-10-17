@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { errors, jsonResponse, register, requestBody, type LegacyHandler, type OpenAPIApi } from '../../backend/worker/app/openapi-shared';
 import { demoSessionInput } from './demo';
-import { apiKeyInput, clientInvokeInput, filterInput, functionInput, invokeInput, migrationInput, projectInput, projectPatch, queryInput, sessionInput, tableNameInput, tableOperation, tablePolicyInput, tableReadInput } from './contracts';
+import { apiKeyGrantInput, apiKeyInput, clientInvokeInput, filterInput, functionInput, invokeInput, migrationInput, projectInput, projectPatch, queryInput, sessionInput, tableNameInput, tableOperation, tablePolicyInput, tableReadInput } from './contracts';
 
 const project = z.object({ id: z.string().uuid(), name: z.string(), state: z.enum(['pending', 'ready', 'error']), suspended: z.boolean(), created_at: z.string() });
 const row = z.record(z.string(), z.unknown());
@@ -53,6 +53,8 @@ export function registerBffRoutes(api: OpenAPIApi, handler: LegacyHandler) {
   route('get', `${base}/api-keys`, 'listBffApiKeys', 'List this project’s scoped browser keys from the shared API key store', { params }, z.object({ keys: z.array(apiKey) }));
   route('post', `${base}/api-keys`, 'createBffApiKey', 'Create a browser key with explicit table operations, allowed origins, and pinned function versions; token returned once',
     { params, ...requestBody(apiKeyInput) }, z.object({ key: apiKey, token: z.string() }), true);
+  route('patch', `${base}/api-keys/{keyId}`, 'grantBffApiKeySelect', 'Idempotently add SELECT on an existing table to one browser key; preserves its token, origins, other grants, and pinned functions; public reads also require a public table policy',
+    { params: params.extend({ keyId: z.string().uuid() }), ...requestBody(apiKeyGrantInput) }, z.object({ key: apiKey }));
   route('delete', `${base}/api-keys/{keyId}`, 'revokeBffApiKey', 'Revoke a browser key, including while its project is paused or BFF is disabled',
     { params: params.extend({ keyId: z.string().uuid() }) }, z.object({ revoked: z.boolean() }));
   route('get', `${base}/sessions`, 'listBffUserSessions', 'List active project user sessions; tokens are never listed', { params }, z.object({ sessions: z.array(userSession) }));

@@ -21,7 +21,7 @@ pub fn read_project_id(project_dir: &Path) -> Result<String, String> {
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
     let config: ProjectConfig = serde_json::from_str(&contents)
         .map_err(|error| format!("invalid {}: {error}", path.display()))?;
-    if !is_uuid(&config.project_id) {
+    if !is_lowercase_uuid(&config.project_id) {
         return Err(format!(
             "invalid projectId in {}: expected a lowercase UUID",
             path.display()
@@ -30,7 +30,7 @@ pub fn read_project_id(project_dir: &Path) -> Result<String, String> {
     Ok(config.project_id)
 }
 
-fn is_uuid(value: &str) -> bool {
+pub fn is_lowercase_uuid(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() == 36
         && [8, 13, 18, 23].iter().all(|&index| bytes[index] == b'-')
@@ -82,6 +82,15 @@ pub fn put_json<T: for<'de> Deserialize<'de>, B: Serialize>(
     send_json(agent, "PUT", url, api_key, body)
 }
 
+pub fn patch_json<T: for<'de> Deserialize<'de>, B: Serialize>(
+    agent: &ureq::Agent,
+    url: &str,
+    api_key: &str,
+    body: &B,
+) -> Result<T, String> {
+    send_json(agent, "PATCH", url, api_key, body)
+}
+
 fn send_json<T: for<'de> Deserialize<'de>, B: Serialize>(
     agent: &ureq::Agent,
     method: &str,
@@ -90,10 +99,11 @@ fn send_json<T: for<'de> Deserialize<'de>, B: Serialize>(
     body: &B,
 ) -> Result<T, String> {
     let body = serde_json::to_string(body).map_err(|error| error.to_string())?;
-    let request = if method == "PUT" {
-        agent.put(url)
-    } else {
-        agent.post(url)
+    let request = match method {
+        "PUT" => agent.put(url),
+        "PATCH" => agent.patch(url),
+        "POST" => agent.post(url),
+        _ => return Err(format!("unsupported HTTP method: {method}")),
     }
     .header("Authorization", format!("Bearer {api_key}"))
     .header("Accept", "application/json")

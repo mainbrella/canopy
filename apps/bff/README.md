@@ -318,6 +318,37 @@ revokes a key, as does the top-level API Keys page. Listing and revocation work 
 feature is disabled. Revocation stops new requests; it does not cancel operations
 already running. There are at most 20 live keys per project.
 
+After a migration adds a table, the owner can add `select` to an existing browser
+key without rotating its token:
+
+```js
+await fetch(`${api}/bff/projects/${projectId}/api-keys/${key.id}`, {
+  method: 'PATCH',
+  headers: { authorization: `Bearer ${accountKey}`, 'content-type': 'application/json' },
+  body: JSON.stringify({ table: 'boards', operation: 'select' }),
+}); // 200: { key }, with updated grant metadata; no token or hash
+```
+
+This operation is idempotent and adds only the named table's read grant. It
+preserves origins, existing table operations, and pinned functions, including
+under concurrent grant requests. The table and key must exist in the owner's
+ready project. Adding a new table respects the combined limit of 50 table and
+function grants per key; adding `select` to an already-granted table is allowed
+at that limit. Missing keys/tables return 404; a full grant list returns 429
+`api_key_grant_limit`. Public reads also require a `select: public` table policy.
+
+With the updated API deployed, run the Canopy CLI from the application directory
+containing `canopy.json` and use an account key in `MAINBRELLA_API_KEY`:
+
+```sh
+canopy --browser-keys
+canopy --grant-select boards --key <KEY_ID>
+```
+
+The listing includes IDs, safe prefixes, origins, and grants. Use the existing
+key ID associated with the application's browser token. The frontend continues
+using that same token.
+
 In the external frontend, use the scoped token without Mainbrella cookies:
 
 ```js
@@ -376,7 +407,9 @@ public data. Own-row write policies compare `ownerColumn` with a trusted session
 identity. Raw function input and client filters cannot supply that identity.
 
 Function grants pin immutable versions, so saving a new version does not change
-what an existing key runs. Create a replacement key to change grants or origins.
+what an existing key runs. Owners can add a table's `select` grant with the PATCH
+endpoint above. Create a replacement key to change origins, write grants, or
+function pins, or to remove a grant.
 Keys cannot use the owner SQL, schema, migration, provisioning, or function-source
 APIs. Raw SQL stays in the owner SQL editor/API. This is a limited Supabase-style
 REST surface, not full PostgREST or Supabase SDK compatibility.

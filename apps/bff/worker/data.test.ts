@@ -146,6 +146,7 @@ test('disabled BFF denies the Data API while owners can still inspect and revoke
   assert.equal(f.calls.length, 0);
   assert.equal((await f.json(`/projects/${projectId}/api-keys`)).keys.length, 1);
   await f.json(`/projects/${projectId}/api-keys`, 'POST', { name: 'New', origins: ['https://customer.example'], tables: { notes: ['select'] } }, 503);
+  await f.json(`/projects/${projectId}/api-keys/${keyId}`, 'PATCH', { table: 'notes', operation: 'select' }, 503);
   await f.json(`/projects/${projectId}/api-keys/${keyId}`, 'DELETE');
   assert.deepEqual((await f.json(`/projects/${projectId}/api-keys`)).keys, []);
 });

@@ -48,6 +48,7 @@ export const apiKeyInput = z.object({
   functions: z.record(nameInput, z.number().int().min(1).max(LIMITS.versions)).default({}),
 }).strict().refine(value => Object.keys(value.tables).length <= 50 && Object.keys(value.functions).length <= 50
   && Object.keys(value.tables).length + Object.keys(value.functions).length > 0);
+export const apiKeyGrantInput = z.object({ table: tableNameInput, operation: z.literal('select') }).strict();
 export const tableReadInput = z.object({
   select: z.string().min(1).max(3200).default('*'),
   limit: z.coerce.number().int().min(1).max(100).default(100),

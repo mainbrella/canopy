@@ -12,7 +12,7 @@ const endpointMethods: Record<string, string[]> = {
   '/bff/projects/{projectId}/functions': ['get'], '/bff/projects/{projectId}/functions/{functionName}': ['get', 'put'],
   '/bff/projects/{projectId}/functions/{functionName}/invoke': ['post'],
   '/bff/projects/{projectId}/executions': ['get'], '/bff/projects/{projectId}/usage': ['get'],
-  '/bff/projects/{projectId}/api-keys': ['get', 'post'], '/bff/projects/{projectId}/api-keys/{keyId}': ['delete'],
+  '/bff/projects/{projectId}/api-keys': ['get', 'post'], '/bff/projects/{projectId}/api-keys/{keyId}': ['patch', 'delete'],
   '/bff/projects/{projectId}/sessions': ['get', 'post'], '/bff/projects/{projectId}/sessions/{sessionId}': ['delete'],
   '/bff/projects/{projectId}/policies': ['get'], '/bff/projects/{projectId}/policies/{table}': ['put', 'delete'],
   '/bff/data/{projectId}/tables/{table}': ['get', 'post', 'patch', 'delete'],
@@ -123,6 +123,14 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   assert.equal(table.get.parameters.find((parameter: any) => parameter.name === 'limit').schema.maximum, 100);
   assert.ok(table.post.responses['201'].content['application/json'].schema.properties.data);
   assert.deepEqual(paths['/bff/projects/{projectId}/api-keys'].post.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
+  const grant = paths['/bff/projects/{projectId}/api-keys/{keyId}'].patch;
+  assert.deepEqual(grant.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
+  assert.equal(grant.operationId, 'grantBffApiKeySelect');
+  assert.deepEqual(grant.requestBody.content['application/json'].schema.properties.operation.enum, ['select']);
+  assert.equal(grant.requestBody.content['application/json'].schema.additionalProperties, false);
+  assert.deepEqual(grant.requestBody.content['application/json'].schema.required, ['table', 'operation']);
+  assert.ok(grant.responses['200'].content['application/json'].schema.properties.key);
+  assert.equal(grant.responses['200'].content['application/json'].schema.properties.token, undefined);
   assert.deepEqual(paths['/bff/projects/{projectId}/query'].post.security, [{ cookieAuth: [] }, { apiKeyBearer: [] }]);
   const invoke = paths['/bff/data/{projectId}/functions/{functionName}/invoke'].post;
   assert.deepEqual(invoke.security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }, { bffApiKey: [], bffUserSession: [] }]);
