@@ -50,7 +50,16 @@ export function apiConfiguration({ api, containers, admin, marketing }) {
     requireCheck(/^https:\/\//.test(api.vars?.EGRESS_RELAY_URL ?? ''),
       'Enabled security features require the configured HTTPS egress relay URL.');
   }
-  return { database, preview, securityEnabled };
+  const bffEnabled = api.vars?.BFF_ENABLED === 'true';
+  if (bffEnabled) {
+    requireCheck(api.worker_loaders?.filter(item => item.binding === 'BFF_LOADER').length === 1,
+      'Enabled BFF requires the BFF_LOADER Worker Loader binding for isolated JavaScript execution.');
+    if (api.vars?.BFF_CLOUDFLARE_ACCOUNT_ID !== undefined) {
+      requireCheck(/^[a-f0-9]{32}$/.test(api.vars.BFF_CLOUDFLARE_ACCOUNT_ID),
+        'BFF_CLOUDFLARE_ACCOUNT_ID must be the 32-character Cloudflare account ID for customer databases.');
+    }
+  }
+  return { database, preview, securityEnabled, bffEnabled };
 }
 
 // Cloudflare documents GET deployments as newest active first, and GET versions as
@@ -98,13 +107,21 @@ function deployedExport(resources, name) {
 
 export async function apiPreflight({ api, containers, admin, marketing, migrations,
   previewMigrations, env, local = false, run = wrangler, request = fetch }) {
-  const { database, securityEnabled } = apiConfiguration({ api, containers, admin, marketing });
+  const { database, securityEnabled, bffEnabled } = apiConfiguration({ api, containers, admin, marketing });
   requireCheck(!env.CLOUDFLARE_ACCOUNT_ID || env.CLOUDFLARE_ACCOUNT_ID === api.account_id,
     'CLOUDFLARE_ACCOUNT_ID differs from the pinned API account.');
   if (local) return { configuration: true };
   requireCheck(typeof env.CLOUDFLARE_API_TOKEN === 'string' && env.CLOUDFLARE_API_TOKEN.trim(),
     'Set CLOUDFLARE_API_TOKEN with Workers read access for the API-only preflight.');
   const secrets = run(['secret', 'list', '--config', 'wrangler.jsonc', '--format', 'json']);
+  if (bffEnabled) {
+    const requiredBffSecrets = ['BFF_CLOUDFLARE_API_TOKEN'];
+    if (!api.vars?.BFF_CLOUDFLARE_ACCOUNT_ID) requiredBffSecrets.unshift('BFF_CLOUDFLARE_ACCOUNT_ID');
+    const missing = requiredBffSecrets.filter(name => !Array.isArray(secrets)
+      || !secrets.some(item => item.name === name && item.type === 'secret_text'));
+    requireCheck(!missing.length,
+      `BFF is enabled but ${api.name} is missing ${missing.join(', ')}. From apps/backend, run ${missing.map(name => `npx wrangler secret put ${name}`).join(' and ')}. Use a dedicated token with Account > D1 > Edit access to the BFF database account.`);
+  }
   const requiredApiSecrets = ['IMAGE_BUILD_SECRET', 'MONITORING_SECRET'];
   if (securityEnabled) requiredApiSecrets.push('EGRESS_RELAY_TOKEN', 'SECRETS_ENCRYPTION_KEY');
   for (const name of requiredApiSecrets) {

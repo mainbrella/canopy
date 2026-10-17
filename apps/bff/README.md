@@ -19,7 +19,8 @@ simulated actions. All APIs require the project owner’s Mainbrella session.
 1. Apply `apps/backend/migrations/050_bff.sql` using the backend’s normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
 2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
-   Worker. The token needs D1 Write access to that account. Use Wrangler secrets
+   Worker. Create a dedicated API token with **Account → D1 → Edit** permission
+   scoped to the account hosting customer databases. Use Wrangler secrets
    for production and the backend’s ignored `.dev.vars` for local development.
    Prefer a separate Cloudflare account for customer databases; it can differ
    from the account hosting the API Worker.
@@ -39,6 +40,13 @@ npm exec -w @canopy/backend -- wrangler secret put BFF_CLOUDFLARE_ACCOUNT_ID
 npm exec -w @canopy/backend -- wrangler secret put BFF_CLOUDFLARE_API_TOKEN
 ```
 
+The account ID is the 32-character Cloudflare account ID where customer databases
+will be created. The token must cover that same account. Wrangler login authorizes
+deployment; it does not configure these runtime credentials. Secret commands prompt
+for values and deploy them immediately, so refresh `/bff/app/` after both succeed.
+See Cloudflare's [API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/)
+and [Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
+
 Then deploy directly from `apps/bff`:
 
 ```sh
@@ -51,6 +59,11 @@ Workers; both hosts are published from the current checkout. Each step waits for
 the preceding step to succeed, using your local Cloudflare authentication. No
 GitHub workflow, push, or extra flag is needed. The secret commands prompt for
 values; they are not repeated by deployment.
+
+With BFF enabled, API preflight checks both credential bindings and the isolation
+loader before publishing. Missing credentials stop deployment with the exact local
+setup commands, rather than leaving the workspace unavailable. This checks binding
+presence; project provisioning verifies the token's actual account access.
 
 Use `npm run deploy -- --check` to check and bundle both hosts without credentials,
 migrations, or publication. A site failure leaves the successful API release record

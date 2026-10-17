@@ -36,7 +36,8 @@ function fixture() {
     run(args) {
       calls.push(['wrangler', args]);
       if (args[0] === 'secret') return (args.includes('wrangler.admin.jsonc')
-        ? ['STRIPE_SECRET_KEY'] : ['IMAGE_BUILD_SECRET', 'MONITORING_SECRET'])
+        ? ['STRIPE_SECRET_KEY'] : ['IMAGE_BUILD_SECRET', 'MONITORING_SECRET',
+          'BFF_CLOUDFLARE_ACCOUNT_ID', 'BFF_CLOUDFLARE_API_TOKEN'])
         .map(name => ({ name, type: 'secret_text' }));
       if (args[2] === 'PREVIEW_ROUTES') return [
         { success: true, results: options.previewMigrations.map(name => ({ name })) },
@@ -103,13 +104,62 @@ test('missing secret or unapplied shared or preview migration blocks API-only re
   for (const variant of ['secret', 'shared', 'preview']) {
     const { options, calls } = fixture();
     const run = options.run;
-    options.run = args => variant === 'secret' && args[0] === 'secret' ? []
+    options.run = args => variant === 'secret' && args[0] === 'secret'
+      ? run(args).filter(item => item.name !== 'IMAGE_BUILD_SECRET')
       : variant === 'shared' && args[2] === 'DB' ? [{ success: true, results: [] }, { success: true, results: [] }]
         : variant === 'preview' && args[2] === 'PREVIEW_ROUTES' ? [{ success: true, results: [] }, { success: true, results: [] }]
           : run(args);
     await assert.rejects(apiPreflight(options), /Configure deployed API|Apply remote/);
     assert.equal(calls.some(([kind]) => kind === 'http'), false);
   }
+});
+
+test('enabled BFF refuses release with missing credentials and gives local setup commands', async () => {
+  for (const missing of [
+    ['BFF_CLOUDFLARE_ACCOUNT_ID'], ['BFF_CLOUDFLARE_API_TOKEN'],
+    ['BFF_CLOUDFLARE_ACCOUNT_ID', 'BFF_CLOUDFLARE_API_TOKEN'],
+  ]) {
+    const { options, calls } = fixture();
+    const run = options.run;
+    options.run = args => {
+      const result = run(args);
+      return args[0] === 'secret' ? result.filter(item => !missing.includes(item.name)) : result;
+    };
+    await assert.rejects(apiPreflight(options), error => {
+      assert.match(error.message, /BFF is enabled but mainbrella-api is missing/);
+      for (const name of missing) assert.ok(error.message.includes(`npx wrangler secret put ${name}`));
+      assert.match(error.message, /Account > D1 > Edit/);
+      return true;
+    });
+    assert.equal(calls.length, 1, 'stop at secret metadata before migration reads or publication');
+  }
+});
+
+test('BFF account ID may be configured as a nonsecret variable in a separate account', async () => {
+  const { options } = fixture();
+  options.api.vars.BFF_CLOUDFLARE_ACCOUNT_ID = 'a'.repeat(32);
+  const run = options.run;
+  options.run = args => {
+    const result = run(args);
+    return args[0] === 'secret' ? result.filter(item => item.name !== 'BFF_CLOUDFLARE_ACCOUNT_ID') : result;
+  };
+  assert.equal((await apiPreflight(options)).activeBindings, true);
+  options.api.vars.BFF_CLOUDFLARE_ACCOUNT_ID = 'invalid';
+  await assert.rejects(apiPreflight(options), /32-character Cloudflare account ID/);
+});
+
+test('enabled BFF requires its isolation loader; disabled BFF needs no loader or credentials', async () => {
+  const { options, calls } = fixture();
+  options.api.worker_loaders = [];
+  await assert.rejects(apiPreflight(options), /BFF_LOADER Worker Loader/);
+  assert.deepEqual(calls, []);
+  options.api.vars.BFF_ENABLED = 'false';
+  const run = options.run;
+  options.run = args => {
+    const result = run(args);
+    return args[0] === 'secret' ? result.filter(item => !item.name.startsWith('BFF_')) : result;
+  };
+  assert.equal((await apiPreflight(options)).activeBindings, true);
 });
 
 test('missing active runtime exports or bindings give bootstrap guidance', async () => {
