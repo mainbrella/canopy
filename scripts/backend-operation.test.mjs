@@ -70,7 +70,7 @@ test('coordinated release records each published Worker without validation build
   assert.equal(result.publications.every(item => item.sourceSha === sha), true);
   assert.deepEqual(f.calls.map(call => call.command), ['git', 'npm']);
   assert.equal(f.calls[1].options.cwd, join(f.directory, 'apps/backend'));
-  assert.deepEqual(f.calls[1].args, ['run', 'deploy', '--workspace', '@canopy/backend']);
+  assert.deepEqual(f.calls[1].args, ['run', 'deploy:all', '--workspace', '@canopy/backend']);
   assert.deepEqual(f.evidence('release').publications, result.publications);
 });
 

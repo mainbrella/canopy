@@ -112,7 +112,7 @@ export function release(name, { publish = false, local = false, run = execute, d
   return evidence;
 }
 
-function localDeploymentEnvironment(cwd, configuration, env, run) {
+export function localDeploymentEnvironment(cwd, configuration, env, run) {
   const deploymentEnv = { ...env };
   if (configuration.account_id) {
     for (const name of ['CLOUDFLARE_ACCOUNT_ID', 'CF_ACCOUNT_ID']) {

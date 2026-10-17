@@ -49,6 +49,10 @@ current checkout and local Cloudflare authentication and requires no GitHub
 workflow or push. The deploy commands also accept `-- --check` for validation
 without publishing.
 
+Alternatively, run `npm run deploy` from `apps/backend` to apply the account D1
+migrations and deploy the API in one command using your Wrangler login. Deploy
+the site separately afterward.
+
 No infrastructure is provisioned just by opening the workspace. Project creation
 first persists a pending control record, then the UI requests provisioning. Failed
 provisioning can be retried from the workspace. A deterministic database name and

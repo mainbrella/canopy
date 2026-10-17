@@ -220,6 +220,10 @@ npm run deploy:api -- --local
 npm run deploy:site -- --local
 ```
 
+You can also run `npm run deploy` from `apps/backend`. That command applies
+pending account D1 migrations and deploys the API directly using Wrangler login.
+The full backend rollout is available there as `npm run deploy:all`.
+
 Each local command waits for its deployment to finish. It uses the current
 checkout, including uncommitted changes, and keeps the target’s preflight and
 publisher. It reuses Wrangler login or `CLOUDFLARE_API_TOKEN`; credentials stay in

@@ -12,7 +12,7 @@ const sequences = {
   'bootstrap-activity': ['containers', 'admin', 'marketing', 'api', 'containers', 'previews'],
 };
 const scripts = {
-  release: 'deploy',
+  release: 'deploy:all',
   'bootstrap-activity': 'deploy:bootstrap-activity',
   'migrate-api': 'db:migrate:remote',
   'migrate-previews': 'db:migrate:previews:remote',

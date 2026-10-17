@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { artifactHash, dispatchRelease, parseArguments, release, validateConfiguration } from './deploy.mjs';
 import { targetFor, targets } from './deploy-targets.mjs';
+import { deployBackend, parseArguments as parseBackendArguments } from '../apps/backend/scripts/deploy.mjs';
 
 const sourceSha = 'a'.repeat(40);
 const deploymentVersion = '12345678-1234-1234-1234-123456789abc';
@@ -214,6 +215,53 @@ test('local releases publish the checkout directly using Wrangler login and reta
     assert.match(evidence.artifactSha256, /^[a-f0-9]{64}$/);
     assert.ok(recorded.every(item => !item.content.includes('private-local-test-token')));
   }
+});
+
+test('backend deploy defaults to direct API publication and rejects unsupported options', () => {
+  assert.deepEqual(parseBackendArguments([]), { mode: 'publish' });
+  assert.deepEqual(parseBackendArguments(['--check']), { mode: 'check' });
+  assert.deepEqual(parseBackendArguments(['--help']), { mode: 'help' });
+  for (const args of [['api'], ['--force'], ['--check', '--local']]) assert.throws(() => parseBackendArguments(args), /Usage:/);
+});
+
+test('backend npm deploy authenticates once, migrates before preflight, and publishes only the API', t => {
+  const { directory, app } = fixture(t, 'api');
+  const calls = [], env = { SAFE: 'yes' };
+  const evidence = withoutConsoleOutput(() => deployBackend({ directory, env, run: stubRun(calls) }));
+  assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => call.args), [
+    ['run', 'db:migrate:remote', '--workspace', '@canopy/backend'],
+    ['run', 'api:preflight', '--workspace', '@canopy/backend'],
+    ['run', 'deploy:api', '--workspace', '@canopy/backend', '--', '--outdir=.wrangler/release-api'],
+  ]);
+  assert.equal(calls.filter(call => call.args.includes('auth')).length, 1);
+  assert.equal(calls.some(call => call.command === 'gh' || call.command === 'git' && ['fetch', 'merge-base', 'remote'].includes(call.args[0])), false);
+  assert.ok(calls.filter(call => call.command === 'npm').every(call => call.cwd === app && call.env.CLOUDFLARE_API_TOKEN === 'private-local-test-token'));
+  assert.equal(evidence.target, 'api');
+  assert.equal(evidence.local, true);
+  assert.equal(evidence.workerVersion, deploymentVersion);
+  assert.deepEqual(env, { SAFE: 'yes' });
+  assert.ok(!readFileSync(join(directory, 'artifacts/releases/api.json'), 'utf8').includes('private-local-test-token'));
+});
+
+test('backend credential and migration failures stop before publication', t => {
+  const { directory } = fixture(t, 'api');
+  const authCalls = [];
+  assert.throws(() => deployBackend({ directory, env: {}, run: stubRun(authCalls, { credential: { type: 'oauth', token: '' } }) }), /credentials are unavailable/);
+  assert.equal(authCalls.some(call => call.command === 'npm'), false);
+  const migrationCalls = [];
+  assert.throws(() => deployBackend({ directory, env: {}, run: stubRun(migrationCalls, {
+    failOn: 'npm run db:migrate:remote --workspace @canopy/backend',
+  }) }), /stub failed/);
+  assert.deepEqual(migrationCalls.filter(call => call.command === 'npm').map(call => call.args[1]), ['db:migrate:remote']);
+});
+
+test('backend deploy --check never reads credentials, migrates, or publishes', t => {
+  const { directory, target } = fixture(t, 'api');
+  const calls = [];
+  deployBackend({ publish: false, directory, env: {}, run: stubRun(calls) });
+  assert.deepEqual(calls.filter(call => call.command === 'npm').map(call => call.args[1]), target.checks);
+  assert.ok(calls.some(call => call.args.includes('--dry-run')));
+  assert.equal(calls.some(call => call.args.includes('auth') || call.args.includes('db:migrate:remote') || call.args.includes('deploy:api')), false);
 });
 
 test('local releases reuse explicit credentials and reject mismatched accounts before reading credentials', t => {

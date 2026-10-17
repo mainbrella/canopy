@@ -8,6 +8,25 @@ Ordered D1 migrations stay here. Apply `049_product_usage.sql` before using the
 new product usage API; existing funding, balances, inference and storage receipts
 keep their identities.
 
+## Deploy the API from your Mac
+
+From this directory, run:
+
+```sh
+npm run deploy
+```
+
+This uses your Wrangler login or `CLOUDFLARE_API_TOKEN`, applies pending remote
+account D1 migrations, runs API preflight, and publishes `mainbrella-api` directly
+from the current checkout. GitHub Actions and a push are not required. For the
+first login, run `npx wrangler login`. BFF also requires its two deployed
+[configuration secrets](../bff/README.md#setup).
+
+Use `npm run deploy -- --check` to run API checks and bundle without provider
+access or publishing. The previous complete backend rollout remains available as
+`npm run deploy:all`; it includes container images, the preview gateway, and
+private services. Deploy the web UI separately afterward.
+
 The session-authenticated `/containers` API resolves paid access from Stripe and
 reserves starts in an account-owned `ContainerAccount` Durable Object. Each
 container runs in its own private `UserContainer` in `mainbrella-containers`.
@@ -46,7 +65,7 @@ uses binary UTF-8 stdin, raw binary stdout, JSON `{cols, rows}` resizing and
 Disconnect terminates only the attached tmux client. The existing idle/hard
 expiration alarm still destroys the container and closes terminal sockets.
 
-Apply the database migrations, then run `npm run deploy` here to check compatibility
+Apply the database migrations, then run `npm run deploy:all` here to check compatibility
 and deploy the container Worker before the API. Deploy `../web` afterward. The image is built in GitHub
 Actions; local deployments require GitHub CLI authentication, not Docker.
 Existing old-image containers need to be stopped and recreated. This path does
@@ -394,7 +413,7 @@ benchmark and historical material only; production builds do not read it.
 
 ```sh
 npm run deploy:preflight   # Read deployment compatibility metadata; no starts
-npm run deploy             # Preflight, containers, then API; stops on failure
+npm run deploy:all         # Preflight, containers, then API; stops on failure
 npm run deploy:containers  # Container Worker with the CI-published image
 npm run deploy:api         # API only
 npm run deploy:bootstrap-activity # One-time recovery for missing AccountActivity export (10061)
@@ -453,7 +472,7 @@ One-time setup:
    under the repository Actions tab if it has not already run.
 3. Install GitHub CLI and authenticate with `gh auth login` for this private
    repository. Keep your existing Wrangler login for production deployment.
-4. Run `npm run deploy` locally after the image workflow succeeds.
+4. Run `npm run deploy:all` locally after the image workflow succeeds.
 
 The deploy script downloads the terminal release manifest and live custom-image
 manifest, verifies the registry account,
@@ -617,7 +636,7 @@ required migrations, one-use registry credentials and bounded live qualification
 
 The original live-manifest rollout required an API-first bootstrap. For the
 current release, apply all remote D1 migrations, configure the custom-image
-workflow and its secrets, then use `npm run deploy` with `IMAGE_BUILD_SECRET`
+workflow and its secrets, then use `npm run deploy:all` with `IMAGE_BUILD_SECRET`
 in the shell or backend `.env`. If the deployed API predates the manifest/lease
 contract, follow [the staged bootstrap runbook](docs/deployment.md) before
 accepting builds; do not deploy the current API ahead of its runtime.

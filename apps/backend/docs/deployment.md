@@ -1,7 +1,13 @@
 # Backend release runbook
 
+From `apps/backend`, `npm run deploy` applies pending account D1 migrations, runs
+the API preflight, and publishes the API directly from the current checkout using
+Wrangler login or `CLOUDFLARE_API_TOKEN`. It needs no GitHub workflow or push.
+`npm run deploy -- --check` validates without credentials, migrations, or
+publication. The full multi-worker rollout is `npm run deploy:all`.
+
 The coordinated release order is **migrations/secrets → account, routing, and service preflights → containers
-→ gateway → admin and marketing → API → qualification → web**. `npm run deploy` enforces the preflights and Worker
+→ gateway → admin and marketing → API → qualification → web**. `npm run deploy:all` enforces the preflights and Worker
 order and stops on the first failed command. It does not apply migrations, change
 secrets, publish web, or run paid verification. Direct `deploy:api`,
 `deploy:previews`, and `deploy:containers` commands remain operator tools and
@@ -80,7 +86,7 @@ operator action.
    requires its configured Email Sending binding and the already onboarded sender domains.
 3. Run the scoped tests, type check, and both dry runs. Publish admin and marketing
    before publishing the API with its new service bindings. For the full coordinated
-   release, `npm run deploy` enforces that order. An API-only rollout can follow
+   release, `npm run deploy:all` enforces that order. An API-only rollout can follow
    `npm run deploy:admin`, `npm run deploy:marketing`, then `npm run deploy:api`
    after the applicable release checks; retain the full release for runtime changes.
 4. Check admin access with an existing session and exercise unsubscribe with a
@@ -172,7 +178,7 @@ its previous allowances until API publication completes. The image deployment
 lease serializes image-map deployments; it does not pause customer API traffic
 or serialize the entire release.
 
-Run `npm run deploy`. Container publication uses the existing authoritative image
+Run `npm run deploy:all`. Container publication uses the existing authoritative image
 map and 12-minute lease, with a 10-minute Wrangler timeout. Do not deploy the
 tracked container config directly: it contains build recipes rather than the
 assembled immutable map. Gateway publication follows container success, admin
@@ -206,7 +212,7 @@ and feature claims only after the appropriate live workflow passes.
 
 Protected previews are enabled and production-qualified on `mainbrella.dev`.
 They have a separate gateway configuration and routing database migration
-directory. The default deploy command publishes the gateway before the API. Preserve
+directory. The full `npm run deploy:all` rollout publishes the gateway before the API. Preserve
 the enabled preview settings during unrelated API releases and follow
 [preview-ingress.md](preview-ingress.md) for isolated
 domain/TLS, routing bindings, runtime-before-gateway-before-enabled-API order,
@@ -242,7 +248,7 @@ command after correcting the failure. If only the final container publication
 fails, run `npm run deploy:containers` to restore notifications, then
 `npm run deploy:previews`. If only gateway publication fails, retry
 `npm run deploy:previews`. Subsequent
-releases use the normal `npm run deploy` command.
+releases use the normal `npm run deploy:all` command.
 
 ### Older API contracts
 
