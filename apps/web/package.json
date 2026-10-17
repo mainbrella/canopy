@@ -30,8 +30,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^7.1.4",
-    "wrangler": "^4.128.0",
-    "@vitejs/plugin-react": "~5.1.4"
+    "wrangler": "^4.128.0"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.17.0",
