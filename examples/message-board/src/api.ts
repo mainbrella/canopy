@@ -99,6 +99,19 @@ export async function fetchPublicMessages(
   }
 }
 
+export async function fetchPublicBoards(config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch): Promise<Board[]> {
+  const boards: Board[] = [];
+  for (let offset = 0; ; offset += 100) {
+    const payload = await requestJson(`${tableUrl(config, 'boards')}?select=*&order=slug.asc&limit=100&offset=${offset}`,
+      { headers: { apikey: config.publicKey } }, fetcher);
+    if (!isRecord(payload) || !Array.isArray(payload.data) || !payload.data.every(isBoard)) {
+      throw new DemoApiError('The message board returned boards in an unexpected format. Try again later.');
+    }
+    boards.push(...payload.data);
+    if (payload.data.length < 100) return boards;
+  }
+}
+
 export async function fetchPublicBoard(slug: string, config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch): Promise<{ board: Board; messages: Message[] } | null> {
   const payload = await requestJson(`${tableUrl(config, 'boards')}?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`,
     { headers: { apikey: config.publicKey } }, fetcher);

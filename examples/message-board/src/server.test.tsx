@@ -6,7 +6,9 @@ import { renderBoardRequest } from './server.tsx';
 import { liveBoardConfig, type Board, type Message } from './api.ts';
 
 const board: Board = { id: 'board-123', slug: 'general', name: 'General', description: 'General <discussion>', created_at: '2026-10-18T12:00:00Z' };
+const otherBoard: Board = { id: 'board-456', slug: 'research', name: 'Research', description: 'Notes', created_at: '2026-10-18T12:00:00Z' };
 const message: Message = { id: 'post-123', board_id: board.id, title: 'Hello <script>alert(1)</script>', body: 'A message & a reply', user_id: 'alice', created_at: board.created_at };
+const otherMessage: Message = { id: 'post-456', board_id: otherBoard.id, title: 'Research update', body: 'A post on another board', user_id: 'bob', created_at: '2026-10-18T13:00:00Z' };
 const template = '<!doctype html><html><head><title>Message board</title><link rel="stylesheet" href="/assets/app.css"></head><body><div id="message-board-root"></div><noscript>Enable JavaScript</noscript></body></html>';
 const request = (path = '/boards/general', method = 'GET') => new Request(`https://example.com${path}`, { method });
 
@@ -28,7 +30,7 @@ test('mounted board pages match and link within the demo path', async () => {
   assert.doesNotMatch(html, /href="\/boards\//);
 });
 
-test('direct board requests contain escaped board messages in the initial HTML and filter the API before limiting', async () => {
+test('direct board requests render three columns, the selected feed, other boards and global recent posts', async () => {
   const calls: URL[] = [];
   const fetcher: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
@@ -36,23 +38,47 @@ test('direct board requests contain escaped board messages in the initial HTML a
     assert.equal(new Headers(init?.headers).get('apikey'), liveBoardConfig.publicKey);
     assert.equal(new Headers(init?.headers).get('authorization'), null);
     assert.equal(init?.credentials, 'omit');
-    return Response.json({ data: url.pathname.endsWith('/boards') ? [board] : [message] });
+    if (url.pathname.endsWith('/boards')) return Response.json({ data: url.searchParams.has('slug') ? [board] : [board, otherBoard] });
+    return Response.json({ data: url.searchParams.has('board_id') ? [message] : [message, otherMessage] });
   };
   const response = await renderBoardRequest(request(), { template, fetcher });
   assert.equal(response?.status, 200);
   assert.match(response!.headers.get('content-type')!, /text\/html/);
   const html = await response!.text();
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 4);
   assert.equal(calls[0].searchParams.get('slug'), 'eq.general');
   assert.equal(calls[1].searchParams.get('board_id'), 'eq.board-123');
   assert.equal(calls[1].searchParams.get('order'), 'created_at.desc');
   assert.equal(calls[1].searchParams.get('limit'), '20');
+  assert.equal(calls[2].searchParams.get('order'), 'slug.asc');
+  assert.equal(calls[3].searchParams.has('board_id'), false);
+  assert.match(html, /class="board-layout"/);
+  assert.match(html, /class="board-navigation"/);
+  assert.match(html, /class="recent-messages"/);
+  assert.match(html, /href="\/boards\/general"[^>]*aria-current="page"/);
+  assert.match(html, /href="#message-post-123"/);
+  assert.match(html, /href="\/boards\/research#message-post-456"/);
   assert.match(html, /<h1 id="board-title">board\/general<\/h1>/);
   assert.match(html, /data-server-rendered="true"/);
   assert.match(html, /Hello &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.match(html, /A message &amp; a reply/);
+  assert.equal((html.match(/class="message-row"/g) ?? []).length, 1);
   assert.match(html, /href="\/assets\/app.css"/);
   assert.doesNotMatch(html, /Enable JavaScript|<script>alert/);
+});
+
+test('supplementary sidebar failures do not take down the selected board feed', async () => {
+  const response = await renderBoardRequest(request(), { template, fetcher: async input => {
+    const url = new URL(String(input));
+    if (url.searchParams.has('slug')) return Response.json({ data: [board] });
+    if (url.searchParams.has('board_id')) return Response.json({ data: [message] });
+    throw new Error('supplementary request unavailable');
+  } });
+  assert.equal(response?.status, 200);
+  const html = await response!.text();
+  assert.match(html, /A message &amp; a reply/);
+  assert.match(html, /href="\/boards\/general"[^>]*aria-current="page"/);
+  assert.match(html, /Messages are unavailable\./);
 });
 
 test('empty boards, missing boards, invalid paths and API failures have distinct server responses', async () => {

@@ -3,14 +3,15 @@ import { createDemoApi, type Board as BoardRecord, type DemoSession, type Messag
 import type { DemoUser } from './config.ts';
 import { CreateMessageDialog } from './CreateMessageDialog.tsx';
 import { CreateBoardDialog } from './CreateBoardDialog.tsx';
-import { BoardLink, boardHref } from './BoardLink.tsx';
+import { BoardLink } from './BoardLink.tsx';
+import { BoardNavigation, RecentMessages, boardTone } from './BoardSidebars.tsx';
 import { readStoredSession, writeStoredSession } from './session.ts';
 
 type BoardApi = ReturnType<typeof createDemoApi>;
 const defaultApi = createDemoApi();
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request failed. Try again.';
 
-export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-board:session' }: { api?: BoardApi; basePath?: string; sessionKey?: string }) {
+export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-board:session', initialBoardSlug }: { api?: BoardApi; basePath?: string; sessionKey?: string; initialBoardSlug?: string }) {
   const [session, setSession] = useState<DemoSession | null>(() => readStoredSession(sessionKey));
   const [user, setUser] = useState<DemoUser>(session?.session.user_id ?? 'alice');
   const [pending, setPending] = useState(false);
@@ -99,7 +100,7 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
       </> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
     </header>
     <main id="main" className={`workspace${session ? ' workspace--authenticated' : ''}`}>
-      {session ? <Board key={session.session.id} api={api} basePath={basePath} session={session} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
+      {session ? <Board key={session.session.id} api={api} basePath={basePath} session={session} initialBoardSlug={initialBoardSlug} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
         <div className="page-heading">
           <div><h1>Message board</h1><p>Messages from a live BFF project.</p></div>
         </div>
@@ -120,14 +121,14 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
   </>;
 }
 
-function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
+function Board({ api, basePath, session, initialBoardSlug, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession; initialBoardSlug?: string; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [boards, setBoards] = useState<BoardRecord[]>([]);
   const [boardLookup, setBoardLookup] = useState<'loading' | 'available' | 'unavailable'>('loading');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [view, setView] = useState<'all' | 'mine'>('all');
+  const [view, setView] = useState<'all' | 'mine'>(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'mine' ? 'mine' : 'all');
   const [sort, setSort] = useState('newest');
   const [editingId, setEditingId] = useState('');
   const [draft, setDraft] = useState('');
@@ -140,6 +141,7 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
   const textarea = useRef<HTMLTextAreaElement>(null);
   const editButtons = useRef(new Map<string, HTMLButtonElement>());
   const restoreFocus = useRef('');
+  const restoredFragment = useRef('');
 
   function onCreated(message: Message, board?: BoardRecord) {
     boardSerial.current++;
@@ -211,6 +213,18 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
   }, [load]);
 
   useEffect(() => {
+    const hash = window.location.hash;
+    if (!initialBoardSlug || !data.loaded || !hash || restoredFragment.current === hash) return;
+    const rawId = hash.slice(1);
+    let decodedId = rawId;
+    try { decodedId = decodeURIComponent(rawId); } catch { /* Keep the literal fragment when it is malformed. */ }
+    const target = document.getElementById(rawId) ?? document.getElementById(decodedId);
+    if (!target) return;
+    restoredFragment.current = hash;
+    target.scrollIntoView({ block: 'start' });
+  }, [data.loaded, initialBoardSlug, boards]);
+
+  useEffect(() => {
     if (editingId && !saving) textarea.current?.focus();
     else if (!editingId && restoreFocus.current) {
       editButtons.current.get(restoreFocus.current)?.focus();
@@ -255,7 +269,9 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
 
   const term = search.trim().toLocaleLowerCase();
   const boardById = new Map(boards.map(board => [board.id, board]));
-  const messagesInView = data.messages.filter(message => view === 'all' || message.user_id === session.session.user_id);
+  const activeBoard = boards.find(board => board.slug === initialBoardSlug);
+  const messagesInView = data.messages.filter(message => (!initialBoardSlug || activeBoard?.id === message.board_id)
+    && (view === 'all' || message.user_id === session.session.user_id));
   const visible = messagesInView.filter(message => {
     const board = boardById.get(message.board_id ?? '');
     return !term || message.user_id.toLocaleLowerCase().includes(term)
@@ -263,7 +279,6 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
       || Boolean(board && `board/${board.slug}`.toLocaleLowerCase().includes(term));
   })
     .sort((a, b) => sort === 'oldest' ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
-  const recent = [...visible].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 5);
   const boardCounts = new Map<string, number>();
   data.messages.forEach(message => { if (message.board_id) boardCounts.set(message.board_id, (boardCounts.get(message.board_id) ?? 0) + 1); });
   const boardLabel = (message: Message) => {
@@ -279,41 +294,16 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
     <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />
     {createBoardOpen && <CreateBoardDialog api={api} session={session} onClose={() => setCreateBoardOpen(false)}
       onCreated={board => { boardSerial.current++; setBoards(previous => [...previous.filter(row => row.id !== board.id), board]); setView('all'); setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); void loadBoards(); }} />}
-    <aside className="board-navigation">
-      <nav className="board-nav" aria-label="Message views">
-        <button className="board-nav-item" type="button" aria-pressed={view === 'all'} onClick={() => setView('all')}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></svg>
-          All messages
-        </button>
-        <button className="board-nav-item" type="button" aria-pressed={view === 'mine'} onClick={() => setView('mine')}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>
-          My messages
-        </button>
-      </nav>
-      <button id="create-board-button" className="board-nav-item create-board-button" type="button"
+    <BoardNavigation boards={boards} boardCounts={boardCounts} basePath={basePath} activeSlug={initialBoardSlug} view={view} onViewChange={initialBoardSlug ? undefined : setView} boardLookup={boardLookup}
+      footerHref="https://mainbrella.com/bff/" actions={<button id="create-board-button" className="board-nav-item create-board-button" type="button"
         onClick={() => setCreateBoardOpen(true)}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        Create board
-      </button>
-      <details className="board-list" open>
-        <summary>Boards</summary>
-        {boardLookup === 'loading' && boards.length === 0 ? <p className="board-list-state">Loading boards…</p>
-          : boardLookup === 'unavailable' && boards.length === 0 ? <p className="board-list-state">Boards unavailable.</p>
-            : boards.length === 0 ? <p className="board-list-state">No boards yet.</p>
-              : <ul>{boards.map(board => <li key={board.id}>
-                <a className="board-nav-item board-filter" href={boardHref(board.slug, basePath)} title={`board/${board.slug}`}>
-                  <span className={`board-icon board-icon--${boardTone(board.slug)}`} aria-hidden="true">{board.slug.charAt(0).toUpperCase()}</span>
-                  <span className="board-slug">board/{board.slug}</span>
-                  <span className="board-count">{boardCounts.get(board.id) ?? 0}</span>
-                </a>
-              </li>)}</ul>}
-      </details>
-      <a className="back-link board-back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>
-    </aside>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Create board
+      </button>} />
     <div className="board-feed">
       <section id="board-panel" className="board" aria-labelledby="board-title">
-        <div className="feed-toolbar">
-          <div><h1 id="board-title">{view === 'mine' ? 'My posts' : 'All posts'}</h1></div>
+        <div className={`feed-toolbar${initialBoardSlug ? ' feed-toolbar--board-detail' : ''}`}>
+          <div><h1 id="board-title">{view === 'mine' ? 'My posts' : initialBoardSlug ? `board/${initialBoardSlug}` : 'All posts'}</h1>
+          </div>
           <label className="sort-control" htmlFor="message-sort"><span className="visually-hidden">Sort by</span>
             <select id="message-sort" value={sort} onChange={event => setSort(event.target.value)}>
               <option value="newest">Newest first</option><option value="oldest">Oldest first</option>
@@ -323,6 +313,7 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.2 8a6.5 6.5 0 0 0-11.8-2L2.8 8M2.8 4.8V8h3.3M3.8 12a6.5 6.5 0 0 0 11.8 2l1.6-2M17.2 15.2V12h-3.3" /></svg><span>Refresh</span>
           </button>
         </div>
+        {initialBoardSlug && activeBoard?.description && <p className="board-description board-detail-description">{activeBoard.description}</p>}
         <p id="board-status" className="status-line" role="status" aria-live="polite">{status}</p>
         <p id="board-feedback" className="board-feedback" role="status" aria-live="polite">{feedback}</p>
         {data.loaded && data.error && <p id="refresh-error" className="inline-error" role="alert">{data.error}</p>}
@@ -372,30 +363,9 @@ function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCr
         </div>}
       </section>
     </div>
-    <aside className="recent-messages" aria-labelledby="recent-title">
-      <h2 id="recent-title">Recent posts</h2>
-      {loading && !data.loaded ? <div className="recent-loading" aria-hidden="true">
-        {Array.from({ length: 3 }, (_, index) => <div key={index}><span className="skeleton-line short" /><span className="skeleton-line long" /></div>)}
-      </div> : recent.length ? <ul className="recent-list">
-        {recent.map(message => <li key={message.id}>
-          <div className="recent-message">
-            <div className="recent-board"><span className={`board-icon board-icon--${boardTone(boardById.get(message.board_id ?? '')?.slug ?? '')}`} aria-hidden="true">{boardById.get(message.board_id ?? '')?.slug.charAt(0).toUpperCase() ?? '?'}</span>{boardById.has(message.board_id ?? '') ? <BoardLink basePath={basePath} board={boardById.get(message.board_id!)!} /> : boardLabel(message)}<time dateTime={message.created_at}>{formatRelative(message.created_at)}</time></div>
-            <a className="recent-post-link" href={`#message-${encodeURIComponent(message.id)}`}>
-            <p>{message.title}</p>
-            <span className="recent-preview">{message.body}</span>
-            </a>
-          </div>
-        </li>)}
-      </ul> : <p className="recent-empty">{!data.loaded ? 'Messages are unavailable.' : term ? 'No matching messages.' : 'No messages yet.'}</p>}
-    </aside>
+    <RecentMessages messages={initialBoardSlug ? data.messages : visible} boards={boards} basePath={basePath} currentBoardSlug={initialBoardSlug}
+      loaded={data.loaded} loading={loading && !data.loaded} emptyText={term ? 'No matching messages.' : 'No messages yet.'} />
   </div>;
-}
-
-function boardTone(slug: string): 'orange' | 'violet' | 'teal' | 'blue' {
-  const tones = ['orange', 'violet', 'teal', 'blue'] as const;
-  let hash = 0;
-  for (const character of slug) hash = (hash * 31 + character.charCodeAt(0)) | 0;
-  return tones[Math.abs(hash) % tones.length];
 }
 
 function formatRelative(value: string): string {
