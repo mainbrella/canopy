@@ -24,6 +24,11 @@ const STAGING_AUTH_ORIGINS = new Set([
   'https://stg.mainbrella.com',
   'https://raindrop-stg.mainbrella.com',
 ]);
+const BLOCKED_SIGNUP_EMAIL_DOMAINS = new Set([
+  "mailnesia.com",
+  "maxxspace.com",
+  "guerrillamailblock.com",
+]);
 
 export interface AuthUser {
   id: string;
@@ -49,6 +54,13 @@ export class AuthError extends Error {
     super(message);
     this.name = "AuthError";
     this.status = status;
+  }
+}
+
+export function assertSignupEmailAllowed(email: string): void {
+  const domain = email.trim().toLowerCase().split("@").at(-1);
+  if (domain && BLOCKED_SIGNUP_EMAIL_DOMAINS.has(domain)) {
+    throw new AuthError("email_domain_blocked", 403);
   }
 }
 
@@ -254,6 +266,8 @@ export async function findOrCreateGoogleUser(
     }
     return { user: existing, created: false };
   }
+
+  assertSignupEmailAllowed(identity.email);
 
   const user: AuthUser = {
     id: crypto.randomUUID(),

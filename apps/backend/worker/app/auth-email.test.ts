@@ -139,6 +139,37 @@ test("new accounts require valid email and bounded passwords", async t => {
   assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM users").get()?.count, 0);
 });
 
+test("blocked disposable email domains cannot create accounts, while existing accounts and lookalikes can sign in", async t => {
+  const f = fixture(t);
+  for (const email of [
+    "  Person@MailNeSiA.com  ",
+    "PERSON@MAXXSPACE.COM",
+    "person@GuerrillaMailBlock.com",
+  ]) {
+    const response = await f.login(email);
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), { error: "email_domain_blocked" });
+  }
+  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM users").get()?.count, 0);
+  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM sessions").get()?.count, 0);
+  assert.equal(f.emails.length, 0);
+  assert.equal(f.background.length, 0);
+
+  assert.equal((await f.login("person@notmailnesia.com")).status, 200);
+  assert.equal((await f.login("person@mailnesia.com.example.org")).status, 200);
+  await Promise.all(f.background);
+
+  const existing = await f.login("existing@example.com");
+  assert.equal(existing.status, 200);
+  const existingUser = f.sqlite.prepare("SELECT id FROM users WHERE email = ?").get("existing@example.com");
+  f.sqlite.prepare("UPDATE users SET email = ? WHERE id = ?").run("existing@maxxspace.com", existingUser!.id as string);
+  const returning = await f.login(" Existing@MaxxSpace.com ");
+  assert.equal(returning.status, 200);
+  assert.deepEqual(await returning.json(), { user: { ...((await existing.json()) as { user: object }).user, email: "existing@maxxspace.com" }, created: false });
+  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM users").get()?.count, 3);
+  assert.equal(f.emails.length, 3);
+});
+
 test("provider accounts cannot be claimed with a password and password accounts do not auto-link to Google", async t => {
   const f = fixture(t);
   f.sqlite.prepare("INSERT INTO users (id, email, google_sub) VALUES (?, ?, ?)").run("google", "Google@Example.com", "google-sub");
@@ -187,6 +218,29 @@ test("Google creation sends one welcome; repeated sign-in and linking do not", a
   f.sqlite.prepare("INSERT INTO users (id, email, name) VALUES (?, ?, ?)").run("linked", "linked@example.com", "Linked");
   assert.equal((await findOrCreateGoogleUser(f.env, { ...identity, googleSub: "linked-sub", email: "linked@example.com" })).created, false);
   assert.deepEqual(f.emails.map(message => message.to), ["google@example.com"]);
+});
+
+test("Google rejects new accounts at blocked domains but preserves existing identities", async t => {
+  const f = fixture(t);
+  for (const domain of ["mailnesia.com", "maxxspace.com", "guerrillamailblock.com"]) {
+    await assert.rejects(findOrCreateGoogleUser(f.env, {
+      googleSub: `blocked-${domain}`, email: `person@${domain}`, name: "Person",
+    }), { status: 403, message: "email_domain_blocked" });
+  }
+  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM users").get()?.count, 0);
+  assert.equal(f.emails.length, 0);
+
+  f.sqlite.prepare("INSERT INTO users (id, email, name, google_sub) VALUES (?, ?, ?, ?)")
+    .run("existing-blocked-google", "person@mailnesia.com", "Person", "known-sub");
+  const existing = await findOrCreateGoogleUser(f.env, {
+    googleSub: "known-sub", email: "person@mailnesia.com", name: "Person",
+  });
+  assert.equal(existing.created, false);
+  assert.equal(existing.user.id, "existing-blocked-google");
+  assert.equal((await findOrCreateGoogleUser(f.env, {
+    googleSub: "lookalike-sub", email: "person@mailnesia.com.example.org", name: "Person",
+  })).created, true);
+  assert.deepEqual(f.emails.map(message => message.to), ["person@mailnesia.com.example.org"]);
 });
 
 test("signup completes before background delivery and email failure does not fail authentication", async t => {

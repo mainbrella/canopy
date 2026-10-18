@@ -1,6 +1,6 @@
 import { welcomeNewUser } from "./welcome-email";
 import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
-import { AuthError, type AuthUser } from "./auth-core";
+import { assertSignupEmailAllowed, AuthError, type AuthUser } from "./auth-core";
 
 // OWASP's 16 MiB scrypt setting fits within the Workers memory limit.
 const SCRYPT_OPTIONS = { N: 16384, r: 8, p: 5, maxmem: 32 * 1024 * 1024 };
@@ -43,6 +43,7 @@ export async function signInOrCreateEmailUser(env: Env, email: unknown, password
     if (!await verifyPassword(password, existing.password_hash)) throw new AuthError("invalid_credentials");
     return { user: existing, created: false };
   }
+  assertSignupEmailAllowed(normalizedEmail);
   if (password.length < 8) throw new AuthError("weak_password", 400);
   const hash = await hashPassword(password);
   const user: AuthUser = {

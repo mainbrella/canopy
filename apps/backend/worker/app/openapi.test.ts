@@ -802,6 +802,11 @@ test("signup schemas document welcome email behavior and public authentication",
   for (const path of ["/auth/email", "/auth/google", "/auth/app/google", "/auth/app/apple"]) {
     assert.match(paths[path].post.description, /welcome email/);
     assert.match(paths[path].post.description, /delivery failures do not fail signup/);
+    assert.match(paths[path].post.description, /mailnesia\.com, maxxspace\.com, or guerrillamailblock\.com/);
+    assert.match(paths[path].post.description, /403 email_domain_blocked/);
+    assert.match(paths[path].post.description, /existing accounts at those domains can still sign in/);
+    assert.ok(paths[path].post.responses["403"]);
+    assert.match(paths[path].post.responses["403"].description, /email_domain_blocked/);
     assert.deepEqual(paths[path].post.security, []);
   }
 });
