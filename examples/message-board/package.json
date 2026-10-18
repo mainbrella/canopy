@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode local-api",
     "build": "npm run type-check && vite build",
     "preview": "vite preview",
     "test": "tsx --test src/*.test.ts src/*.test.tsx",

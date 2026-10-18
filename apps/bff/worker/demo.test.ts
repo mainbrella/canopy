@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { demoConfig } from './demo-config';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { startBffLocal } from '../../backend/scripts/bff-local.mjs';
+import { demoConfig, localDemoConfig } from './demo-config';
 import { checksum } from './contracts';
 import { runtime } from './system-test-helpers';
 
@@ -10,22 +14,23 @@ const base = `/projects/${demoConfig.projectId}`;
 const data = `/bff/data/${demoConfig.projectId}/tables/messages`;
 const migration = readFileSync(new URL('../../backend/migrations/055_bff_public_demo.sql', import.meta.url), 'utf8');
 
-async function fixture(t: test.TestContext) {
-  const f = await runtime(t);
+async function fixture(t: test.TestContext, config: typeof demoConfig | typeof localDemoConfig = demoConfig,
+  bindings: Record<string, string> = {}, browserOrigin = origin) {
+  const f = await runtime(t, bindings);
   await f.db.prepare("INSERT INTO bff_projects(id,user_id,name,template,created_at) VALUES(?,'owner','Public demo','message_board',?)")
-    .bind(demoConfig.projectId, new Date().toISOString()).run();
-  await f.json(`${base}/provision`, 'POST');
+    .bind(config.projectId, new Date().toISOString()).run();
+  await f.json(`/projects/${config.projectId}/provision`, 'POST');
   const keyId = crypto.randomUUID();
   await f.db.prepare('INSERT INTO api_keys(id,user_id,name,token_hash,prefix,created_at) VALUES(?,?,?,?,?,?)')
-    .bind(keyId, 'owner', 'Demo', await checksum(demoConfig.publicKey), demoConfig.publicKey.slice(0, 15), new Date().toISOString()).run();
+    .bind(keyId, 'owner', 'Demo', await checksum(config.publicKey), config.publicKey.slice(0, 15), new Date().toISOString()).run();
   await f.db.prepare('INSERT INTO bff_api_key_grants(api_key_id,project_id,origins,tables,functions) VALUES(?,?,?,?,?)')
-    .bind(keyId, demoConfig.projectId, JSON.stringify([origin]), JSON.stringify({ messages: ['select'], users: ['select'] }), '{"list_messages":1}').run();
+    .bind(keyId, config.projectId, JSON.stringify([browserOrigin]), JSON.stringify({ messages: ['select'], users: ['select'] }), '{"list_messages":1}').run();
   // The public example only allows edits, not inserts/deletes. Migration 055
   // must leave this existing row policy intact.
-  await f.json(`${base}/policies/messages`, 'PUT', { select: 'public', update: 'own', ownerColumn: 'user_id' });
+  await f.json(`/projects/${config.projectId}/policies/messages`, 'PUT', { select: 'public', update: 'own', ownerColumn: 'user_id' });
   const browser = async (path: string, method: string, body?: unknown, status = 200, headers: Record<string, string> = {}) => {
-    const response = await f.mf.dispatchFetch(`https://api.mainbrella.com${path}`, { method,
-      headers: { origin, apikey: demoConfig.publicKey, 'content-type': 'application/json', ...headers },
+    const response = await f.mf.dispatchFetch(`${config.apiOrigin}${path}`, { method,
+      headers: { origin: browserOrigin, apikey: config.publicKey, 'content-type': 'application/json', ...headers },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     assert.equal(response.status, status, await response.clone().text());
     assert.equal(response.headers.get('cache-control'), 'no-store');
@@ -88,6 +93,7 @@ test('demo login rejects arbitrary identities, credentials, projects, and origin
   }
   await f.browser('/bff/demo/session?projectId=other', 'POST', { userId: 'alice' }, 400);
   await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401, { apikey: '' });
+  await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401, { apikey: localDemoConfig.publicKey });
   const reader = await f.json(`${base}/api-keys`, 'POST', { name: 'Other key', origins: [origin], tables: { messages: ['select'] } }, 201);
   await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401, { apikey: reader.token });
   await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401, { authorization: `Bearer mb_${'a'.repeat(64)}` });
@@ -122,6 +128,49 @@ test('demo login rejects arbitrary identities, credentials, projects, and origin
   await f.db.prepare('DELETE FROM api_keys WHERE id=?').bind(f.keyId).run();
   await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401);
   assert.equal((await preflight({})).status, 401);
+});
+
+test('local demo issues and revokes sessions only for its fixed project and browser key', { timeout: 60_000 }, async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'bff-demo-local-'));
+  const local = await startBffLocal({ statePath });
+  t.after(async () => { await local.close(); await rm(statePath, { recursive: true, force: true }); });
+  const localOrigin = 'http://localhost:5173';
+  const f = await fixture(t, localDemoConfig, { LOCAL_DEV: 'true', BFF_LOCAL_URL: local.url, BFF_LOCAL_TOKEN: local.token }, localOrigin);
+
+  const preflight = await f.mf.dispatchFetch(`${localDemoConfig.apiOrigin}/bff/demo/session`, {
+    method: 'OPTIONS', headers: { origin: localOrigin, 'access-control-request-method': 'POST',
+      'access-control-request-headers': 'apikey,content-type,authorization' },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), localOrigin);
+  await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401, { apikey: demoConfig.publicKey });
+  await f.browser('/bff/demo/session', 'POST', { userId: 'owner' }, 400);
+  await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 403, { origin: 'https://evil.example' });
+
+  const alice = await f.login('alice');
+  assert.equal(alice.session.user_id, 'alice');
+  assert.equal((await f.db.prepare('SELECT project_id FROM bff_user_sessions WHERE id=?')
+    .bind(alice.session.id).first<{ project_id: string }>())?.project_id, localDemoConfig.projectId);
+  assert.equal((await f.browser(`/bff/data/${localDemoConfig.projectId}/tables/messages`, 'GET', undefined, 200,
+    { authorization: `Bearer ${alice.token}` })).data.length, 2);
+  assert.deepEqual(await f.browser('/bff/demo/session', 'DELETE', undefined, 200,
+    { authorization: `Bearer ${alice.token}` }), { revoked: true });
+  assert.equal(await f.db.prepare('SELECT id FROM bff_user_sessions WHERE id=?').bind(alice.session.id).first(), null);
+
+  const otherProject = crypto.randomUUID();
+  await f.db.prepare("INSERT INTO bff_projects(id,user_id,name,template,created_at) VALUES(?,'owner','Other local project','message_board',?)")
+    .bind(otherProject, new Date().toISOString()).run();
+  await f.db.prepare('UPDATE bff_api_key_grants SET project_id=? WHERE api_key_id=?').bind(otherProject, f.keyId).run();
+  await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401);
+  await f.db.prepare('UPDATE bff_api_key_grants SET project_id=? WHERE api_key_id=?').bind(localDemoConfig.projectId, f.keyId).run();
+  await f.db.prepare("UPDATE api_keys SET user_id='stranger' WHERE id=?").bind(f.keyId).run();
+  await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401);
+  assert.equal((await f.mf.dispatchFetch(`${localDemoConfig.apiOrigin}/bff/demo/session`, {
+    method: 'OPTIONS', headers: { origin: localOrigin, 'access-control-request-method': 'POST' },
+  })).status, 401);
+  await f.db.prepare("UPDATE api_keys SET user_id='owner' WHERE id=?").bind(f.keyId).run();
+  await f.db.prepare('DELETE FROM bff_api_key_grants WHERE api_key_id=?').bind(f.keyId).run();
+  await f.browser('/bff/demo/session', 'POST', { userId: 'alice' }, 401);
 });
 
 test('public session issuance retains readiness, user existence, expiry cleanup, and session cap checks', { timeout: 60_000 }, async t => {

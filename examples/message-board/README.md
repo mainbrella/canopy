@@ -13,6 +13,19 @@ npm run test:message-board
 npm run build:message-board
 ```
 
+To serve both the BFF dashboard and this example with a local backend, run
+`npm run dev:web:local` from the repository root (or `npm run dev:local` from
+`apps/web`). Open `/bff/app/` for the dashboard and `/bff/demo/` for this app on
+the same Vite server. A separate message-board development server is unnecessary.
+
+For just the standalone example, run `npm run dev:local` from this directory,
+or `npm run dev:message-board -- --mode local-api` from the repository root. This
+mode uses its separate project ID and public key from `src/config.ts`; the local
+backend must have the matching project, the example migrations (including
+`004_message_titles.sql`), and the required `messages` and `boards` grants. Start
+the backend with `npm run dev:backend` from the repository root; its
+`LOCAL_DEV=true` binding selects the matching local demo session configuration.
+
 Open the URL printed by Vite. Choose Alice or Bob to log in, read and search
 messages, create a post, and edit a post. **Create** opens a full-screen composer
 with boards loaded from the `boards` table and labeled `board/:slug`. Title and
@@ -71,10 +84,14 @@ own-row inserts/updates with `user_id` as the owner column. These permissions
 must be configured on the backend; the composer never changes permissions.
 Board-load errors offer retry, and failed posts preserve the title and body.
 
-During development, Vite proxies `/message-board-api/*` to the live API with the
-demo's permitted Mainbrella origin. Local edits therefore use the real demo
-database. Production builds call the configured API origin directly, and a
-separate deployment must have its exact origin allowed on the browser key.
+During default development, Vite proxies `/message-board-api/*` to the live API
+with the demo's permitted Mainbrella origin. Local edits therefore use the real
+demo database. `dev:local` proxies to `http://localhost:8787` using
+the separate local project and browser key. The proxy uses the local browser
+key's permitted `http://localhost:5173` origin, even if Vite selects another port.
+Production builds call the configured
+production API origin directly, and a separate deployment must have its exact
+origin allowed on the browser key.
 
 `npm run build:message-board` produces `examples/message-board/dist/`. To preview
 it, run `npm run preview -w @canopy/example-message-board`; the built app uses the

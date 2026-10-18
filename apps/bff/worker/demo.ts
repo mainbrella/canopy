@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { authJson } from '../../backend/worker/app/auth-core';
 import { recordApiKeyUse } from '../../backend/worker/app/api-keys';
-import { demoConfig, demoUsers } from './demo-config';
+import { demoConfig, demoUsers, localDemoConfig } from './demo-config';
 import { BffError, checksum, parse, type Project } from './contracts';
 import { body } from './http';
 import { issueUserSession } from './sessions';
@@ -11,21 +11,22 @@ export const demoSessionInput = z.object({ userId: z.enum(demoUsers) }).strict()
 // Deliberate public-login exception for this single example. General BFF
 // sessions remain owner-only, and data requests still enforce grants and RLS.
 export async function handleDemoSessionRequest(request: Request, env: Env): Promise<Response> {
+  const config = env.LOCAL_DEV === 'true' ? localDemoConfig : demoConfig;
   const cors: Record<string, string> = { vary: 'Origin' };
   const reply = (data: unknown, status = 200) => authJson(data, status, cors);
   try {
     if (new URL(request.url).search) throw new BffError('invalid_request');
     const preflight = request.method === 'OPTIONS';
-    if (!preflight && request.headers.get('apikey') !== demoConfig.publicKey) throw new BffError('unauthorized', 401);
+    if (!preflight && request.headers.get('apikey') !== config.publicKey) throw new BffError('unauthorized', 401);
     // Resolve the current shared record and grant even for preflight. A revoked
     // key, a grant moved to another project, or changed ownership disables login.
     const key = await env.DB.prepare(`SELECT k.id,g.origins FROM api_keys k
       JOIN bff_api_key_grants g ON g.api_key_id=k.id
       JOIN bff_projects p ON p.id=g.project_id AND p.user_id=k.user_id
       WHERE k.token_hash=? AND k.prefix GLOB 'bff_pk_*' AND g.project_id=?`)
-      .bind(await checksum(demoConfig.publicKey), demoConfig.projectId).first<{ id: string; origins: string }>();
+      .bind(await checksum(config.publicKey), config.projectId).first<{ id: string; origins: string }>();
     if (!key) throw new BffError('unauthorized', 401);
-    const project = await env.DB.prepare('SELECT * FROM bff_projects WHERE id=?').bind(demoConfig.projectId).first<Project>();
+    const project = await env.DB.prepare('SELECT * FROM bff_projects WHERE id=?').bind(config.projectId).first<Project>();
     if (!project || project.template !== 'message_board') throw new BffError('not_found', 404);
     const origin = request.headers.get('origin');
     if (origin && !(JSON.parse(key.origins) as string[]).includes(origin)) throw new BffError('origin_not_allowed', 403);
@@ -50,7 +51,7 @@ export async function handleDemoSessionRequest(request: Request, env: Env): Prom
       if (!token) throw new BffError('unauthorized', 401);
       // Idempotent and available while paused/disabled, like owner revocation.
       await env.DB.prepare('DELETE FROM bff_user_sessions WHERE project_id=? AND token_hash=?')
-        .bind(demoConfig.projectId, await checksum(token)).run();
+        .bind(config.projectId, await checksum(token)).run();
       await recordApiKeyUse(env, key.id);
       return reply({ revoked: true });
     }

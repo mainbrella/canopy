@@ -6,5 +6,12 @@ export const demoConfig = {
   table: 'messages',
 } as const;
 
+export const localDemoConfig = {
+  apiOrigin: 'http://localhost:8787',
+  projectId: '7a42a924-ef00-4d4b-9324-562ac791b55f',
+  publicKey: 'bff_pk_26b04357a1ca6e08a50f29bef3daa2003c5ba1319cbc43d0474bc22948404072',
+  table: 'messages',
+} as const;
+
 export const demoUsers = ['alice', 'bob'] as const;
 export type DemoUser = typeof demoUsers[number];

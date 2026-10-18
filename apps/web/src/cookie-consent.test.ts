@@ -59,7 +59,7 @@ test('every page entry includes one working consent dialog before tracking can l
   const hook = siteChromePlugin().transformIndexHtml;
   assert.ok(hook && typeof hook === 'object' && 'handler' in hook);
   const pluginContext = {} as ThisParameterType<typeof hook.handler>;
-  const inputs = config.build?.rollupOptions?.input as Record<string, string>;
+  const inputs = config({ command: 'build', mode: 'production' }).build?.rollupOptions?.input as Record<string, string>;
   assert.ok(Object.keys(inputs).length > 0);
   for (const filename of [...Object.values(inputs), builderConfig.build?.rollupOptions?.input as string]) {
     const path = '/' + filename.slice(new URL('../', import.meta.url).pathname.length);

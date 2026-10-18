@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --mode local-api",
     "build": "npm run build:site && npm run build:builder",
     "build:site": "npm run type-check && vite build && node scripts/check-build.mjs site",
     "build:builder": "npm run type-check:builder && vite build --config vite.builder.config.ts && node scripts/check-build.mjs builder",
