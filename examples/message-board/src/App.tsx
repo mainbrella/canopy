@@ -248,8 +248,11 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
     .sort((a, b) => sort === 'oldest' ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
   const recent = [...visible].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 5);
   const boardById = new Map(boards.map(board => [board.id, board]));
-  const boardLabel = (message: Message) => !message.board_id ? 'No board'
-    : boardById.get(message.board_id)?.name ?? (boardLookup === 'loading' ? 'Loading…' : 'Unavailable');
+  const boardLabel = (message: Message) => {
+    if (!message.board_id) return 'No board';
+    const board = boardById.get(message.board_id);
+    return board ? `board/${board.slug}` : boardLookup === 'loading' ? 'Loading board…' : 'Board unavailable';
+  };
   const count = `${messagesInView.length} ${messagesInView.length === 1 ? 'message' : 'messages'}`;
   const status = loading ? (data.loaded ? 'Refreshing messages…' : 'Loading messages…') : !data.loaded ? 'Message board unavailable' :
     `${term ? `${visible.length} of ` : ''}${count}${data.error ? ' · Showing last loaded data' : data.updated ? ` · Updated at ${data.updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}`;
@@ -305,17 +308,19 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
           </div>) : visible.map(message => <article key={message.id} id={`message-${encodeURIComponent(message.id)}`} className="message-row" tabIndex={-1}>
             <span className="avatar" aria-hidden="true">{message.user_id.trim().charAt(0).toLocaleUpperCase() || '?'}</span>
             <div className="message-content">
-              <h3 className="message-title">{message.title}</h3>
-              <div className="message-meta">
-                <span className="message-board" title={boardById.get(message.board_id ?? '')?.slug}>
-                  Board: {boardLabel(message)}
-                </span>
-                <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
-                <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
+              <div className="message-header">
+                <div className="message-meta">
+                  <span className="message-board" title={boardById.get(message.board_id ?? '')?.slug}>
+                    {boardLabel(message)}
+                  </span>
+                  <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
+                  <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
+                </div>
                 {editingId !== message.id && <button ref={button => { if (button) editButtons.current.set(message.id, button); else editButtons.current.delete(message.id); }}
                   className="edit-button" type="button" data-edit-id={message.id} disabled={saving || Boolean(editingId)}
                   onClick={() => { setEditingId(message.id); setDraft(message.body); setEditError(''); setFeedback(''); }}>Edit</button>}
               </div>
+              <h3 className="message-title">{message.title}</h3>
               {editingId === message.id ? <form className="message-edit-form" onSubmit={event => void save(event, message)}>
                 <label className="editor-label" htmlFor="edit-message">Edit message</label>
                 <textarea ref={textarea} id="edit-message" name="body" rows={3} maxLength={2000} value={draft} disabled={saving}
@@ -343,8 +348,8 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
       </div> : recent.length ? <ul className="recent-list">
         {recent.map(message => <li key={message.id}>
           <a className="recent-message" href={`#message-${encodeURIComponent(message.id)}`}>
+            <span className="recent-board">{boardLabel(message)}</span>
             <p>{message.title}</p>
-            <span className="recent-board">Board: {boardLabel(message)}</span>
             <span className="recent-author">{message.user_id}</span>
             <time dateTime={message.created_at}>{formatRelative(message.created_at)}</time>
           </a>

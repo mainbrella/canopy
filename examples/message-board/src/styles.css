@@ -173,16 +173,17 @@ button, input, select { font: inherit; }
 }
 .message-content { min-width: 0; }
 .message-title { margin: 0 0 4px; color: var(--ink); font-size: 16px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
-.message-meta { display: flex; min-height: 22px; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
-.message-author { overflow-wrap: anywhere; color: var(--ink); font-size: 13px; font-weight: 620; }
-.message-board { overflow-wrap: anywhere; color: var(--muted); font-size: 12px; }
+.message-header { display: flex; min-width: 0; align-items: flex-start; gap: 8px; }
+.message-meta { display: flex; min-width: 0; flex: 1; min-height: 22px; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.message-author { overflow-wrap: anywhere; color: var(--muted); font-size: 12px; font-weight: 400; }
+.message-board { overflow-wrap: anywhere; color: var(--text-subtle); font-size: 12px; font-weight: 600; }
 .message-you { color: var(--muted); font-size: 12px; font-weight: 400; }
 .message-time { color: var(--muted); font-size: 12px; }
 .message-body {
   margin: 6px 0 0; color: var(--text-subtle); font-size: 14px; line-height: 1.65;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.edit-button { min-width: 44px; min-height: 44px; margin-left: auto; padding: 0 8px; border: 0; background: transparent; color: var(--blue); font-size: 12px; font-weight: 600; text-align: right; cursor: pointer; }
+.edit-button { flex: none; min-width: 44px; min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--blue); font-size: 12px; font-weight: 600; text-align: right; cursor: pointer; }
 .edit-button:hover:not(:disabled) { text-decoration: underline; }
 .edit-button:disabled { color: #75859a; cursor: not-allowed; }
 .message-edit-form { margin-top: 10px; }
