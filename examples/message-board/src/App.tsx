@@ -13,6 +13,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
   const [user, setUser] = useState<DemoUser>('alice');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
   const generation = useRef(0);
   const busy = useRef(false);
   const loginSelect = useRef<HTMLSelectElement>(null);
@@ -58,6 +59,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
     busy.current = true;
     restoreLoginFocus.current = true;
     setCreateOpen(false);
+    setSearch('');
     setSession(null);
     setPending(true);
     setError('');
@@ -77,16 +79,23 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
     <a className="skip-link" href="#main">Skip to content</a>
     <header className={`topbar${session ? ' topbar--authenticated' : ''}`}>
       <a className="wordmark" href="https://mainbrella.com/bff/" aria-label="BFF home">bff<span aria-hidden="true">.</span></a>
-      {session ? <div id="session-controls" className="session-controls">
-        <button id="create-message" className="primary-button create-message-button" type="button" onClick={() => setCreateOpen(true)}>
-          <span aria-hidden="true">+</span> Create
-        </button>
-        <span id="current-user" className="current-user">{session.session.user_id}</span>
-        <button id="logout" className="secondary-button" type="button" onClick={() => void logout()}>Log out</button>
-      </div> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
+      {session ? <>
+        <label className="topbar-search" htmlFor="global-message-search">
+          <span className="visually-hidden">Search messages</span>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+          <input id="global-message-search" type="search" placeholder="Search messages" autoComplete="off" value={search} onChange={event => setSearch(event.target.value)} />
+        </label>
+        <div id="session-controls" className="session-controls">
+          <button id="create-message" className="primary-button create-message-button" type="button" onClick={() => setCreateOpen(true)}>
+            <span aria-hidden="true">+</span> Create
+          </button>
+          <span id="current-user" className="current-user"><span className="user-avatar" aria-hidden="true">{session.session.user_id.slice(0, 1).toUpperCase()}</span>{session.session.user_id}</span>
+          <button id="logout" className="secondary-button" type="button" onClick={() => void logout()}>Log out</button>
+        </div>
+      </> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
     </header>
     <main id="main" className={`workspace${session ? ' workspace--authenticated' : ''}`}>
-      {session ? <Board key={session.session.id} api={api} session={session} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
+      {session ? <Board key={session.session.id} api={api} session={session} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
         <div className="page-heading">
           <div><h1>Message board</h1><p>Messages from a live BFF project.</p></div>
         </div>
@@ -107,15 +116,15 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
   </>;
 }
 
-function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; session: DemoSession; createOpen: boolean; onCloseCreate: () => void }) {
+function Board({ api, session, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; session: DemoSession; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [boards, setBoards] = useState<BoardRecord[]>([]);
   const [boardLookup, setBoardLookup] = useState<'loading' | 'available' | 'unavailable'>('loading');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
   const [view, setView] = useState<'all' | 'mine'>('all');
+  const [selectedBoard, setSelectedBoard] = useState('');
   const [sort, setSort] = useState('newest');
   const [editingId, setEditingId] = useState('');
   const [draft, setDraft] = useState('');
@@ -149,7 +158,8 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
     if (board) setBoards(previous => [...previous.filter(row => row.id !== board.id), board]);
     void loadBoards();
     setView('all');
-    setSearch('');
+    setSelectedBoard('');
+    onSearch('');
     setSort('newest');
     setFeedback('Message posted.');
   }
@@ -242,32 +252,39 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
   }
 
   const term = search.trim().toLocaleLowerCase();
-  const messagesInView = data.messages.filter(message => view === 'all' || message.user_id === session.session.user_id);
-  const visible = messagesInView.filter(message => !term || message.user_id.toLocaleLowerCase().includes(term)
-    || message.title.toLocaleLowerCase().includes(term) || message.body.toLocaleLowerCase().includes(term))
+  const boardById = new Map(boards.map(board => [board.id, board]));
+  const messagesInView = data.messages.filter(message => (view === 'all' || message.user_id === session.session.user_id)
+    && (!selectedBoard || message.board_id === selectedBoard));
+  const visible = messagesInView.filter(message => {
+    const board = boardById.get(message.board_id ?? '');
+    return !term || message.user_id.toLocaleLowerCase().includes(term)
+      || message.title.toLocaleLowerCase().includes(term) || message.body.toLocaleLowerCase().includes(term)
+      || Boolean(board && `board/${board.slug}`.toLocaleLowerCase().includes(term));
+  })
     .sort((a, b) => sort === 'oldest' ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
   const recent = [...visible].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 5);
-  const boardById = new Map(boards.map(board => [board.id, board]));
+  const boardCounts = new Map<string, number>();
+  data.messages.forEach(message => { if (message.board_id) boardCounts.set(message.board_id, (boardCounts.get(message.board_id) ?? 0) + 1); });
   const boardLabel = (message: Message) => {
     if (!message.board_id) return 'No board';
     const board = boardById.get(message.board_id);
     return board ? `board/${board.slug}` : boardLookup === 'loading' ? 'Loading board…' : 'Board unavailable';
   };
-  const count = `${messagesInView.length} ${messagesInView.length === 1 ? 'message' : 'messages'}`;
+  const count = `${messagesInView.length} ${messagesInView.length === 1 ? 'post' : 'posts'}`;
   const status = loading ? (data.loaded ? 'Refreshing messages…' : 'Loading messages…') : !data.loaded ? 'Message board unavailable' :
     `${term ? `${visible.length} of ` : ''}${count}${data.error ? ' · Showing last loaded data' : data.updated ? ` · Updated at ${data.updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}`;
 
   return <div className="board-layout">
     <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />
     {createBoardOpen && <CreateBoardDialog api={api} session={session} onClose={() => setCreateBoardOpen(false)}
-      onCreated={board => { boardSerial.current++; setBoards(previous => [...previous.filter(row => row.id !== board.id), board]); setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); void loadBoards(); }} />}
+      onCreated={board => { boardSerial.current++; setBoards(previous => [...previous.filter(row => row.id !== board.id), board]); setView('all'); setSelectedBoard(''); setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); void loadBoards(); }} />}
     <aside className="board-navigation">
       <nav className="board-nav" aria-label="Message views">
-        <button className="board-nav-item" type="button" aria-pressed={view === 'all'} onClick={() => setView('all')}>
+        <button className="board-nav-item" type="button" aria-pressed={view === 'all' && !selectedBoard} onClick={() => { setView('all'); setSelectedBoard(''); }}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></svg>
           All messages
         </button>
-        <button className="board-nav-item" type="button" aria-pressed={view === 'mine'} onClick={() => setView('mine')}>
+        <button className="board-nav-item" type="button" aria-pressed={view === 'mine' && !selectedBoard} onClick={() => { setView('mine'); setSelectedBoard(''); }}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>
           My messages
         </button>
@@ -275,22 +292,29 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
       <button id="create-board-button" className="board-nav-item create-board-button" type="button"
         onClick={() => setCreateBoardOpen(true)}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        Create new Board
+        Create board
       </button>
+      <details className="board-list" open>
+        <summary>Boards</summary>
+        {boardLookup === 'loading' && boards.length === 0 ? <p className="board-list-state">Loading boards…</p>
+          : boardLookup === 'unavailable' && boards.length === 0 ? <p className="board-list-state">Boards unavailable.</p>
+            : boards.length === 0 ? <p className="board-list-state">No boards yet.</p>
+              : <ul>{boards.map(board => <li key={board.id}>
+                <button className="board-nav-item board-filter" type="button" title={`board/${board.slug}`} aria-pressed={selectedBoard === board.id}
+                  onClick={() => { setView('all'); setSelectedBoard(board.id); }}>
+                  <span className={`board-icon board-icon--${boardTone(board.slug)}`} aria-hidden="true">{board.slug.charAt(0).toUpperCase()}</span>
+                  <span className="board-slug">board/{board.slug}</span>
+                  <span className="board-count">{boardCounts.get(board.id) ?? 0}</span>
+                </button>
+              </li>)}</ul>}
+      </details>
       <a className="back-link board-back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>
     </aside>
     <div className="board-feed">
-      <div className="page-heading">
-        <div><h1>{view === 'mine' ? 'My messages' : 'Message board'}</h1><p>Messages from a live BFF project.</p></div>
-      </div>
       <section id="board-panel" className="board" aria-labelledby="board-title">
-        <h2 id="board-title" className="visually-hidden">Messages</h2>
-        <div className="toolbar">
-          <label className="search-field" htmlFor="message-search">
-            <span className="toolbar-label">Search messages</span><span className="search-icon" aria-hidden="true" />
-            <input id="message-search" type="search" placeholder="Search messages" autoComplete="off" value={search} onChange={event => setSearch(event.target.value)} />
-          </label>
-          <label className="sort-control" htmlFor="message-sort"><span className="toolbar-label">Sort by</span>
+        <div className="feed-toolbar">
+          <div><h1 id="board-title">{selectedBoard ? `board/${boardById.get(selectedBoard)?.slug ?? 'unknown'}` : view === 'mine' ? 'My posts' : 'All posts'}</h1></div>
+          <label className="sort-control" htmlFor="message-sort"><span className="visually-hidden">Sort by</span>
             <select id="message-sort" value={sort} onChange={event => setSort(event.target.value)}>
               <option value="newest">Newest first</option><option value="oldest">Oldest first</option>
             </select>
@@ -306,21 +330,14 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
           {loading && !data.loaded ? Array.from({ length: 3 }, (_, index) => <div key={index} className="skeleton-row" aria-hidden="true">
             <span className="skeleton-circle" /><span className="skeleton-copy"><span className="skeleton-line short" /><span className="skeleton-line long" /></span>
           </div>) : visible.map(message => <article key={message.id} id={`message-${encodeURIComponent(message.id)}`} className="message-row" tabIndex={-1}>
-            <span className="avatar" aria-hidden="true">{message.user_id.trim().charAt(0).toLocaleUpperCase() || '?'}</span>
             <div className="message-content">
-              <div className="message-header">
-                <div className="message-meta">
-                  <span className="message-board" title={boardById.get(message.board_id ?? '')?.slug}>
-                    {boardLabel(message)}
-                  </span>
-                  <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
-                  <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
-                </div>
-                {editingId !== message.id && <button ref={button => { if (button) editButtons.current.set(message.id, button); else editButtons.current.delete(message.id); }}
-                  className="edit-button" type="button" data-edit-id={message.id} disabled={saving || Boolean(editingId)}
-                  onClick={() => { setEditingId(message.id); setDraft(message.body); setEditError(''); setFeedback(''); }}>Edit</button>}
+              <div className="post-header">
+                <span className={`board-icon board-icon--${boardTone(boardById.get(message.board_id ?? '')?.slug ?? '')}`} aria-hidden="true">{boardById.get(message.board_id ?? '')?.slug.charAt(0).toUpperCase() ?? '?'}</span>
+                <span className="message-board">{boardLabel(message)}</span>
+                <span className="meta-dot" aria-hidden="true">·</span>
+                <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
               </div>
-              <h3 className="message-title">{message.title}</h3>
+              <h2 className="message-title">{message.title}</h2>
               {editingId === message.id ? <form className="message-edit-form" onSubmit={event => void save(event, message)}>
                 <label className="editor-label" htmlFor="edit-message">Edit message</label>
                 <textarea ref={textarea} id="edit-message" name="body" rows={3} maxLength={2000} value={draft} disabled={saving}
@@ -331,6 +348,19 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
                   <button className="secondary-button" type="button" disabled={saving} onClick={finishEditing}>Cancel</button>
                 </div>
               </form> : <p className="message-body">{message.body}</p>}
+              <footer className="post-footer">
+                <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
+                <span className="post-actions">
+                  {editingId !== message.id && <button ref={button => { if (button) editButtons.current.set(message.id, button); else editButtons.current.delete(message.id); }}
+                    className="post-action" type="button" data-edit-id={message.id} disabled={saving || Boolean(editingId)}
+                    onClick={() => { setEditingId(message.id); setDraft(message.body); setEditError(''); setFeedback(''); }}>
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.8 2.2 3 3M2.5 13.5l2.8-.6 7.8-7.8a1.4 1.4 0 0 0-2-2l-7.8 7.8-.8 2.6Z" /></svg>Edit
+                  </button>}
+                  <a className="post-action" href={`#message-${encodeURIComponent(message.id)}`}>
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 9.8 9.8 6.2M5.4 11.6l-1 1a2.3 2.3 0 0 1-3.2-3.2l3-3a2.3 2.3 0 0 1 3.2 0M10.6 4.4l1-1a2.3 2.3 0 0 1 3.2 3.2l-3 3a2.3 2.3 0 0 1-3.2 0" /></svg>Link
+                  </a>
+                </span>
+              </footer>
             </div>
           </article>)}
         </div>
@@ -342,21 +372,27 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
       </section>
     </div>
     <aside className="recent-messages" aria-labelledby="recent-title">
-      <h2 id="recent-title">Recent messages</h2>
+      <h2 id="recent-title">Recent posts</h2>
       {loading && !data.loaded ? <div className="recent-loading" aria-hidden="true">
         {Array.from({ length: 3 }, (_, index) => <div key={index}><span className="skeleton-line short" /><span className="skeleton-line long" /></div>)}
       </div> : recent.length ? <ul className="recent-list">
         {recent.map(message => <li key={message.id}>
           <a className="recent-message" href={`#message-${encodeURIComponent(message.id)}`}>
-            <span className="recent-board">{boardLabel(message)}</span>
+            <span className="recent-board"><span className={`board-icon board-icon--${boardTone(boardById.get(message.board_id ?? '')?.slug ?? '')}`} aria-hidden="true">{boardById.get(message.board_id ?? '')?.slug.charAt(0).toUpperCase() ?? '?'}</span>{boardLabel(message)}<time dateTime={message.created_at}>{formatRelative(message.created_at)}</time></span>
             <p>{message.title}</p>
-            <span className="recent-author">{message.user_id}</span>
-            <time dateTime={message.created_at}>{formatRelative(message.created_at)}</time>
+            <span className="recent-preview">{message.body}</span>
           </a>
         </li>)}
       </ul> : <p className="recent-empty">{!data.loaded ? 'Messages are unavailable.' : term ? 'No matching messages.' : 'No messages yet.'}</p>}
     </aside>
   </div>;
+}
+
+function boardTone(slug: string): 'orange' | 'violet' | 'teal' | 'blue' {
+  const tones = ['orange', 'violet', 'teal', 'blue'] as const;
+  let hash = 0;
+  for (const character of slug) hash = (hash * 31 + character.charCodeAt(0)) | 0;
+  return tones[Math.abs(hash) % tones.length];
 }
 
 function formatRelative(value: string): string {
