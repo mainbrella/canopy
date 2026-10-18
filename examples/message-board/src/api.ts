@@ -208,7 +208,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isDemoSession(value: unknown): value is DemoSession {
+export function isDemoSession(value: unknown): value is DemoSession {
   return isRecord(value) && isRecord(value.session)
     && typeof value.token === 'string' && /^bff_us_[a-f0-9]{64}$/.test(value.token)
     && typeof value.session.id === 'string' && !!value.session.id

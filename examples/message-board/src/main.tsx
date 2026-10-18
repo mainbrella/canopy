@@ -8,7 +8,8 @@ if (!root) throw new Error('Message board root is missing');
 
 // The default development server proxies to the public demo; local-api mode
 // uses a local backend and its separate project/key.
-const api = createDemoApi(import.meta.env.MODE === 'local-api'
+const config = import.meta.env.MODE === 'local-api'
   ? { ...localDemoConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : localDemoConfig.apiOrigin }
-  : { ...liveBoardConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : liveBoardConfig.apiOrigin });
-if (!root.dataset.serverRendered) createRoot(root).render(<App api={api} basePath={new URL('./', window.location.href).pathname} />);
+  : { ...liveBoardConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : liveBoardConfig.apiOrigin };
+const api = createDemoApi(config);
+if (!root.dataset.serverRendered) createRoot(root).render(<App api={api} basePath={new URL('./', window.location.href).pathname} sessionKey={`message-board:session:${config.projectId}`} />);

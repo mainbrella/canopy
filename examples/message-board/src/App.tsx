@@ -4,14 +4,15 @@ import type { DemoUser } from './config.ts';
 import { CreateMessageDialog } from './CreateMessageDialog.tsx';
 import { CreateBoardDialog } from './CreateBoardDialog.tsx';
 import { BoardLink, boardHref } from './BoardLink.tsx';
+import { readStoredSession, writeStoredSession } from './session.ts';
 
 type BoardApi = ReturnType<typeof createDemoApi>;
 const defaultApi = createDemoApi();
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request failed. Try again.';
 
-export function App({ api = defaultApi, basePath = '/' }: { api?: BoardApi; basePath?: string }) {
-  const [session, setSession] = useState<DemoSession | null>(null);
-  const [user, setUser] = useState<DemoUser>('alice');
+export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-board:session' }: { api?: BoardApi; basePath?: string; sessionKey?: string }) {
+  const [session, setSession] = useState<DemoSession | null>(() => readStoredSession(sessionKey));
+  const [user, setUser] = useState<DemoUser>(session?.session.user_id ?? 'alice');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -42,6 +43,7 @@ export function App({ api = defaultApi, basePath = '/' }: { api?: BoardApi; base
         void api.logout(created).catch(() => {});
         return;
       }
+      writeStoredSession(sessionKey, created);
       setSession(created);
     } catch (cause) {
       if (request === generation.current) setError(errorText(cause));
@@ -61,6 +63,7 @@ export function App({ api = defaultApi, basePath = '/' }: { api?: BoardApi; base
     restoreLoginFocus.current = true;
     setCreateOpen(false);
     setSearch('');
+    writeStoredSession(sessionKey, null);
     setSession(null);
     setPending(true);
     setError('');

@@ -36,8 +36,10 @@ stored title column. Existing messages are titled from the first 200 characters
 of their trimmed body; inserts from older clients that omit a title receive
 `Untitled`.
 The backend enforces ownership; editing another
-user's post shows its denial and preserves the draft. Sessions stay in memory,
-and logging out revokes the current session.
+user's post shows its denial and preserves the draft. Sessions stay in the current
+browser tab across page navigation and reloads until they expire. Local and live
+projects keep separate stored sessions. Logging out clears the stored session
+and revokes it on the server.
 
 Board slugs in message headers, recent posts, and the board list are ordinary
 links to `/bff/demo/boards/:slug` on the Mainbrella site (`/boards/:slug` in the
