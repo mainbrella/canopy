@@ -44,21 +44,27 @@ and project deletion remain deferred. The landing page's SDK examples are illust
    `053_bff_table_policies.sql`, `054_bff_message_board.sql`, and
    `055_bff_public_demo.sql`, using the normal migration
    command (`npm run db:migrate:local -w @canopy/backend` for local control data).
-2. Configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
+2. For deployed Workers, configure `BFF_CLOUDFLARE_ACCOUNT_ID` and `BFF_CLOUDFLARE_API_TOKEN` on the API
    Worker. Create a dedicated API token with **Account → D1 → Edit** permission
    scoped to the account hosting customer databases. Use Wrangler secrets
-   for production and the backend’s ignored `.dev.vars` for local development.
+   for deployed environments. Local development requires neither credential:
+   the backend dev launcher automatically supplies Wrangler local D1 databases.
    Prefer a separate Cloudflare account for customer databases; it can differ
    from the account hosting the API Worker.
 3. The API config declares `worker_loaders: [{ "binding": "BFF_LOADER" }]` and
    `BFF_ENABLED=true`. Staging defaults to disabled and needs its own credentials
-   and explicit enablement. Missing credentials or loader fail closed.
+   and explicit enablement. Missing database-provider configuration or loader fails closed.
 4. Run `npm run dev:backend` and `npm run dev:web`, sign in, and open `/bff/app/`.
    Create a project and open Permissions to try the message board. You can also
-   apply migrations, run SQL, and save or invoke functions. Local provisioning creates **real remote D1 databases** using the
-   configured account; there is no in-memory development substitute in the app.
+   apply migrations, run SQL, and save or invoke functions. Local provisioning creates
+   isolated, persistent **local Wrangler D1 databases** under the backend's
+   `.wrangler/state/bff/<database-id>/` directory. The launcher honors `--persist-to`
+   and never falls back to remote databases in local mode. See the backend's
+   [local development guide](../backend/README.md#local-development) for direct SQL
+   access. Existing local projects backed by remote databases are not copied;
+   create a new local project to start with local D1.
 
-Configure your Wrangler login and BFF secrets once from the repository root:
+For deployment, configure your Wrangler login and BFF secrets once from the repository root:
 
 ```sh
 npm exec -w @canopy/backend -- wrangler login

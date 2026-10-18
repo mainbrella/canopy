@@ -1,7 +1,7 @@
-import { ProjectDatabase } from './database';
+import { databaseAvailable, ProjectDatabase } from './database';
 
 export async function cleanupBffDatabases(env: Env): Promise<void> {
-  if (!env.BFF_CLOUDFLARE_ACCOUNT_ID || !env.BFF_CLOUDFLARE_API_TOKEN) return;
+  if (!databaseAvailable(env)) return;
   // Allow a provisioning request that was already in flight to settle. Pending
   // records without a UUID can then be recovered by deterministic database name.
   const cutoff = new Date(Date.now() - 120_000).toISOString();

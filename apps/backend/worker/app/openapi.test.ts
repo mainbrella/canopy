@@ -111,6 +111,8 @@ async function document() {
 
 test('BFF browser APIs distinguish scoped project keys from owner management and raw SQL', async () => {
   const { paths, components } = await document();
+  assert.match(paths['/bff/config'].get.responses['200'].content['application/json'].schema.properties.available.description, /local Wrangler D1/);
+  assert.match(paths['/bff/projects/{projectId}/provision'].post.summary, /local Wrangler D1/);
   const table = paths['/bff/data/{projectId}/tables/{table}'];
   for (const method of ['get', 'post', 'patch', 'delete']) {
     assert.deepEqual(table[method].security, [{ apiKeyBearer: [] }, { bffBearer: [] }, { bffApiKey: [] }, { bffApiKey: [], bffUserSession: [] }]);

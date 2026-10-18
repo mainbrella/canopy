@@ -94,6 +94,27 @@ from `../linux/containers/Dockerfile` and starts containers on demand. This requ
 Wrangler 4.136.0 or newer. Press `r` in the dev terminal to rebuild the image.
 `npm run dev:lan` exposes the same setup on your local network.
 
+BFF development needs no Cloudflare D1 credentials. The launcher starts a private
+loopback service using Wrangler's local D1 bindings, creating an isolated database
+for each BFF project under `.wrangler/state/bff/<database-id>/`. Project data
+persists across restarts; `--persist-to <directory>` moves this storage along with
+the other local state. Provisioning, SQL, migrations, functions, and account-deletion
+cleanup all use these local databases, even if remote BFF credentials are present.
+Deployed Workers continue to use Cloudflare D1 and require the BFF secrets.
+
+Each project directory contains its Wrangler config. To inspect a project database
+directly, use its database ID from the local `bff_projects` record:
+
+```sh
+npx wrangler d1 execute DB --local \
+  --config .wrangler/state/bff/<database-id>/wrangler.jsonc \
+  --persist-to .wrangler/state/bff/<database-id> \
+  --command 'SELECT name FROM sqlite_schema'
+```
+
+Local projects previously provisioned against remote D1 are not copied into local
+storage. Create a new local BFF project to use the local database path.
+
 To use your signed-in Codex CLI for Build inference, run:
 
 ```sh
@@ -121,8 +142,8 @@ build running as usual. Abandoned sessions expire after 12 idle minutes, with a
 30-minute absolute limit. Restarting dev loses active Codex sessions; those
 builds fail explicitly and can be retried as new turns.
 
-This mode changes only the launcher's temporary API configuration: it removes
-the AI binding and permits loopback fetches. Deployment configurations stay
+This mode changes only the launcher's temporary API configuration and retains
+the AI binding for image generation. Deployment configurations stay
 unchanged. App-server does not expose a per-response token cap; the bridge checks
 reported usage at each tool handoff/completion and the existing build agent
 enforces its cumulative budgets. Plain `npm run dev` keeps the default Workers

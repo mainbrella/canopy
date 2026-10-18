@@ -1,7 +1,7 @@
 import { authCorsHeaders, authJson, currentUser } from '../../backend/worker/app/auth-core';
 import { apiKeyUser } from '../../backend/worker/app/api-keys';
 import { BffError, checksum, functionInput, invokeInput, LIMITS, migrationInput, nameInput, parse, projectInput, projectPatch, queryInput, VERSION, type FunctionVersion, type Project } from './contracts';
-import { ProjectDatabase } from './database';
+import { databaseAvailable, ProjectDatabase } from './database';
 import { manageApiKeys } from './api-keys';
 import { handleDataRequest } from './data-routes';
 import { handleDemoSessionRequest } from './demo';
@@ -51,7 +51,7 @@ export async function handleBffRequest(request: Request, env: Env): Promise<Resp
     if (!user) throw new BffError('unauthorized', 401);
     const url = new URL(request.url), method = request.method;
     if (url.pathname === '/bff/config' && method === 'GET') return reply({ version: VERSION,
-      available: env.BFF_ENABLED === 'true' && !!env.BFF_CLOUDFLARE_ACCOUNT_ID && !!env.BFF_CLOUDFLARE_API_TOKEN,
+      available: env.BFF_ENABLED === 'true' && databaseAvailable(env),
       functionsAvailable: env.BFF_ENABLED === 'true' && !!env.BFF_LOADER, limits: LIMITS });
     if (url.pathname === '/bff/projects') {
       if (method === 'GET') {

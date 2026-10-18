@@ -9,6 +9,13 @@ export const PROJECT_SCHEMA = `CREATE TABLE IF NOT EXISTS _bff_migrations (
   applied_at TEXT NOT NULL
 )`;
 
+export function databaseAvailable(env: Env): boolean {
+  // Local development must never fall through to real customer databases.
+  return env.LOCAL_DEV === 'true'
+    ? !!env.BFF_LOCAL_URL && !!env.BFF_LOCAL_TOKEN
+    : !!env.BFF_CLOUDFLARE_ACCOUNT_ID && !!env.BFF_CLOUDFLARE_API_TOKEN;
+}
+
 export async function reserveBudget(env: Env, projectId: string, kind: 'queries' | 'invocations', amount = 1) {
   const limit = kind === 'queries' ? LIMITS.queriesPerDay : LIMITS.invocationsPerDay;
   const result = await env.DB.prepare(`INSERT INTO bff_daily_usage (project_id,day,${kind}) VALUES (?,?,?)
@@ -21,12 +28,14 @@ export class ProjectDatabase {
   constructor(private env: Env, private project: Pick<Project, 'id' | 'database_id'>) {}
 
   private async api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const local = this.env.LOCAL_DEV === 'true';
     const { BFF_CLOUDFLARE_ACCOUNT_ID: account, BFF_CLOUDFLARE_API_TOKEN: token } = this.env;
-    if (!account || !/^[a-f0-9]{32}$/i.test(account) || !token) throw new BffError('database_unavailable', 503);
+    if (!databaseAvailable(this.env) || (!local && !/^[a-f0-9]{32}$/i.test(account ?? ''))) throw new BffError('database_unavailable', 503);
+    const base = local ? this.env.BFF_LOCAL_URL : `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database`;
     try {
-      const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database${path}`, {
+      const response = await fetch(`${base}${path}`, {
         ...init, redirect: 'manual', signal: AbortSignal.timeout(10_000),
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        headers: { authorization: `Bearer ${local ? this.env.BFF_LOCAL_TOKEN : token}`, 'content-type': 'application/json' },
       });
       if (init.method === 'DELETE' && response.status === 404) { await response.body?.cancel(); return null as T; }
       if (response.status >= 300 && response.status < 400) throw new BffError('database_unavailable', 502);
@@ -43,7 +52,7 @@ export class ProjectDatabase {
   async remove(): Promise<void> {
     let id = this.project.database_id;
     if (!id) {
-      const name = `bff-${this.env.DEPLOYMENT_ENVIRONMENT || 'production'}-${this.project.id}`;
+      const name = this.databaseName();
       const existing = await this.api<{ uuid: string; name: string }[]>(`?name=${encodeURIComponent(name)}`);
       id = existing.find(database => database.name === name)?.uuid ?? null;
     }
@@ -53,7 +62,7 @@ export class ProjectDatabase {
   }
 
   async provision(): Promise<string> {
-    const name = `bff-${this.env.DEPLOYMENT_ENVIRONMENT || 'production'}-${this.project.id}`;
+    const name = this.databaseName();
     let id = this.project.database_id;
     if (!id) {
       // Deterministic names let retries recover from a lost create response.
@@ -66,6 +75,10 @@ export class ProjectDatabase {
     }
     await this.query([{ sql: PROJECT_SCHEMA }]);
     return id;
+  }
+
+  private databaseName(): string {
+    return `bff-${this.env.LOCAL_DEV === 'true' ? 'local' : this.env.DEPLOYMENT_ENVIRONMENT || 'production'}-${this.project.id}`;
   }
 
   async query(batch: SqlQuery[]): Promise<QueryResult[]> {

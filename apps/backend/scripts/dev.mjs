@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { LocalProxyCleanup } from './local-proxy-cleanup.mjs';
 import { IMAGE_CATALOG } from '../../linux/containers/image-catalog.js';
 import { startCodexBridge } from './codex-bridge.mjs';
+import { startBffLocal } from './bff-local.mjs';
 import { resolveTool } from './resolve-tool.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -17,7 +18,7 @@ if (!['workers', 'codex'].includes(aiMode)) {
   process.exit(1);
 }
 if (aiIndex >= 0) args.splice(aiIndex, args[aiIndex].includes('=') ? 1 : 2);
-let child, bridge, shutdownSignal;
+let child, bridge, bffLocal, shutdownSignal;
 const startup = new AbortController();
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {
   shutdownSignal = signal; startup.abort(); child?.kill(signal);
@@ -107,25 +108,39 @@ for (const database of ['delta', 'mainbrella-preview-routes']) {
     process.exit();
   }
 }
+try {
+  bffLocal = await startBffLocal({ statePath: localStatePath });
+  const config = JSON.parse(readFileSync(configPaths[0], 'utf8'));
+  // The API needs loopback fetches for local BFF D1 and the optional Codex bridge.
+  config.compatibility_flags = (config.compatibility_flags ?? []).filter(flag => flag !== 'global_fetch_strictly_public');
+  config.vars = { ...config.vars, BFF_LOCAL_URL: bffLocal.url, BFF_LOCAL_TOKEN: bffLocal.token };
+  writeFileSync(configPaths[0], JSON.stringify(config, null, 2));
+  console.log('BFF: local Wrangler D1 databases enabled.');
+} catch (error) {
+  console.error(`Could not start local BFF databases: ${error.message}`);
+  await bffLocal?.close();
+  await sweep(true); removeConfigs();
+  process.exit(1);
+}
 if (aiMode === 'codex') {
   try {
     bridge = await startCodexBridge({ signal: startup.signal });
     const config = JSON.parse(readFileSync(configPaths[0], 'utf8'));
     // Codex handles code; retain Workers AI for original image generation.
     // The bridge is a loopback HTTP service, reachable only during local dev.
-    config.compatibility_flags = (config.compatibility_flags ?? []).filter(flag => flag !== 'global_fetch_strictly_public');
     config.vars = { ...config.vars, BUILD_CODEX_URL: bridge.url, BUILD_CODEX_TOKEN: bridge.token, BUILD_MODEL: bridge.model };
     writeFileSync(configPaths[0], JSON.stringify(config, null, 2));
     console.log(`Local Build inference: ${bridge.model} via codex app-server (remote inference).`);
   } catch (error) {
     if (!shutdownSignal) console.error(error.message);
     await bridge?.close();
+    await bffLocal?.close();
     await sweep(true); removeConfigs();
     process.exit(shutdownSignal === 'SIGINT' ? 130 : shutdownSignal === 'SIGTERM' ? 143 : 1);
   }
 }
 if (shutdownSignal) {
-  await bridge?.close(); await sweep(true); removeConfigs();
+  await bridge?.close(); await bffLocal?.close(); await sweep(true); removeConfigs();
   process.exit(shutdownSignal === 'SIGINT' ? 130 : 143);
 }
 child = spawn(process.execPath, [wrangler,
@@ -137,6 +152,7 @@ async function finish(code) {
   return finishing ??= (async () => {
     clearInterval(timer);
     await bridge?.close();
+    await bffLocal?.close();
     await sweep(true);
     removeConfigs();
     process.exitCode = code;

@@ -20,7 +20,8 @@ export async function runtime(t: test.TestContext, bindings: Record<string, stri
     name: 'bff-test', modules: true, script: bundle.outputFiles[0].text, compatibilityDate: '2026-10-01',
     d1Databases: ['DB'], workerLoaders: { BFF_LOADER: {} },
     bindings: { BFF_ENABLED: 'true', BFF_CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), BFF_CLOUDFLARE_API_TOKEN: 'platform-token-must-never-leak', PLATFORM_SECRET: 'platform-secret-must-never-leak', ...bindings },
-    outboundService: async request => {
+    // Local-provider tests exercise workerd's real loopback fetch path.
+    outboundService: bindings.BFF_LOCAL_URL ? undefined : async request => {
       const url = new URL(request.url);
       outboundTargets.push(url.origin);
       assert.equal(url.origin, 'https://api.cloudflare.com', 'Customer egress must never reach the parent outbound service');

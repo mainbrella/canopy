@@ -25,13 +25,13 @@ export function registerBffRoutes(api: OpenAPIApi, handler: LegacyHandler) {
       responses: { [created ? 201 : 200]: jsonResponse(response), ...(created && path === '/bff/projects' ? { 200: jsonResponse(response, 'Existing project returned on a name-based retry.') } : {}), ...failure },
     }, handler);
   route('get', '/bff/config', 'getBffConfig', 'Read BFF availability and execution limits', undefined,
-    z.object({ version: z.string(), available: z.boolean(), functionsAvailable: z.boolean(), limits: z.record(z.string(), z.number()) }));
+    z.object({ version: z.string(), available: z.boolean().describe('BFF is enabled and its database provider is configured: local Wrangler D1 during local development, Cloudflare D1 credentials on deployed Workers.'), functionsAvailable: z.boolean(), limits: z.record(z.string(), z.number()) }));
   route('get', '/bff/projects', 'listBffProjects', 'List your BFF projects', undefined, z.object({ projects: z.array(project) }));
   route('post', '/bff/projects', 'createBffProject', 'Create a BFF project with a message-board starter by default; provision separately', requestBody(projectInput), z.object({ project }), true);
   const base = '/bff/projects/{projectId}';
   route('get', base, 'getBffProject', 'Read your BFF project', { params }, z.object({ project }));
   route('patch', base, 'pauseBffProject', 'Pause or resume database and function operations', { params, ...requestBody(projectPatch) }, z.object({ project }));
-  route('post', `${base}/provision`, 'provisionBffDatabase', 'Provision or recover the project D1 database', { params }, z.object({ project }));
+  route('post', `${base}/provision`, 'provisionBffDatabase', 'Provision or recover the project D1 database (local Wrangler D1 in local development)', { params }, z.object({ project }));
   route('get', `${base}/schema`, 'getBffSchema', 'Inspect up to 50 tables, columns, and actual row counts', { params },
     z.object({ tables: z.array(z.object({ name: z.string(), sql: z.string().nullable(), count: z.number(), columns: z.array(z.object({ name: z.string(), type: z.string(), notnull: z.number(), dflt_value: z.unknown(), pk: z.number() })) })), truncated: z.boolean() }));
   route('post', `${base}/query`, 'queryBffDatabase', 'Execute one SELECT, INSERT, UPDATE, or DELETE statement', { params, ...requestBody(queryInput) }, z.object({ result }));
