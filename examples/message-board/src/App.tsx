@@ -21,16 +21,37 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
   const generation = useRef(0);
   const busy = useRef(false);
   const loginSelect = useRef<HTMLSelectElement>(null);
-  const restoreLoginFocus = useRef(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const afterLogin = useRef<(() => void) | null>(null);
+  const loginOpener = useRef<HTMLElement | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => () => { generation.current++; }, []);
   useEffect(() => {
-    if (!session && !pending && restoreLoginFocus.current) {
-      loginSelect.current?.focus();
-      restoreLoginFocus.current = false;
-    }
-  }, [session, pending]);
+    if (loginOpen) loginSelect.current?.focus();
+  }, [loginOpen]);
+
+  function requireLogin(action?: () => void) {
+    if (busy.current) return;
+    if (session) { action?.(); return; }
+    loginOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    afterLogin.current = action ?? null;
+    setError('');
+    setLoginOpen(true);
+  }
+
+  function restoreLoginOpener() {
+    const opener = loginOpener.current;
+    const target = opener?.isConnected ? opener : opener?.id ? document.getElementById(opener.id) : null;
+    (target ?? document.getElementById('create-message'))?.focus();
+  }
+
+  function cancelLogin() {
+    afterLogin.current = null;
+    setLoginOpen(false);
+    setError('');
+    requestAnimationFrame(restoreLoginOpener);
+  }
 
   async function login(event: FormEvent) {
     event.preventDefault();
@@ -47,6 +68,10 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
       }
       writeStoredSession(sessionKey, created);
       setSession(created);
+      setLoginOpen(false);
+      const resume = afterLogin.current;
+      afterLogin.current = null;
+      requestAnimationFrame(() => { restoreLoginOpener(); resume?.(); });
     } catch (cause) {
       if (request === generation.current) setError(errorText(cause));
     } finally {
@@ -62,7 +87,8 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
     const ended = session;
     const request = ++generation.current;
     busy.current = true;
-    restoreLoginFocus.current = true;
+    afterLogin.current = null;
+    setLoginOpen(false);
     setCreateOpen(false);
     setSearch('');
     writeStoredSession(sessionKey, null);
@@ -83,27 +109,32 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
 
   return <>
     <a className="skip-link" href="#main">Skip to content</a>
-    <header className={`topbar${session ? ' topbar--authenticated' : ''}`}>
+    <header className={`topbar${!loginOpen ? ' topbar--authenticated' : ''}`}>
       <a className="wordmark" href="https://mainbrella.com/bff/" aria-label="BFF home">bff<span aria-hidden="true">.</span></a>
-      {session ? <>
+      {!loginOpen ? <>
         <label className="topbar-search" htmlFor="global-message-search">
           <span className="visually-hidden">Search messages</span>
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
           <input id="global-message-search" type="search" placeholder="Search messages" autoComplete="off" value={search} onChange={event => setSearch(event.target.value)} />
         </label>
         <div id="session-controls" className="session-controls">
-          <button id="create-message" className="primary-button create-message-button" type="button" onClick={() => setCreateOpen(true)}>
+          <button id="create-message" className="primary-button create-message-button" type="button" disabled={pending} onClick={() => requireLogin(() => setCreateOpen(true))}>
             <span aria-hidden="true">+</span> Create
           </button>
-          <span id="current-user" className="current-user"><span className="user-avatar" aria-hidden="true">{session.session.user_id.slice(0, 1).toUpperCase()}</span>{session.session.user_id}</span>
-          <button id="logout" className="secondary-button" type="button" onClick={() => void logout()}>Log out</button>
+          {session ? <><span id="current-user" className="current-user"><span className="user-avatar" aria-hidden="true">{session.session.user_id.slice(0, 1).toUpperCase()}</span>{session.session.user_id}</span>
+          <button id="logout" className="secondary-button" type="button" disabled={pending} onClick={() => void logout()}>Log out</button></>
+            : <button id="login" className="secondary-button" type="button" disabled={pending} onClick={() => requireLogin()}>Log in</button>}
         </div>
       </> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
     </header>
-    <main id="main" className={`workspace${session ? ' workspace--authenticated' : ''}`}>
-      {session ? <Board key={session.session.id} api={api} basePath={basePath} session={session} initialBoardSlug={initialBoardSlug} initialMessageId={initialMessageId} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
+    <main id="main" className={`workspace${!loginOpen ? ' workspace--authenticated' : ''}`}>
+      <div hidden={loginOpen}>
+        {error && !loginOpen && <p className="login-feedback" role="alert">{error}</p>}
+        <Board api={api} basePath={basePath} session={session} requireLogin={requireLogin} initialBoardSlug={initialBoardSlug} initialMessageId={initialMessageId} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} />
+      </div>
+      {loginOpen && <>
         <div className="page-heading">
-          <div><h1>Message board</h1><p>Messages from a live BFF project.</p></div>
+          <div><h1>Log in</h1><p>Log in to create a board, post, or edit a message.</p></div>
         </div>
         <section id="login-panel" className="login-panel" aria-label="Demo login">
           <form id="login-form" className="login-form" onSubmit={event => void login(event)}>
@@ -116,20 +147,21 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
             </label>
             <button id="login-button" className="primary-button" type="submit" disabled={pending}>Log in</button>
           </form>
+          <button className="secondary-button" type="button" disabled={pending} onClick={cancelLogin}>Back to messages</button>
           {error && <p id="login-feedback" className="login-feedback" role="alert">{error}</p>}
         </section></>}
     </main>
   </>;
 }
 
-function Board({ api, basePath, session, initialBoardSlug, initialMessageId, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession; initialBoardSlug?: string; initialMessageId?: string; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
+function Board({ api, basePath, session, requireLogin, initialBoardSlug, initialMessageId, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession | null; requireLogin: (action: () => void) => void; initialBoardSlug?: string; initialMessageId?: string; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [boards, setBoards] = useState<BoardRecord[]>([]);
   const [boardLookup, setBoardLookup] = useState<'loading' | 'available' | 'unavailable'>('loading');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [view, setView] = useState<'all' | 'mine'>(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'mine' ? 'mine' : 'all');
+  const [view, setView] = useState<'all' | 'mine'>(() => typeof window !== 'undefined' && session && new URLSearchParams(window.location.search).get('view') === 'mine' ? 'mine' : 'all');
   const [sort, setSort] = useState('newest');
   const [editingId, setEditingId] = useState('');
   const [draft, setDraft] = useState('');
@@ -233,6 +265,18 @@ function Board({ api, basePath, session, initialBoardSlug, initialMessageId, sea
     }
   }, [editingId, saving, editError]);
 
+  useEffect(() => {
+    if (!session) {
+      setCreateBoardOpen(false);
+      setSaving(false);
+      setFeedback('');
+      setEditingId('');
+      setDraft('');
+      setEditError('');
+      setView('all');
+    }
+  }, [session]);
+
   function finishEditing() {
     restoreFocus.current = editingId;
     setEditingId('');
@@ -242,7 +286,7 @@ function Board({ api, basePath, session, initialBoardSlug, initialMessageId, sea
 
   async function save(event: FormEvent, message: Message) {
     event.preventDefault();
-    if (busy.current || editingId !== message.id) return;
+    if (!session || busy.current || editingId !== message.id) return;
     const body = draft.trim();
     if (!body || body.length > 2000) {
       setEditError('Enter a message of 1–2000 characters.');
@@ -273,7 +317,7 @@ function Board({ api, basePath, session, initialBoardSlug, initialMessageId, sea
   const activeBoard = boards.find(board => board.slug === initialBoardSlug);
   const messagesInView = data.messages.filter(message => (!initialBoardSlug || activeBoard?.id === message.board_id)
     && (initialMessageId === undefined || message.id === initialMessageId)
-    && (view === 'all' || message.user_id === session.session.user_id));
+    && (view === 'all' || message.user_id === session?.session.user_id));
   const visible = messagesInView.filter(message => {
     const board = boardById.get(message.board_id ?? '');
     return !term || message.user_id.toLocaleLowerCase().includes(term)
@@ -293,12 +337,12 @@ function Board({ api, basePath, session, initialBoardSlug, initialMessageId, sea
     `${term ? `${visible.length} of ` : ''}${count}${data.error ? ' · Showing last loaded data' : data.updated ? ` · Updated at ${data.updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}`;
 
   return <div className="board-layout">
-    <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />
-    {createBoardOpen && <CreateBoardDialog api={api} session={session} onClose={() => setCreateBoardOpen(false)}
+    {session && <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />}
+    {session && createBoardOpen && <CreateBoardDialog api={api} session={session} onClose={() => setCreateBoardOpen(false)}
       onCreated={board => { boardSerial.current++; setBoards(previous => [...previous.filter(row => row.id !== board.id), board]); setView('all'); setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); void loadBoards(); }} />}
-    <BoardNavigation boards={boards} boardCounts={boardCounts} basePath={basePath} activeSlug={initialBoardSlug} view={view} onViewChange={initialBoardSlug ? undefined : setView} boardLookup={boardLookup}
+    <BoardNavigation boards={boards} boardCounts={boardCounts} basePath={basePath} activeSlug={initialBoardSlug} view={view} onViewChange={initialBoardSlug ? undefined : setView} showMyMessages={Boolean(session)} boardLookup={boardLookup}
       footerHref="https://mainbrella.com/bff/" actions={<button id="create-board-button" className="board-nav-item create-board-button" type="button"
-        onClick={() => setCreateBoardOpen(true)}>
+        onClick={() => requireLogin(() => setCreateBoardOpen(true))}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Create board
       </button>} />
     <div className="board-feed">
@@ -343,11 +387,11 @@ function Board({ api, basePath, session, initialBoardSlug, initialMessageId, sea
                 </div>
               </form> : <p className="message-body">{message.body}</p>}
               <footer className="post-footer">
-                <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
+                <span className="message-author">{message.user_id}{session?.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
                 <span className="post-actions">
                   {editingId !== message.id && <button ref={button => { if (button) editButtons.current.set(message.id, button); else editButtons.current.delete(message.id); }}
                     className="post-action" type="button" data-edit-id={message.id} disabled={saving || Boolean(editingId)}
-                    onClick={() => { setEditingId(message.id); setDraft(message.body); setEditError(''); setFeedback(''); }}>
+                    onClick={() => requireLogin(() => { setEditingId(message.id); setDraft(message.body); setEditError(''); setFeedback(''); })}>
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.8 2.2 3 3M2.5 13.5l2.8-.6 7.8-7.8a1.4 1.4 0 0 0-2-2l-7.8 7.8-.8 2.6Z" /></svg>Edit
                   </button>}
                   <a className="post-action" href={boardById.has(message.board_id ?? '') ? messageHref(boardById.get(message.board_id!)!.slug, message.id, basePath) : `#message-${encodeURIComponent(message.id)}`}>

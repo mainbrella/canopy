@@ -134,7 +134,7 @@ export async function fetchPublicBoard(slug: string, config: PublicBoardConfig =
 
 export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch) {
   const sessionUrl = `${config.apiOrigin.replace(/\/$/, '')}/bff/demo/session`;
-  const headers = (session?: DemoSession) => ({ apikey: config.publicKey,
+  const headers = (session?: DemoSession | null) => ({ apikey: config.publicKey,
     ...(session ? { authorization: `Bearer ${session.token}` } : {}) });
 
   return {
@@ -150,13 +150,13 @@ export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetch
       const payload = await requestJson(sessionUrl, { method: 'DELETE', headers: headers(session) }, fetcher);
       if (!isRecord(payload) || payload.revoked !== true) throw new DemoApiError('The demo did not confirm session revocation.');
     },
-    async list(session: DemoSession, messageId?: string): Promise<Message[]> {
+    async list(session: DemoSession | null, messageId?: string): Promise<Message[]> {
       const filter = messageId === undefined ? '' : `&id=eq.${encodeURIComponent(messageId)}&limit=1`;
       const messages = messagesFrom(await requestJson(`${tableUrl(config)}?select=*${filter}`, { headers: headers(session) }, fetcher));
       if (messageId !== undefined && (messages.length > 1 || messages.some(message => message.id !== messageId))) throw new DemoApiError('The message board returned an unexpected message.');
       return messages;
     },
-    async listBoards(session: DemoSession): Promise<Board[]> {
+    async listBoards(session: DemoSession | null): Promise<Board[]> {
       const boards: Board[] = [];
       // Table reads are capped at 100 rows. Keep fetching so every board is selectable.
       for (let offset = 0; ; offset += 100) {

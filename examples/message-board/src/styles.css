@@ -137,6 +137,7 @@ button, input, select { font: inherit; }
 .login-panel { max-width: 360px; }
 .login-form { display: flex; align-items: end; gap: 12px; }
 .login-form .user-control { flex: 1; }
+.login-panel > .secondary-button { margin-top: 16px; }
 .login-form .user-control select { width: 100%; background: var(--control); }
 .primary-button, .secondary-button {
   display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 8px 15px;

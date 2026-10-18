@@ -26,8 +26,10 @@ backend must have the matching project, the example migrations (including
 the backend with `npm run dev:backend` from the repository root; its
 `LOCAL_DEV=true` binding selects the matching local demo session configuration.
 
-Open the URL printed by Vite. Choose Alice or Bob to log in, read and search
-messages, create a post, and edit a post. **Create** opens a full-screen composer
+Open the URL printed by Vite to read and search messages without logging in.
+Creating a board, posting, or editing a message prompts you to log in as Alice
+or Bob, then resumes the selected action. You can return to browsing without
+logging in. Logging out returns to the public message list. **Create** opens a full-screen composer
 with boards loaded from the `boards` table and labeled `board/:slug`. Title and
 plain-text body are required; only the selected `board_id`, session's `user_id`,
 trimmed title, and trimmed body are inserted into `messages`. Apply

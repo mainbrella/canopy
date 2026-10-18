@@ -2,7 +2,6 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { createDemoApi, liveBoardConfig } from './api.ts';
 import { localDemoConfig } from './config.ts';
-import { readStoredSession } from './session.ts';
 
 const root = document.getElementById('message-board-root');
 if (!root) throw new Error('Message board root is missing');
@@ -21,6 +20,6 @@ const initialBoardSlug = root.dataset.boardSlug ?? boardRoute?.[1];
 const encodedMessageId = root.dataset.messageId ?? boardRoute?.[2];
 let initialMessageId: string | undefined;
 try { if (encodedMessageId !== undefined) initialMessageId = decodeURIComponent(encodedMessageId); } catch { /* Keep malformed routes on the server-rendered 404 page. */ }
-if (!root.dataset.serverRendered || (root.dataset.boardSlug && readStoredSession(sessionKey))) {
+if (!root.dataset.serverRendered || root.dataset.boardSlug) {
   createRoot(root).render(<App api={api} basePath={basePath} sessionKey={sessionKey} initialBoardSlug={initialBoardSlug} initialMessageId={initialMessageId} />);
 }

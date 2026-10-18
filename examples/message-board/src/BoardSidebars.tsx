@@ -10,13 +10,14 @@ export function boardTone(slug: string): 'orange' | 'violet' | 'teal' | 'blue' {
   return tones[Math.abs(hash) % tones.length];
 }
 
-export function BoardNavigation({ boards, boardCounts, basePath, activeSlug, view, onViewChange, boardLookup = 'available', actions, footerHref }: {
+export function BoardNavigation({ boards, boardCounts, basePath, activeSlug, view, onViewChange, showMyMessages = true, boardLookup = 'available', actions, footerHref }: {
   boards: Board[];
   boardCounts: Map<string, number>;
   basePath: string;
   activeSlug?: string;
   view?: 'all' | 'mine';
   onViewChange?: (view: 'all' | 'mine') => void;
+  showMyMessages?: boolean;
   boardLookup?: 'loading' | 'available' | 'unavailable';
   actions?: ReactNode;
   footerHref?: string;
@@ -33,7 +34,7 @@ export function BoardNavigation({ boards, boardCounts, basePath, activeSlug, vie
 
   return <aside className="board-navigation">
     <nav className="board-nav" aria-label="Message views">
-      {viewLink('all')}{viewLink('mine')}
+      {viewLink('all')}{showMyMessages && viewLink('mine')}
     </nav>
     {actions}
     <details className="board-list" open>
