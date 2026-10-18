@@ -16,7 +16,11 @@ const api = createDemoApi(config);
 const sessionKey = `message-board:session:${config.projectId}`;
 const basePath = root.dataset.basePath ?? new URL('./', window.location.href).pathname;
 const route = window.location.pathname.startsWith(basePath) ? window.location.pathname.slice(basePath.length) : '';
-const initialBoardSlug = root.dataset.boardSlug ?? /^boards\/([a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)\/?$/.exec(route)?.[1];
+const boardRoute = /^boards\/([a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)(?:\/([^/]+))?\/?$/.exec(route);
+const initialBoardSlug = root.dataset.boardSlug ?? boardRoute?.[1];
+const encodedMessageId = root.dataset.messageId ?? boardRoute?.[2];
+let initialMessageId: string | undefined;
+try { if (encodedMessageId !== undefined) initialMessageId = decodeURIComponent(encodedMessageId); } catch { /* Keep malformed routes on the server-rendered 404 page. */ }
 if (!root.dataset.serverRendered || (root.dataset.boardSlug && readStoredSession(sessionKey))) {
-  createRoot(root).render(<App api={api} basePath={basePath} sessionKey={sessionKey} initialBoardSlug={initialBoardSlug} />);
+  createRoot(root).render(<App api={api} basePath={basePath} sessionKey={sessionKey} initialBoardSlug={initialBoardSlug} initialMessageId={initialMessageId} />);
 }

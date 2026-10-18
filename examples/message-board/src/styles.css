@@ -188,6 +188,8 @@ button, input, select { font: inherit; }
 .board-description { color: var(--text-subtle); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .meta-dot { color: #697579; font-size: 13px; }
 .message-title { margin: 10px 0 7px; color: var(--ink); font-size: 19px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
+.message-title a { text-decoration: none; }
+.message-title a:hover { text-decoration: underline; }
 .message-you { color: var(--muted); font-size: 12px; font-weight: 400; }
 .message-time { color: var(--muted); font-size: 12px; }
 .message-body {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MessageLink, messageHref } from './MessageLink.tsx';
 import { BoardLink } from './BoardLink.tsx';
 import { renderBoardRequest } from './server.tsx';
 import { liveBoardConfig, type Board, type Message } from './api.ts';
@@ -17,6 +18,70 @@ test('board labels are real root-relative links', () => {
     '<a class="message-board" href="/boards/general">board/general</a>');
   assert.equal(renderToStaticMarkup(<BoardLink board={board} basePath="/bff/demo/" />),
     '<a href="/bff/demo/boards/general">board/general</a>');
+});
+
+test('message titles link to their encoded message URL under either mount path', () => {
+  assert.equal(messageHref('general', 'post/with ?&"', '/bff/demo/'), '/bff/demo/boards/general/post%2Fwith%20%3F%26%22');
+  assert.equal(renderToStaticMarkup(<MessageLink board={board} message={{ ...message, title: 'Hello' }} />),
+    '<a href="/boards/general/post-123">Hello</a>');
+  assert.equal(renderToStaticMarkup(<MessageLink message={message} />), 'Hello &lt;script&gt;alert(1)&lt;/script&gt;');
+});
+
+test('message pages query a specific post within its board and render it without JavaScript', async () => {
+  const selected = { ...message, id: 'old post/&', title: '</title><script>alert(1)</script> $&' };
+  for (const basePath of ['/', '/bff/demo/']) {
+    const calls: URL[] = [];
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = new URL(String(input));
+      calls.push(url);
+      assert.equal(new Headers(init?.headers).get('authorization'), null);
+      if (url.pathname.endsWith('/boards')) return Response.json({ data: [board] });
+      // The selected message is older than the global recent feed.
+      return Response.json({ data: url.searchParams.has('id') ? [selected] : [otherMessage] });
+    };
+    const response = await renderBoardRequest(request(`${messageHref(board.slug, selected.id, basePath)}/`), { template, fetcher, homeHref: basePath });
+    assert.equal(response?.status, 200);
+    const html = await response!.text();
+    assert.equal(calls[1].searchParams.get('board_id'), `eq.${board.id}`);
+    assert.equal(calls[1].searchParams.get('id'), `eq.${selected.id}`);
+    assert.equal(calls[1].searchParams.get('limit'), '1');
+    assert.match(html, /<title>&lt;\/title&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt; \$&amp; · BFF<\/title>/);
+    assert.match(html, /data-message-id="old%20post%2F%26"/);
+    assert.match(html, /A message &amp; a reply/);
+    assert.equal((html.match(/class="message-row"/g) ?? []).length, 1);
+    assert.doesNotMatch(html, /Enable JavaScript|<script>alert|Latest 1 post/);
+  }
+});
+
+test('missing messages and messages belonging to another board return 404', async () => {
+  for (const boards of [[board], []]) {
+    const response = await renderBoardRequest(request('/boards/general/missing'), { template, fetcher: async input =>
+      Response.json({ data: String(input).includes('/tables/boards?') ? boards : [] }) });
+    assert.equal(response?.status, 404);
+    assert.match(await response!.text(), /Message not found\./);
+  }
+});
+
+test('message pages reject unexpected rows, API failures, and malformed IDs', async () => {
+  for (const row of [{ ...message, board_id: otherBoard.id }, { ...message, id: 'wrong-id' }]) {
+    const response = await renderBoardRequest(request('/boards/general/post-123'), { template, fetcher: async input =>
+      Response.json({ data: String(input).includes('/tables/boards?') ? [board] : [row] }) });
+    assert.equal(response?.status, 502);
+    assert.doesNotMatch(await response!.text(), /A message &amp; a reply/);
+  }
+  const failure = await renderBoardRequest(request('/boards/general/post-123'), { template, fetcher: async () => { throw new Error('private'); } });
+  assert.equal(failure?.status, 502);
+  assert.match(await failure!.text(), /Could not load this message/);
+  for (const path of ['/boards/general/%ZZ', '/boards/general/post-123/extra']) {
+    const invalid = await renderBoardRequest(request(path), { template, fetcher: async () => { assert.fail('Invalid routes must not query the API'); } });
+    assert.equal(invalid?.status, 404);
+  }
+  const head = await renderBoardRequest(request('/boards/general/post-123', 'HEAD'), { template, fetcher: async input =>
+    Response.json({ data: String(input).includes('/tables/boards?') ? [board] : [message] }) });
+  assert.equal(head?.status, 200);
+  assert.equal(await head!.text(), '');
+  const post = await renderBoardRequest(request('/boards/general/post-123', 'POST'), { template });
+  assert.equal(post?.status, 405);
 });
 
 test('mounted board pages match and link within the demo path', async () => {
@@ -56,8 +121,8 @@ test('direct board requests render three columns, the selected feed, other board
   assert.match(html, /class="board-navigation"/);
   assert.match(html, /class="recent-messages"/);
   assert.match(html, /href="\/boards\/general"[^>]*aria-current="page"/);
-  assert.match(html, /href="#message-post-123"/);
-  assert.match(html, /href="\/boards\/research#message-post-456"/);
+  assert.match(html, /href="\/boards\/general\/post-123"/);
+  assert.match(html, /href="\/boards\/research\/post-456"/);
   assert.match(html, /<h1 id="board-title">board\/general<\/h1>/);
   assert.match(html, /data-server-rendered="true"/);
   assert.match(html, /Hello &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
@@ -92,7 +157,7 @@ test('empty boards, missing boards, invalid paths and API failures have distinct
   assert.equal(notFound?.status, 404);
   assert.equal(calls, 1);
   assert.match(await notFound!.text(), /Board not found/);
-  const invalid = await renderBoardRequest(request('/boards/invalid/nested'), { template, fetcher: missing });
+  const invalid = await renderBoardRequest(request('/boards/invalid/nested/extra'), { template, fetcher: missing });
   assert.equal(invalid?.status, 404);
   assert.equal(calls, 1);
   const unavailable = await renderBoardRequest(request(), { template, fetcher: async () => { throw new Error('private backend details'); } });

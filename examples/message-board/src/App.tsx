@@ -4,6 +4,7 @@ import type { DemoUser } from './config.ts';
 import { CreateMessageDialog } from './CreateMessageDialog.tsx';
 import { CreateBoardDialog } from './CreateBoardDialog.tsx';
 import { BoardLink } from './BoardLink.tsx';
+import { MessageLink, messageHref } from './MessageLink.tsx';
 import { BoardNavigation, RecentMessages, boardTone } from './BoardSidebars.tsx';
 import { readStoredSession, writeStoredSession } from './session.ts';
 
@@ -11,7 +12,7 @@ type BoardApi = ReturnType<typeof createDemoApi>;
 const defaultApi = createDemoApi();
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request failed. Try again.';
 
-export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-board:session', initialBoardSlug }: { api?: BoardApi; basePath?: string; sessionKey?: string; initialBoardSlug?: string }) {
+export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-board:session', initialBoardSlug, initialMessageId }: { api?: BoardApi; basePath?: string; sessionKey?: string; initialBoardSlug?: string; initialMessageId?: string }) {
   const [session, setSession] = useState<DemoSession | null>(() => readStoredSession(sessionKey));
   const [user, setUser] = useState<DemoUser>(session?.session.user_id ?? 'alice');
   const [pending, setPending] = useState(false);
@@ -100,7 +101,7 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
       </> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
     </header>
     <main id="main" className={`workspace${session ? ' workspace--authenticated' : ''}`}>
-      {session ? <Board key={session.session.id} api={api} basePath={basePath} session={session} initialBoardSlug={initialBoardSlug} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
+      {session ? <Board key={session.session.id} api={api} basePath={basePath} session={session} initialBoardSlug={initialBoardSlug} initialMessageId={initialMessageId} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
         <div className="page-heading">
           <div><h1>Message board</h1><p>Messages from a live BFF project.</p></div>
         </div>
@@ -121,7 +122,7 @@ export function App({ api = defaultApi, basePath = '/', sessionKey = 'message-bo
   </>;
 }
 
-function Board({ api, basePath, session, initialBoardSlug, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession; initialBoardSlug?: string; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
+function Board({ api, basePath, session, initialBoardSlug, initialMessageId, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession; initialBoardSlug?: string; initialMessageId?: string; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [boards, setBoards] = useState<BoardRecord[]>([]);
@@ -192,7 +193,7 @@ function Board({ api, basePath, session, initialBoardSlug, search, onSearch, cre
     setFeedback('');
     setData(previous => ({ ...previous, error: '' }));
     try {
-      const messages = await api.list(session);
+      const messages = await api.list(session, initialMessageId);
       if (active.current && request === serial.current) setData({ messages, loaded: true, updated: new Date(), error: '' });
     } catch (cause) {
       if (active.current && request === serial.current) setData(previous => ({ ...previous,
@@ -204,7 +205,7 @@ function Board({ api, basePath, session, initialBoardSlug, search, onSearch, cre
         setLoading(false);
       }
     }
-  }, [api, session, loadBoards]);
+  }, [api, session, loadBoards, initialMessageId]);
 
   useEffect(() => {
     active.current = true;
@@ -271,6 +272,7 @@ function Board({ api, basePath, session, initialBoardSlug, search, onSearch, cre
   const boardById = new Map(boards.map(board => [board.id, board]));
   const activeBoard = boards.find(board => board.slug === initialBoardSlug);
   const messagesInView = data.messages.filter(message => (!initialBoardSlug || activeBoard?.id === message.board_id)
+    && (initialMessageId === undefined || message.id === initialMessageId)
     && (view === 'all' || message.user_id === session.session.user_id));
   const visible = messagesInView.filter(message => {
     const board = boardById.get(message.board_id ?? '');
@@ -329,7 +331,7 @@ function Board({ api, basePath, session, initialBoardSlug, search, onSearch, cre
                 <span className="meta-dot" aria-hidden="true">·</span>
                 <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
               </div>
-              <h2 className="message-title">{message.title}</h2>
+              <h2 className="message-title"><MessageLink message={message} board={boardById.get(message.board_id ?? '')} basePath={basePath} /></h2>
               {editingId === message.id ? <form className="message-edit-form" onSubmit={event => void save(event, message)}>
                 <label className="editor-label" htmlFor="edit-message">Edit message</label>
                 <textarea ref={textarea} id="edit-message" name="body" rows={3} maxLength={2000} value={draft} disabled={saving}
@@ -348,7 +350,7 @@ function Board({ api, basePath, session, initialBoardSlug, search, onSearch, cre
                     onClick={() => { setEditingId(message.id); setDraft(message.body); setEditError(''); setFeedback(''); }}>
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.8 2.2 3 3M2.5 13.5l2.8-.6 7.8-7.8a1.4 1.4 0 0 0-2-2l-7.8 7.8-.8 2.6Z" /></svg>Edit
                   </button>}
-                  <a className="post-action" href={`#message-${encodeURIComponent(message.id)}`}>
+                  <a className="post-action" href={boardById.has(message.board_id ?? '') ? messageHref(boardById.get(message.board_id!)!.slug, message.id, basePath) : `#message-${encodeURIComponent(message.id)}`}>
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 9.8 9.8 6.2M5.4 11.6l-1 1a2.3 2.3 0 0 1-3.2-3.2l3-3a2.3 2.3 0 0 1 3.2 0M10.6 4.4l1-1a2.3 2.3 0 0 1 3.2 3.2l-3 3a2.3 2.3 0 0 1-3.2 0" /></svg>Link
                   </a>
                 </span>
@@ -363,7 +365,7 @@ function Board({ api, basePath, session, initialBoardSlug, search, onSearch, cre
         </div>}
       </section>
     </div>
-    <RecentMessages messages={initialBoardSlug ? data.messages : visible} boards={boards} basePath={basePath} currentBoardSlug={initialBoardSlug}
+    <RecentMessages messages={initialBoardSlug ? data.messages : visible} boards={boards} basePath={basePath}
       loaded={data.loaded} loading={loading && !data.loaded} emptyText={term ? 'No matching messages.' : 'No messages yet.'} />
   </div>;
 }

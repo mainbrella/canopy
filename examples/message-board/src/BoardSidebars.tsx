@@ -1,6 +1,7 @@
 import type { Board, Message } from './api.ts';
 import type { ReactNode } from 'react';
 import { boardHref, BoardLink } from './BoardLink.tsx';
+import { messageHref } from './MessageLink.tsx';
 
 export function boardTone(slug: string): 'orange' | 'violet' | 'teal' | 'blue' {
   const tones = ['orange', 'violet', 'teal', 'blue'] as const;
@@ -53,11 +54,10 @@ export function BoardNavigation({ boards, boardCounts, basePath, activeSlug, vie
   </aside>;
 }
 
-export function RecentMessages({ messages, boards, basePath, currentBoardSlug, loaded = true, loading = false, emptyText = 'No messages yet.' }: {
+export function RecentMessages({ messages, boards, basePath, loaded = true, loading = false, emptyText = 'No messages yet.' }: {
   messages: Message[];
   boards: Board[];
   basePath: string;
-  currentBoardSlug?: string;
   loaded?: boolean;
   loading?: boolean;
   emptyText?: string;
@@ -71,8 +71,7 @@ export function RecentMessages({ messages, boards, basePath, currentBoardSlug, l
     </div> : recent.length ? <ul className="recent-list">
       {recent.map(message => {
         const board = boardById.get(message.board_id ?? '');
-        const sameFeed = !currentBoardSlug || board?.slug === currentBoardSlug;
-        const href = sameFeed ? `#message-${encodeURIComponent(message.id)}` : board ? `${boardHref(board.slug, basePath)}#message-${encodeURIComponent(message.id)}` : `#message-${encodeURIComponent(message.id)}`;
+        const href = board ? messageHref(board.slug, message.id, basePath) : `#message-${encodeURIComponent(message.id)}`;
         return <li key={message.id}>
           <div className="recent-message">
             <div className="recent-board"><span className={`board-icon board-icon--${boardTone(board?.slug ?? '')}`} aria-hidden="true">{board?.slug.charAt(0).toUpperCase() ?? '?'}</span>

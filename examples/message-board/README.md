@@ -48,6 +48,11 @@ latest 20 messages for that board, newest first, and work without JavaScript.
 The API query filters by board before applying the limit. Missing boards return
 404; unavailable data returns 502. Vite development and preview serve these
 routes; the Mainbrella deployment uses its site Worker for the same renderer.
+Message titles, recent posts, and post links point to
+`/bff/demo/boards/:slug/:id` (`/boards/:slug/:id` in the standalone example).
+These pages render the selected message on the server, including older posts
+outside the latest feed. The query filters by both board and message ID;
+missing messages return 404.
 A separate static-only host must provide a server using the package's `./server`
 export to serve board URLs.
 

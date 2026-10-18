@@ -112,7 +112,7 @@ export async function fetchPublicBoards(config: PublicBoardConfig = liveBoardCon
   }
 }
 
-export async function fetchPublicBoard(slug: string, config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch): Promise<{ board: Board; messages: Message[] } | null> {
+export async function fetchPublicBoard(slug: string, config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch, messageId?: string): Promise<{ board: Board; messages: Message[] } | null> {
   const payload = await requestJson(`${tableUrl(config, 'boards')}?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`,
     { headers: { apikey: config.publicKey } }, fetcher);
   if (!isRecord(payload) || !Array.isArray(payload.data) || !payload.data.every(isBoard)) {
@@ -121,9 +121,14 @@ export async function fetchPublicBoard(slug: string, config: PublicBoardConfig =
   const board = payload.data[0];
   if (!board) return null;
   if (board.slug !== slug) throw new DemoApiError('The message board returned an unexpected board.');
-  const messages = messagesFrom(await requestJson(`${tableUrl(config)}?select=*&board_id=eq.${encodeURIComponent(board.id)}&order=created_at.desc&limit=20`,
+  const filter = messageId === undefined ? '&order=created_at.desc&limit=20' : `&id=eq.${encodeURIComponent(messageId)}&limit=1`;
+  const messages = messagesFrom(await requestJson(`${tableUrl(config)}?select=*&board_id=eq.${encodeURIComponent(board.id)}${filter}`,
     { headers: { apikey: config.publicKey } }, fetcher));
   if (messages.some(message => message.board_id !== board.id)) throw new DemoApiError('The message board returned messages from another board.');
+  if (messageId !== undefined) {
+    if (messages.some(message => message.id !== messageId) || messages.length > 1) throw new DemoApiError('The message board returned an unexpected message.');
+    if (!messages.length) return null;
+  }
   return { board, messages };
 }
 
@@ -145,8 +150,11 @@ export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetch
       const payload = await requestJson(sessionUrl, { method: 'DELETE', headers: headers(session) }, fetcher);
       if (!isRecord(payload) || payload.revoked !== true) throw new DemoApiError('The demo did not confirm session revocation.');
     },
-    async list(session: DemoSession): Promise<Message[]> {
-      return messagesFrom(await requestJson(`${tableUrl(config)}?select=*`, { headers: headers(session) }, fetcher));
+    async list(session: DemoSession, messageId?: string): Promise<Message[]> {
+      const filter = messageId === undefined ? '' : `&id=eq.${encodeURIComponent(messageId)}&limit=1`;
+      const messages = messagesFrom(await requestJson(`${tableUrl(config)}?select=*${filter}`, { headers: headers(session) }, fetcher));
+      if (messageId !== undefined && (messages.length > 1 || messages.some(message => message.id !== messageId))) throw new DemoApiError('The message board returned an unexpected message.');
+      return messages;
     },
     async listBoards(session: DemoSession): Promise<Board[]> {
       const boards: Board[] = [];

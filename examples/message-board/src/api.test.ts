@@ -13,6 +13,20 @@ const alice: DemoSession = { token: `bff_us_${'a'.repeat(64)}`, session: {
 const bob: DemoSession = { token: `bff_us_${'b'.repeat(64)}`, session: { ...alice.session, id: 'bob-session', user_id: 'bob' } };
 const general: Board = { id: 'general', slug: 'general', name: 'General', description: 'General discussion.', created_at: rows[0].created_at };
 
+test('authenticated message pages fetch their selected ID even outside the latest feed', async () => {
+  const selected = { ...rows[0], id: 'old/post?&' };
+  const api = createDemoApi(liveBoardConfig, async (input, init) => {
+    const url = new URL(String(input));
+    assert.equal(url.searchParams.get('id'), `eq.${selected.id}`);
+    assert.equal(url.searchParams.get('limit'), '1');
+    assert.equal(new Headers(init?.headers).get('authorization'), `Bearer ${alice.token}`);
+    return Response.json({ data: [selected] });
+  });
+  assert.deepEqual(await api.list(alice, selected.id), [selected]);
+  const unexpected = createDemoApi(liveBoardConfig, async () => Response.json({ data: rows }));
+  await assert.rejects(unexpected.list(alice, selected.id), /unexpected message/);
+});
+
 test('board creation inserts trimmed fields and the logged-in owner, with slugs derived only from the name', async () => {
   for (const session of [alice, bob]) {
     for (const [name, slug] of [['  Product Plans  ', 'product-plans'], ['Release   Notes', 'release-notes'],
