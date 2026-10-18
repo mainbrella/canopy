@@ -11,7 +11,7 @@ type Props = {
   session: DemoSession;
   open: boolean;
   onClose: () => void;
-  onCreated: (message: Message) => void;
+  onCreated: (message: Message, board?: Board) => void;
 };
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request failed. Try again.';
@@ -96,7 +96,7 @@ export function CreateMessageDialog({ api, session, open, onClose, onCreated }: 
       const message = await api.create(session, selectedBoard, cleanTitle, cleanBody);
       setTitle('');
       setBody('');
-      onCreated(message);
+      onCreated(message, boards.find(board => board.id === message.board_id));
       dialog.current?.close();
     } catch (cause) {
       setError(cause instanceof DemoApiError && cause.status === 401

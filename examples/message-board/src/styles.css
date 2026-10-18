@@ -96,6 +96,7 @@ button, input, select { font: inherit; }
 .recent-list { margin: 8px 0 0; padding: 0; list-style: none; }
 .recent-list li + li { border-top: 1px solid var(--line); }
 .recent-message { display: block; min-height: 44px; padding: 16px 0; text-decoration: none; overflow-wrap: anywhere; }
+.recent-board { display: block; margin-bottom: 2px; color: var(--muted); font-size: 11px; }
 .recent-author { color: var(--ink); font-size: 12px; font-weight: 600; }
 .recent-message p { display: -webkit-box; margin: 0 0 6px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: var(--ink); font-size: 13px; line-height: 1.5; font-weight: 600; }
 .recent-message time { margin-inline-start: 8px; color: var(--muted); font-size: 11px; }
@@ -174,6 +175,7 @@ button, input, select { font: inherit; }
 .message-title { margin: 0 0 4px; color: var(--ink); font-size: 16px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
 .message-meta { display: flex; min-height: 22px; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
 .message-author { overflow-wrap: anywhere; color: var(--ink); font-size: 13px; font-weight: 620; }
+.message-board { overflow-wrap: anywhere; color: var(--muted); font-size: 12px; }
 .message-you { color: var(--muted); font-size: 12px; font-weight: 400; }
 .message-time { color: var(--muted); font-size: 12px; }
 .message-body {

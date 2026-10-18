@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { createDemoApi, type DemoSession, type Message } from './api.ts';
+import { createDemoApi, type Board as BoardRecord, type DemoSession, type Message } from './api.ts';
 import type { DemoUser } from './config.ts';
 import { CreateMessageDialog } from './CreateMessageDialog.tsx';
 import { CreateBoardDialog } from './CreateBoardDialog.tsx';
@@ -110,6 +110,8 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
 function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; session: DemoSession; createOpen: boolean; onCloseCreate: () => void }) {
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
+  const [boards, setBoards] = useState<BoardRecord[]>([]);
+  const [boardLookup, setBoardLookup] = useState<'loading' | 'available' | 'unavailable'>('loading');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -121,12 +123,14 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
   const [feedback, setFeedback] = useState('');
   const active = useRef(false);
   const serial = useRef(0);
+  const boardSerial = useRef(0);
   const busy = useRef(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const editButtons = useRef(new Map<string, HTMLButtonElement>());
   const restoreFocus = useRef('');
 
-  function onCreated(message: Message) {
+  function onCreated(message: Message, board?: BoardRecord) {
+    boardSerial.current++;
     // Invalidate a feed refresh so it cannot overwrite this row. Keep an
     // in-flight edit's request serial and busy state intact so its completion
     // can still update the row and release the edit controls.
@@ -142,14 +146,32 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
       updated: new Date(),
       error: '',
     }));
+    if (board) setBoards(previous => [...previous.filter(row => row.id !== board.id), board]);
+    void loadBoards();
     setView('all');
     setSearch('');
     setSort('newest');
     setFeedback('Message posted.');
   }
 
+  const loadBoards = useCallback(async () => {
+    const request = ++boardSerial.current;
+    setBoardLookup('loading');
+    try {
+      const result = await api.listBoards(session);
+      if (active.current && request === boardSerial.current) {
+        setBoards(result);
+        setBoardLookup('available');
+      }
+    } catch {
+      // Board metadata is supplementary: keep the message feed available.
+      if (active.current && request === boardSerial.current) setBoardLookup('unavailable');
+    }
+  }, [api, session]);
+
   const load = useCallback(async () => {
     if (busy.current) return;
+    void loadBoards();
     const request = ++serial.current;
     busy.current = true;
     setLoading(true);
@@ -168,12 +190,12 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
         setLoading(false);
       }
     }
-  }, [api, session]);
+  }, [api, session, loadBoards]);
 
   useEffect(() => {
     active.current = true;
     void load();
-    return () => { active.current = false; serial.current++; busy.current = false; };
+    return () => { active.current = false; serial.current++; boardSerial.current++; busy.current = false; };
   }, [load]);
 
   useEffect(() => {
@@ -225,6 +247,9 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
     || message.title.toLocaleLowerCase().includes(term) || message.body.toLocaleLowerCase().includes(term))
     .sort((a, b) => sort === 'oldest' ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
   const recent = [...visible].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 5);
+  const boardById = new Map(boards.map(board => [board.id, board]));
+  const boardLabel = (message: Message) => !message.board_id ? 'No board'
+    : boardById.get(message.board_id)?.name ?? (boardLookup === 'loading' ? 'Loading…' : 'Unavailable');
   const count = `${messagesInView.length} ${messagesInView.length === 1 ? 'message' : 'messages'}`;
   const status = loading ? (data.loaded ? 'Refreshing messages…' : 'Loading messages…') : !data.loaded ? 'Message board unavailable' :
     `${term ? `${visible.length} of ` : ''}${count}${data.error ? ' · Showing last loaded data' : data.updated ? ` · Updated at ${data.updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}`;
@@ -232,7 +257,7 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
   return <div className="board-layout">
     <CreateMessageDialog api={api} session={session} open={createOpen} onClose={onCloseCreate} onCreated={onCreated} />
     {createBoardOpen && <CreateBoardDialog api={api} session={session} onClose={() => setCreateBoardOpen(false)}
-      onCreated={board => { setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); }} />}
+      onCreated={board => { boardSerial.current++; setBoards(previous => [...previous.filter(row => row.id !== board.id), board]); setCreateBoardOpen(false); setFeedback(`Board “${board.name}” created.`); void loadBoards(); }} />}
     <aside className="board-navigation">
       <nav className="board-nav" aria-label="Message views">
         <button className="board-nav-item" type="button" aria-pressed={view === 'all'} onClick={() => setView('all')}>
@@ -282,6 +307,9 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
             <div className="message-content">
               <h3 className="message-title">{message.title}</h3>
               <div className="message-meta">
+                <span className="message-board" title={boardById.get(message.board_id ?? '')?.slug}>
+                  Board: {boardLabel(message)}
+                </span>
                 <span className="message-author">{message.user_id}{session.session.user_id === message.user_id && <> <span className="message-you">(you)</span></>}</span>
                 <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
                 {editingId !== message.id && <button ref={button => { if (button) editButtons.current.set(message.id, button); else editButtons.current.delete(message.id); }}
@@ -316,6 +344,7 @@ function Board({ api, session, createOpen, onCloseCreate }: { api: BoardApi; ses
         {recent.map(message => <li key={message.id}>
           <a className="recent-message" href={`#message-${encodeURIComponent(message.id)}`}>
             <p>{message.title}</p>
+            <span className="recent-board">Board: {boardLabel(message)}</span>
             <span className="recent-author">{message.user_id}</span>
             <time dateTime={message.created_at}>{formatRelative(message.created_at)}</time>
           </a>
