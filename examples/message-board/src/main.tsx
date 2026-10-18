@@ -2,7 +2,6 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { createDemoApi, liveBoardConfig } from './api.ts';
 import { localDemoConfig } from './config.ts';
-import './styles.css';
 
 const root = document.getElementById('message-board-root');
 if (!root) throw new Error('Message board root is missing');
@@ -12,4 +11,4 @@ if (!root) throw new Error('Message board root is missing');
 const api = createDemoApi(import.meta.env.MODE === 'local-api'
   ? { ...localDemoConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : localDemoConfig.apiOrigin }
   : { ...liveBoardConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : liveBoardConfig.apiOrigin });
-createRoot(root).render(<App api={api} />);
+if (!root.dataset.serverRendered) createRoot(root).render(<App api={api} />);

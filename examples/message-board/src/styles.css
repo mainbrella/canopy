@@ -98,7 +98,7 @@ button, input, select { font: inherit; }
 .board-list-state { margin: 4px 12px 0; color: var(--muted); font-size: 12px; }
 .board-list li { min-width: 0; }
 .board-filter { min-width: 0; overflow: hidden; gap: 9px; padding-inline: 8px; font-size: 12px; }
-.board-filter[aria-pressed="true"] { color: var(--ink); }
+.board-filter { text-decoration: none; }
 .board-slug { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-icon { display: inline-grid; width: 24px; height: 24px; flex: none; place-items: center; border-radius: 50%; background: #3b261e; color: #ff8753; font-size: 10px; font-weight: 700; }
 .board-icon--violet { background: #30243c; color: #c49bf3; }
@@ -181,6 +181,10 @@ button, input, select { font: inherit; }
 .post-header { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--muted); }
 .post-header .board-icon { width: 24px; height: 24px; }
 .message-board { min-width: 0; overflow: hidden; color: var(--text-subtle); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.message-board, .recent-board a, .recent-post-link { text-decoration: none; }
+.message-board:hover, .recent-board a:hover { text-decoration: underline; }
+.recent-board a { min-width: 0; overflow-wrap: anywhere; }
+.board-description { color: var(--text-subtle); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .meta-dot { color: #697579; font-size: 13px; }
 .message-title { margin: 10px 0 7px; color: var(--ink); font-size: 19px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
 .message-you { color: var(--muted); font-size: 12px; font-weight: 400; }

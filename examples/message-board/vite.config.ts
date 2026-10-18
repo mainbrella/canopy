@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import { localDemoConfig } from './src/config';
+import { boardPagesPlugin } from './src/server-vite.ts';
 
 export default defineConfig(({ mode }) => ({
-  base: './',
+  base: '/',
+  plugins: [boardPagesPlugin()],
   esbuild: { jsx: 'automatic' },
   server: {
     proxy: {

@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { agentDocsPlugin } from "./scripts/agent-docs-plugin.ts";
 import { blogPaginationPlugin } from "./scripts/blog-pagination-plugin.ts";
 import { siteChromePlugin } from "./scripts/site-chrome-plugin.ts";
+import { boardPagesPlugin } from '../../examples/message-board/src/server-vite.ts';
 
 const publicPages = ['docs', 'docs/containers', 'docs/execute', 'docs/files', 'docs/images',
   'docs/ssh', 'docs/authentication', 'docs/limits', 'docs/errors', 'docs/api-reference',
@@ -37,6 +38,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [
+    boardPagesPlugin({ templatePath: 'bff/demo/index.html', homeHref: '/bff/demo/' }),
     siteChromePlugin(),
     {
       name: 'staging-noindex',

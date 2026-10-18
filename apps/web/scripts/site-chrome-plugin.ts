@@ -145,6 +145,7 @@ export function siteChromePlugin({ bundleAssets = false }: { bundleAssets?: bool
           const page = await readFile(new URL(import.meta.resolve('@canopy/example-message-board/page')), 'utf8');
           html = html.replace('<!-- bff-demo -->', page
             .replace('src="/src/main.tsx"', 'src="/src/bff-demo.ts"')
+            .replace('href="/src/styles.css"', 'href="/src/bff-demo.css"')
             .replace('<!-- message-board-cookie-settings -->', '<button class="cookie-settings" type="button" data-cookie-settings aria-haspopup="dialog" aria-controls="cookie-consent">Cookie settings</button>'));
         }
         // Unsubscribe and the isolated Repo Rodeo fixture run without shared chrome or a cookie dialog.

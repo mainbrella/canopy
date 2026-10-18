@@ -59,6 +59,7 @@ test('BFF demo composes the standalone React example without authenticated works
   assert.match(html, /id="message-board-root"/);
   assert.doesNotMatch(html, /type="password"|id="demo-user"/);
   assert.match(html, /src="\/src\/bff-demo.ts"/);
+  assert.match(html, /rel="stylesheet" href="\/src\/bff-demo.css"/);
   assert.doesNotMatch(html, /src="\/src\/main.tsx"/);
   assert.match(html, /data-cookie-settings/);
   assert.match(html, /id="cookie-consent" data-consent-prompt="optional"/);

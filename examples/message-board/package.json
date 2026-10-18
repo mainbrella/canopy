@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     "./page": "./index.html",
-    "./web": "./src/main.tsx"
+    "./web": "./src/main.tsx",
+    "./server": "./src/server.tsx",
+    "./styles": "./src/styles.css"
   },
   "scripts": {
     "dev": "vite",

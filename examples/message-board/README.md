@@ -39,6 +39,15 @@ The backend enforces ownership; editing another
 user's post shows its denial and preserves the draft. Sessions stay in memory,
 and logging out revokes the current session.
 
+Board slugs in message headers, recent posts, and the board list are ordinary
+links to `/boards/:slug`. These public pages are rendered on the server with the
+latest 20 messages for that board, newest first, and work without JavaScript.
+The API query filters by board before applying the limit. Missing boards return
+404; unavailable data returns 502. Vite development and preview serve these
+routes; the Mainbrella deployment uses its site Worker for the same renderer.
+A separate static-only host must provide a server using the package's `./server`
+export to serve board URLs.
+
 The public project, browser key, table, and API origin are in `src/config.ts`.
 These are deliberately public browser values. Backend allowlists and session
 issuance remain in `apps/bff/worker`; this example is an API consumer. Changes to

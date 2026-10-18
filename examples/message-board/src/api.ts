@@ -99,6 +99,21 @@ export async function fetchPublicMessages(
   }
 }
 
+export async function fetchPublicBoard(slug: string, config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch): Promise<{ board: Board; messages: Message[] } | null> {
+  const payload = await requestJson(`${tableUrl(config, 'boards')}?select=*&slug=eq.${encodeURIComponent(slug)}&limit=1`,
+    { headers: { apikey: config.publicKey } }, fetcher);
+  if (!isRecord(payload) || !Array.isArray(payload.data) || !payload.data.every(isBoard)) {
+    throw new DemoApiError('The message board returned boards in an unexpected format.');
+  }
+  const board = payload.data[0];
+  if (!board) return null;
+  if (board.slug !== slug) throw new DemoApiError('The message board returned an unexpected board.');
+  const messages = messagesFrom(await requestJson(`${tableUrl(config)}?select=*&board_id=eq.${encodeURIComponent(board.id)}&order=created_at.desc&limit=20`,
+    { headers: { apikey: config.publicKey } }, fetcher));
+  if (messages.some(message => message.board_id !== board.id)) throw new DemoApiError('The message board returned messages from another board.');
+  return { board, messages };
+}
+
 export function createDemoApi(config: PublicBoardConfig = liveBoardConfig, fetcher: FetchLike = fetch) {
   const sessionUrl = `${config.apiOrigin.replace(/\/$/, '')}/bff/demo/session`;
   const headers = (session?: DemoSession) => ({ apikey: config.publicKey,
