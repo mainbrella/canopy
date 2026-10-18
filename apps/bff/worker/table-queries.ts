@@ -32,12 +32,14 @@ export function selectQuery(table: string, filters: unknown = {}, limit = 100, o
 export function insertQuery(table: string, row: unknown): SqlQuery {
   const entries = values(row);
   if (!entries.length) throw new BffError('row_required');
-  return { sql: `INSERT INTO ${identifier(table)} (${entries.map(([key]) => key).join(',')}) VALUES (${entries.map(() => '?').join(',')}) RETURNING *`, params: entries.map(([, item]) => item) };
+  // Override schema-level REPLACE rules, which can delete another user's row
+  // without going through its ownership predicate or delete permission.
+  return { sql: `INSERT OR ABORT INTO ${identifier(table)} (${entries.map(([key]) => key).join(',')}) VALUES (${entries.map(() => '?').join(',')}) RETURNING *`, params: entries.map(([, item]) => item) };
 }
 export function updateQuery(table: string, filters: unknown, row: unknown, ownership?: Ownership): SqlQuery {
   const filter = ownedWhere(filters, ownership), entries = values(row);
   if (!entries.length) throw new BffError('row_required');
-  return { sql: `UPDATE ${identifier(table)} SET ${entries.map(([key]) => `${key}=?`).join(',')}${filter.sql} RETURNING *`, params: [...entries.map(([, item]) => item), ...filter.params] };
+  return { sql: `UPDATE OR ABORT ${identifier(table)} SET ${entries.map(([key]) => `${key}=?`).join(',')}${filter.sql} RETURNING *`, params: [...entries.map(([, item]) => item), ...filter.params] };
 }
 export function deleteQuery(table: string, filters: unknown, ownership?: Ownership): SqlQuery {
   const filter = ownedWhere(filters, ownership);

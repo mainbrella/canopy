@@ -408,6 +408,10 @@ Anonymous access supports public SELECT or no access. Public-read policies expos
 **every row and column** to anyone holding an authorized browser key; use them for
 public data. Own-row write policies compare `ownerColumn` with a trusted session
 identity. Raw function input and client filters cannot supply that identity.
+Own-row writes reject `rowid` and `oid` fields (case-insensitively), even if the
+table declares columns with those names, because SQLite can alias them to an
+integer primary key. Generated table INSERTs and UPDATEs explicitly abort on
+constraint conflicts instead of inheriting schema-level replacement behavior.
 
 Function grants pin immutable versions, so saving a new version does not change
 what an existing key runs. Owners can add a table's `select` grant with the PATCH

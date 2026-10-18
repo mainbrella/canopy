@@ -50,6 +50,9 @@ export async function authorizedQuery(env: Env, project: Project, principal: Dat
     // SQLite column names are case-insensitive. Check every alias so duplicate
     // spellings cannot bypass the proposed-row ownership check on UPDATE/INSERT.
     for (const [column, value] of Object.entries(values)) {
+      // A rowid alias can also write an INTEGER PRIMARY KEY owner column.
+      // Reserve these fields for own-row writes, including after schema changes.
+      if (/^(?:rowid|oid|_rowid_)$/i.test(column)) throw new BffError('permission_denied', 403);
       if (column.toLowerCase() === ownership.column.toLowerCase() && value !== ownership.value) throw new BffError('permission_denied', 403);
     }
     row = operation === 'insert' ? { ...values, [ownership.column]: ownership.value } : values;
