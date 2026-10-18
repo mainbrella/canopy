@@ -21,7 +21,7 @@ export function boardPagesPlugin({ templatePath = 'index.html', homeHref = '/' }
     },
     configureServer(server: MiddlewareServer & { transformIndexHtml(url: string, html: string): Promise<string> }) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url?.startsWith('/boards/')) return next();
+        if (!req.url?.startsWith(`${homeHref}boards/`)) return next();
         try {
           const source = await readFile(resolve(root, templatePath), 'utf8');
           const template = await server.transformIndexHtml(`/${templatePath}`, source);
@@ -34,7 +34,7 @@ export function boardPagesPlugin({ templatePath = 'index.html', homeHref = '/' }
     },
     configurePreviewServer(server: MiddlewareServer) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url?.startsWith('/boards/')) return next();
+        if (!req.url?.startsWith(`${homeHref}boards/`)) return next();
         try {
           const template = await readFile(resolve(output, templatePath), 'utf8');
           const response = await renderBoardRequest(new Request(new URL(req.url, 'http://localhost'), { method: req.method }), { template, config, homeHref });

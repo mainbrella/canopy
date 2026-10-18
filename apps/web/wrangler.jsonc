@@ -6,7 +6,7 @@
   "workers_dev": false,
   "assets": {
     "binding": "ASSETS",
-    "run_worker_first": ["/boards/*"],
+    "run_worker_first": ["/bff/demo/boards/*"],
     "directory": "./dist",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"

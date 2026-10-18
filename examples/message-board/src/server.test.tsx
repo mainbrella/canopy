@@ -13,6 +13,19 @@ const request = (path = '/boards/general', method = 'GET') => new Request(`https
 test('board labels are real root-relative links', () => {
   assert.equal(renderToStaticMarkup(<BoardLink board={board} className="message-board" />),
     '<a class="message-board" href="/boards/general">board/general</a>');
+  assert.equal(renderToStaticMarkup(<BoardLink board={board} basePath="/bff/demo/" />),
+    '<a href="/bff/demo/boards/general">board/general</a>');
+});
+
+test('mounted board pages match and link within the demo path', async () => {
+  const options = { template, homeHref: '/bff/demo/', fetcher: (async (input: RequestInfo | URL) =>
+    Response.json({ data: String(input).includes('/tables/boards?') ? [board] : [message] })) as typeof fetch };
+  assert.equal(await renderBoardRequest(request('/boards/general'), options), null);
+  const response = await renderBoardRequest(request('/bff/demo/boards/general'), options);
+  assert.equal(response?.status, 200);
+  const html = await response!.text();
+  assert.match(html, /href="\/bff\/demo\/boards\/general"/);
+  assert.doesNotMatch(html, /href="\/boards\//);
 });
 
 test('direct board requests contain escaped board messages in the initial HTML and filter the API before limiting', async () => {

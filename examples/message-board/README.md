@@ -40,7 +40,8 @@ user's post shows its denial and preserves the draft. Sessions stay in memory,
 and logging out revokes the current session.
 
 Board slugs in message headers, recent posts, and the board list are ordinary
-links to `/boards/:slug`. These public pages are rendered on the server with the
+links to `/bff/demo/boards/:slug` on the Mainbrella site (`/boards/:slug` in the
+standalone example). These public pages are rendered on the server with the
 latest 20 messages for that board, newest first, and work without JavaScript.
 The API query filters by board before applying the limit. Missing boards return
 404; unavailable data returns 502. Vite development and preview serve these

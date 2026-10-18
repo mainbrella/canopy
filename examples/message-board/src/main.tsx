@@ -11,4 +11,4 @@ if (!root) throw new Error('Message board root is missing');
 const api = createDemoApi(import.meta.env.MODE === 'local-api'
   ? { ...localDemoConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : localDemoConfig.apiOrigin }
   : { ...liveBoardConfig, apiOrigin: import.meta.env.DEV ? '/message-board-api' : liveBoardConfig.apiOrigin });
-if (!root.dataset.serverRendered) createRoot(root).render(<App api={api} />);
+if (!root.dataset.serverRendered) createRoot(root).render(<App api={api} basePath={new URL('./', window.location.href).pathname} />);

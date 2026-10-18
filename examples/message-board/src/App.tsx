@@ -3,13 +3,13 @@ import { createDemoApi, type Board as BoardRecord, type DemoSession, type Messag
 import type { DemoUser } from './config.ts';
 import { CreateMessageDialog } from './CreateMessageDialog.tsx';
 import { CreateBoardDialog } from './CreateBoardDialog.tsx';
-import { BoardLink } from './BoardLink.tsx';
+import { BoardLink, boardHref } from './BoardLink.tsx';
 
 type BoardApi = ReturnType<typeof createDemoApi>;
 const defaultApi = createDemoApi();
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request failed. Try again.';
 
-export function App({ api = defaultApi }: { api?: BoardApi }) {
+export function App({ api = defaultApi, basePath = '/' }: { api?: BoardApi; basePath?: string }) {
   const [session, setSession] = useState<DemoSession | null>(null);
   const [user, setUser] = useState<DemoUser>('alice');
   const [pending, setPending] = useState(false);
@@ -96,7 +96,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
       </> : <a className="back-link" href="https://mainbrella.com/bff/">Back to BFF <span aria-hidden="true">↗</span></a>}
     </header>
     <main id="main" className={`workspace${session ? ' workspace--authenticated' : ''}`}>
-      {session ? <Board key={session.session.id} api={api} session={session} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
+      {session ? <Board key={session.session.id} api={api} basePath={basePath} session={session} search={search} onSearch={setSearch} createOpen={createOpen} onCloseCreate={() => setCreateOpen(false)} /> : <>
         <div className="page-heading">
           <div><h1>Message board</h1><p>Messages from a live BFF project.</p></div>
         </div>
@@ -117,7 +117,7 @@ export function App({ api = defaultApi }: { api?: BoardApi }) {
   </>;
 }
 
-function Board({ api, session, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; session: DemoSession; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
+function Board({ api, basePath, session, search, onSearch, createOpen, onCloseCreate }: { api: BoardApi; basePath: string; session: DemoSession; search: string; onSearch: (value: string) => void; createOpen: boolean; onCloseCreate: () => void }) {
   const [createBoardOpen, setCreateBoardOpen] = useState(false);
   const [data, setData] = useState<{ messages: Message[]; loaded: boolean; updated?: Date; error: string }>({ messages: [], loaded: false, error: '' });
   const [boards, setBoards] = useState<BoardRecord[]>([]);
@@ -298,7 +298,7 @@ function Board({ api, session, search, onSearch, createOpen, onCloseCreate }: { 
           : boardLookup === 'unavailable' && boards.length === 0 ? <p className="board-list-state">Boards unavailable.</p>
             : boards.length === 0 ? <p className="board-list-state">No boards yet.</p>
               : <ul>{boards.map(board => <li key={board.id}>
-                <a className="board-nav-item board-filter" href={`/boards/${encodeURIComponent(board.slug)}`} title={`board/${board.slug}`}>
+                <a className="board-nav-item board-filter" href={boardHref(board.slug, basePath)} title={`board/${board.slug}`}>
                   <span className={`board-icon board-icon--${boardTone(board.slug)}`} aria-hidden="true">{board.slug.charAt(0).toUpperCase()}</span>
                   <span className="board-slug">board/{board.slug}</span>
                   <span className="board-count">{boardCounts.get(board.id) ?? 0}</span>
@@ -330,7 +330,7 @@ function Board({ api, session, search, onSearch, createOpen, onCloseCreate }: { 
             <div className="message-content">
               <div className="post-header">
                 <span className={`board-icon board-icon--${boardTone(boardById.get(message.board_id ?? '')?.slug ?? '')}`} aria-hidden="true">{boardById.get(message.board_id ?? '')?.slug.charAt(0).toUpperCase() ?? '?'}</span>
-                {boardById.has(message.board_id ?? '') ? <BoardLink className="message-board" board={boardById.get(message.board_id!)!} />
+                {boardById.has(message.board_id ?? '') ? <BoardLink basePath={basePath} className="message-board" board={boardById.get(message.board_id!)!} />
                   : <span className="message-board">{boardLabel(message)}</span>}
                 <span className="meta-dot" aria-hidden="true">·</span>
                 <time className="message-time" dateTime={message.created_at} title={new Date(message.created_at).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'long' })}>{formatRelative(message.created_at)}</time>
@@ -376,7 +376,7 @@ function Board({ api, session, search, onSearch, createOpen, onCloseCreate }: { 
       </div> : recent.length ? <ul className="recent-list">
         {recent.map(message => <li key={message.id}>
           <div className="recent-message">
-            <div className="recent-board"><span className={`board-icon board-icon--${boardTone(boardById.get(message.board_id ?? '')?.slug ?? '')}`} aria-hidden="true">{boardById.get(message.board_id ?? '')?.slug.charAt(0).toUpperCase() ?? '?'}</span>{boardById.has(message.board_id ?? '') ? <BoardLink board={boardById.get(message.board_id!)!} /> : boardLabel(message)}<time dateTime={message.created_at}>{formatRelative(message.created_at)}</time></div>
+            <div className="recent-board"><span className={`board-icon board-icon--${boardTone(boardById.get(message.board_id ?? '')?.slug ?? '')}`} aria-hidden="true">{boardById.get(message.board_id ?? '')?.slug.charAt(0).toUpperCase() ?? '?'}</span>{boardById.has(message.board_id ?? '') ? <BoardLink basePath={basePath} board={boardById.get(message.board_id!)!} /> : boardLabel(message)}<time dateTime={message.created_at}>{formatRelative(message.created_at)}</time></div>
             <a className="recent-post-link" href={`#message-${encodeURIComponent(message.id)}`}>
             <p>{message.title}</p>
             <span className="recent-preview">{message.body}</span>

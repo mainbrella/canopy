@@ -13,9 +13,10 @@ type Options = {
 // Return null for unrelated paths so each host can keep serving its own assets.
 export async function renderBoardRequest(request: Request, { template, config = liveBoardConfig, fetcher = fetch, homeHref = '/' }: Options): Promise<Response | null> {
   const pathname = new URL(request.url).pathname;
-  if (!pathname.startsWith('/boards/')) return null;
+  const boardPrefix = `${homeHref}boards/`;
+  if (!pathname.startsWith(boardPrefix)) return null;
   if (!['GET', 'HEAD'].includes(request.method)) return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
-  const slug = /^\/boards\/([a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)\/?$/.exec(pathname)?.[1];
+  const slug = /^([a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?)\/?$/.exec(pathname.slice(boardPrefix.length))?.[1];
   let status = 200;
   let data: Awaited<ReturnType<typeof fetchPublicBoard>> = null;
   let error = '';
@@ -37,7 +38,7 @@ export async function renderBoardRequest(request: Request, { template, config = 
           {data.board.description && <p className="board-description">{data.board.description}</p>}
           <p className="status-line">Latest {data.messages.length} {data.messages.length === 1 ? 'post' : 'posts'}</p>
           <div className="message-list">{data.messages.map(message => <article key={message.id} id={`message-${encodeURIComponent(message.id)}`} className="message-row">
-            <div className="post-header"><BoardLink board={data.board} className="message-board" /><span className="meta-dot" aria-hidden="true">·</span><time className="message-time" dateTime={message.created_at}>{new Date(message.created_at).toISOString().slice(0, 10)}</time></div>
+            <div className="post-header"><BoardLink board={data.board} basePath={homeHref} className="message-board" /><span className="meta-dot" aria-hidden="true">·</span><time className="message-time" dateTime={message.created_at}>{new Date(message.created_at).toISOString().slice(0, 10)}</time></div>
             <h2 className="message-title">{message.title}</h2><p className="message-body">{message.body}</p>
             <footer className="post-footer"><span className="message-author">{message.user_id}</span></footer>
           </article>)}</div>
