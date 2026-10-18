@@ -13,12 +13,12 @@ function derive(password: string, salt: string): Promise<Buffer> {
   });
 }
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   return `${HASH_PREFIX}:${salt}:${(await derive(password, salt)).toString("hex")}`;
 }
 
-async function verifyPassword(password: string, hash: string | null): Promise<boolean> {
+export async function verifyPassword(password: string, hash: string | null): Promise<boolean> {
   const parts = hash?.split(":");
   const valid = parts?.length === 6 && parts.slice(0, 4).join(":") === HASH_PREFIX
     && /^[a-f0-9]{32}$/.test(parts[4]) && /^[a-f0-9]{64}$/.test(parts[5]);

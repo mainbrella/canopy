@@ -17,8 +17,9 @@ export async function runtime(t: test.TestContext, bindings: Record<string, stri
   let redirectQuery = false;
   let failDelete = false;
   const mf = new Miniflare(convertV4MiniflareOptions({ workers: [{
-    name: 'bff-test', modules: true, script: bundle.outputFiles[0].text, compatibilityDate: '2026-10-01',
+    name: 'bff-test', modules: true, script: bundle.outputFiles[0].text, compatibilityDate: '2026-10-01', compatibilityFlags: ['nodejs_compat'],
     d1Databases: ['DB'], workerLoaders: { BFF_LOADER: {} },
+    ratelimits: { EMAIL_AUTH_LIMIT: { namespace_id: '1002', simple: { limit: 20, period: 60 } } },
     bindings: { BFF_ENABLED: 'true', BFF_CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), BFF_CLOUDFLARE_API_TOKEN: 'platform-token-must-never-leak', PLATFORM_SECRET: 'platform-secret-must-never-leak', ...bindings },
     // Local-provider tests exercise workerd's real loopback fetch path.
     outboundService: bindings.BFF_LOCAL_URL ? undefined : async request => {
@@ -57,7 +58,7 @@ export async function runtime(t: test.TestContext, bindings: Record<string, stri
   }] }));
   t.after(async () => { await mf.dispose(); for (const { db } of databases.values()) db.close(); });
   const db = await mf.getD1Database('DB');
-  for (const migration of ['001_initial', '002_auth_sessions', '010_api_keys', '050_bff', '051_bff_api_keys', '052_bff_shared_api_keys', '053_bff_table_policies', '054_bff_message_board', '055_bff_public_demo']) {
+  for (const migration of ['001_initial', '002_auth_sessions', '010_api_keys', '050_bff', '051_bff_api_keys', '052_bff_shared_api_keys', '053_bff_table_policies', '054_bff_message_board', '055_bff_public_demo', '056_bff_email_accounts']) {
     const sql = readFileSync(new URL(`../../backend/migrations/${migration}.sql`, import.meta.url), 'utf8').replace(/^--.*$/gm, '');
     for (const statement of sql.match(/\s*CREATE TRIGGER[\s\S]*?END;|\s*[^;]+;/g) || []) await db.prepare(statement.trim()).run();
   }

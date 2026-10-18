@@ -5,6 +5,7 @@ import { databaseAvailable, ProjectDatabase } from './database';
 import { manageApiKeys } from './api-keys';
 import { handleDataRequest } from './data-routes';
 import { handleDemoSessionRequest } from './demo';
+import { handleEmailAuthRequest } from './email-auth';
 import { body, enabled, readyProject } from './http';
 import { invokeFunction } from './invocation';
 import { managePolicies } from './policies';
@@ -38,6 +39,7 @@ async function provision(env: Env, project: Project) {
 
 export async function handleBffRequest(request: Request, env: Env): Promise<Response> {
   if (new URL(request.url).pathname === '/bff/demo/session') return handleDemoSessionRequest(request, env);
+  if (/^\/bff\/data\/[a-f0-9-]{36}\/auth\//.test(new URL(request.url).pathname)) return handleEmailAuthRequest(request, env);
   if (new URL(request.url).pathname.startsWith('/bff/data/')) return handleDataRequest(request, env);
   const cors = authCorsHeaders(request, env);
   if (!cors) return authJson({ error: 'origin_not_allowed' }, 403, {});

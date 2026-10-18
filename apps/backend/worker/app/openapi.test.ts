@@ -5,6 +5,8 @@ import { handleRequest } from "./router";
 import { serviceForPath } from "../shared/service-routing";
 
 const endpointMethods: Record<string, string[]> = {
+  '/bff/data/{projectId}/auth/email': ['post'],
+  '/bff/data/{projectId}/auth/session': ['get', 'delete'],
   '/bff/demo/session': ['post', 'delete'],
   '/bff/config': ['get'], '/bff/projects': ['get', 'post'], '/bff/projects/{projectId}': ['get', 'patch'],
   '/bff/projects/{projectId}/provision': ['post'], '/bff/projects/{projectId}/schema': ['get'],
@@ -151,6 +153,12 @@ test('BFF browser APIs distinguish scoped project keys from owner management and
   assert.equal(demo.post.requestBody.content['application/json'].schema.additionalProperties, false);
   assert.match(demo.post.description, /fixed.*example only/);
   assert.ok(demo.post.responses['201']);
+  const emailAuth = paths['/bff/data/{projectId}/auth/email'].post;
+  assert.deepEqual(emailAuth.security, [{ bffApiKey: [] }]);
+  assert.deepEqual(emailAuth.requestBody.content['application/json'].schema.required, ['email', 'password']);
+  assert.equal(emailAuth.requestBody.content['application/json'].schema.additionalProperties, false);
+  assert.ok(emailAuth.responses['201']);
+  assert.deepEqual(paths['/bff/data/{projectId}/auth/session'].get.security, [{ bffApiKey: [], bffUserSession: [] }]);
 
 });
 

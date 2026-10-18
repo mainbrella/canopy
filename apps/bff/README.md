@@ -30,8 +30,9 @@ The website composes that workspace into the existing `/bff/demo/` route; BFF
 owns only the backend behavior and fixed public-demo allowlist.
 
 Management APIs accept the project owner's Mainbrella session or account API key
-from `/api-keys/`. General application user sessions are issued by the owner for testing;
-public signup and password login are not included. The public demo is an explicit
+from `/api-keys/`. Message-board projects support real email/password accounts
+through the scoped browser API described below. Owners can also issue sessions
+for existing project users. The Alice/Bob public demo is an explicit
 exception restricted to the project, browser key, and two users in `worker/demo-config.ts`.
 Storage, realtime, automations,
 notifications, search, payments, backup management, client SDKs, staging environments,
@@ -428,6 +429,32 @@ APIs. Raw SQL stays in the owner SQL editor/API. This is a limited Supabase-styl
 REST surface, not full PostgREST or Supabase SDK compatibility.
 
 ## Message board user sessions
+
+Message-board projects support `POST /bff/data/{projectId}/auth/email` with an
+`apikey` browser key and `{ "email": "person@example.com", "password": "..." }`.
+An existing email signs in; a new email creates an account with a password of at
+least 8 characters. Emails are trimmed and lowercased; passwords remain exact
+and are limited to 128 characters. The response is `{ session, token, user,
+created }`, where `user` contains `id` and `email`, and `token` is the same
+one-hour `bff_us_` session used below. Login is limited to 20 attempts per minute
+per project and client IP using `EMAIL_AUTH_LIMIT`.
+
+`GET /bff/data/{projectId}/auth/session` checks the token and returns
+`{ session, user }`. `DELETE` revokes that token and returns `{ revoked: true }`.
+Both require `apikey` and `Authorization: Bearer <token>`. Cookies never
+authenticate these routes. The exact key's configured origins, current owner,
+and project grant are checked on every request. Signup/login requires a ready,
+unpaused message-board project; revocation remains available while paused or
+disabled. Login does not widen any data grants or row policies.
+
+Apply backend migration `056_bff_email_accounts.sql` before deploying this API.
+Project-scoped credentials live in the private platform `bff_email_accounts`
+table as salted scrypt hashes. The project's public `users` table contains only
+the generated ID, display name, and creation time. Emails and password hashes
+are not exposed by public table reads. Account creation retries recover safely
+from a project-database failure without replacing an existing password. A deleted
+project user cannot log in again. Email verification and password reset are not
+part of this initial flow.
 
 An owner can issue a one-hour session for a row in the project's `users` table:
 
