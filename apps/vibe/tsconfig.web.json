@@ -1,9 +1,0 @@
-{
-  "extends": "../web/tsconfig.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
-  "include": [
-    "web/**/*.ts"
-  ]
-}

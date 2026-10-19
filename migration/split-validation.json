@@ -1,0 +1,94 @@
+{
+  "validatedAt": "2026-10-19T03:16:09.345355+00:00",
+  "sourceCommit": "e9cd53fe01f4a04423aef53b2027bf62b3f34fab",
+  "status": "passed",
+  "checks": [
+    {
+      "repository": "backend",
+      "command": "npm ci --offline && npm test && npm run type-check",
+      "result": "passed in an isolated checkout without sibling repos",
+      "nodeSuites": [
+        {
+          "tests": 617,
+          "passed": 601,
+          "skipped": 16
+        },
+        {
+          "tests": 817,
+          "passed": 816,
+          "skipped": 1
+        },
+        {
+          "tests": 69,
+          "passed": 69,
+          "skipped": 0
+        }
+      ],
+      "python": {
+        "tests": 55,
+        "skipped": 2
+      }
+    },
+    {
+      "repository": "backend",
+      "command": "npm run test:openapi && npm run docs:generate",
+      "result": "passed; 49 OpenAPI tests"
+    },
+    {
+      "repository": "backend",
+      "command": "node --import tsx --test scripts/release.test.mjs scripts/staging*.test.mjs scripts/backend-operation.test.mjs",
+      "result": "76 passed after final staging isolation changes"
+    },
+    {
+      "repository": "backend",
+      "command": "npm run check:services; npm run check:api; npm run check:containers; npm run check:previews; node scripts/check-bundle.mjs containers",
+      "result": "passed; all Worker dry runs and service boundaries passed"
+    },
+    {
+      "repository": "backend",
+      "command": "npm run sdk:qualify -- --out artifacts/sdk-split",
+      "result": "passed with installed GNU tool directories prepended to PATH; npm package, Python wheel/sdist, and installed-runtime qualification passed"
+    },
+    {
+      "repository": "web",
+      "command": "npm ci --offline; npm test; npm run build",
+      "result": "passed in an isolated checkout without backend; 528 tests, site and Builder builds"
+    },
+    {
+      "repository": "web",
+      "command": "npm run docs:check; npm run build:message-board",
+      "result": "passed; public documents match backend; React example builds independently"
+    },
+    {
+      "repository": "web",
+      "command": "node scripts/check-bundle.mjs site; node scripts/check-bundle.mjs builder; node scripts/check-bundle.mjs redirect",
+      "result": "all dry runs passed"
+    },
+    {
+      "repository": "raindrop",
+      "command": "npm ci --offline; npm run build; npm run check:routes",
+      "result": "passed"
+    },
+    {
+      "repository": "canopy",
+      "command": "cargo test --manifest-path cli/Cargo.toml --locked",
+      "result": "25 passed"
+    },
+    {
+      "repository": "all",
+      "command": "actionlint -shellcheck= -pyflakes=; git diff --check",
+      "result": "passed in all four repositories"
+    },
+    {
+      "repository": "canopy",
+      "command": "node migration/verify-split.mjs",
+      "result": "1630 moved files, 1675 destination snapshots, 59 byte-identical account migrations, and three independent repos"
+    }
+  ],
+  "notes": [
+    "No commits, pushes, production deployments, or remote database migrations were performed.",
+    "Tests retain their explicit platform-dependent skips. Vite retains existing large-chunk advisories.",
+    "Cross-repository docs checks require matching backend and web commits when published.",
+    "Previous Canopy files and install are preserved in ignored artifacts/split-source. Previous backend local state is preserved in .wrangler/state-before-canopy-split."
+  ]
+}

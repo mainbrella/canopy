@@ -1,1 +1,0 @@
-import '@canopy/vibe/landing';
